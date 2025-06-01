@@ -10,6 +10,15 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
   },
 
+  nitro: {
+    preset: "cloudflare-module",
+    cloudflare: {
+      wrangler: {
+        name: "blaxzter-fabraham",
+      },
+    },
+  },
+
   modules: [
     "@nuxt/content",
     "@nuxt/eslint",
