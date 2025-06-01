@@ -346,6 +346,8 @@ const { gsap, ScrollTrigger } = useGsap();
 
 // GSAP Animation Setup
 onMounted(() => {
+  if (!gsap) return;
+
   // Store references for cleanup
   const ctx = gsap.context(() => {
     // 1. Header fade-in animation
@@ -357,63 +359,75 @@ onMounted(() => {
     });
 
     // 2. Timeline progress line animation with ScrollTrigger
-    gsap.to(".timeline-progress", {
-      height: "100%",
-      ease: "none",
-      scrollTrigger: {
-        trigger: ".timeline-container",
-        start: "top center",
-        end: "bottom center",
-        scrub: 1,
-      },
-    });
+    if (ScrollTrigger) {
+      gsap.to(".timeline-progress", {
+        height: "100%",
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".timeline-container",
+          start: "top center",
+          end: "bottom center",
+          scrub: 1,
+        },
+      });
+    }
 
     // 3. Timeline items stagger animation
-    gsap.utils.toArray(".timeline-item").forEach((item, index) => {
+    const timelineItems = gsap.utils.toArray(".timeline-item") as Element[];
+    timelineItems.forEach((item, index) => {
       gsap.from(item, {
         opacity: 0,
         x: index % 2 === 0 ? -100 : 100,
         duration: 0.8,
-        scrollTrigger: {
-          trigger: item,
-          start: "top 85%",
-          toggleActions: "play none none none",
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: item,
+              start: "top 85%",
+              toggleActions: "play none none none",
+            }
+          : undefined,
       });
     });
 
     // 4. Node animations on scroll
-    gsap.utils.toArray(".timeline-node").forEach((node) => {
+    const timelineNodes = gsap.utils.toArray(".timeline-node") as Element[];
+    timelineNodes.forEach((node) => {
       gsap.from(node, {
         scale: 0,
         duration: 0.5,
         ease: "back.out(1.7)",
-        scrollTrigger: {
-          trigger: node,
-          start: "top 80%",
-          toggleActions: "play none none none",
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: node,
+              start: "top 80%",
+              toggleActions: "play none none none",
+            }
+          : undefined,
       });
     });
 
     // 5. Card parallax effect
-    gsap.utils.toArray(".image-wrapper").forEach((image) => {
+    const imageWrappers = gsap.utils.toArray(".image-wrapper") as Element[];
+    imageWrappers.forEach((image) => {
       gsap.to(image, {
         yPercent: -20,
         ease: "none",
-        scrollTrigger: {
-          trigger: image,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: image,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: true,
+            }
+          : undefined,
       });
     });
 
-    // 6. Text reveal animations (without SplitText)
-    gsap.utils.toArray(".project-title").forEach((title) => {
+    // 6. Text reveal animations
+    const projectTitles = gsap.utils.toArray(".project-title") as HTMLElement[];
+    projectTitles.forEach((title) => {
       // Create a simple word-by-word reveal
-      const text = title.textContent;
+      const text = title.textContent || "";
       const words = text.split(" ");
 
       // Wrap each word in a span
@@ -427,16 +441,19 @@ onMounted(() => {
         y: 20,
         duration: 0.6,
         stagger: 0.05,
-        scrollTrigger: {
-          trigger: title,
-          start: "top 85%",
-          toggleActions: "play none none none",
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: title,
+              start: "top 85%",
+              toggleActions: "play none none none",
+            }
+          : undefined,
       });
     });
 
     // 7. Badge stagger animations
-    gsap.utils.toArray(".timeline-card").forEach((card) => {
+    const timelineCards = gsap.utils.toArray(".timeline-card") as HTMLElement[];
+    timelineCards.forEach((card) => {
       const badges = card.querySelectorAll(".tech-badge");
 
       gsap.from(badges, {
@@ -444,16 +461,19 @@ onMounted(() => {
         scale: 0.8,
         duration: 0.4,
         stagger: 0.05,
-        scrollTrigger: {
-          trigger: card,
-          start: "top 80%",
-          toggleActions: "play none none none",
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: card,
+              start: "top 80%",
+              toggleActions: "play none none none",
+            }
+          : undefined,
       });
     });
 
     // 8. Hover animations for buttons
-    gsap.utils.toArray(".action-button").forEach((button) => {
+    const actionButtons = gsap.utils.toArray(".action-button") as HTMLElement[];
+    actionButtons.forEach((button) => {
       button.addEventListener("mouseenter", () => {
         gsap.to(button, {
           scale: 1.05,
@@ -472,48 +492,26 @@ onMounted(() => {
     });
 
     // 9. Timeline date fade-ins
-    gsap.utils.toArray(".timeline-date").forEach((date) => {
+    const timelineDates = gsap.utils.toArray(".timeline-date") as HTMLElement[];
+    timelineDates.forEach((date) => {
       gsap.from(date, {
         opacity: 0,
         x: date.classList.contains("text-right") ? 50 : -50,
         duration: 0.6,
-        scrollTrigger: {
-          trigger: date,
-          start: "top 85%",
-          toggleActions: "play none none none",
-        },
+        scrollTrigger: ScrollTrigger
+          ? {
+              trigger: date,
+              start: "top 85%",
+              toggleActions: "play none none none",
+            }
+          : undefined,
       });
     });
   }); // End of GSAP context
 
-  // // Lenis smooth scroll integration
-  // const lenis = new Lenis({
-  //   duration: 1.2,
-  //   easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-  //   smoothWheel: true,
-  //   smoothTouch: false,
-  // });
-
-  // function raf(time) {
-  //   lenis.raf(time);
-  //   requestAnimationFrame(raf);
-  // }
-  // requestAnimationFrame(raf);
-
-  // Update ScrollTrigger on Lenis scroll
-  // lenis.on("scroll", ScrollTrigger.update);
-
-  // Connect GSAP ticker to Lenis
-  // gsap.ticker.add((time) => {
-  //   lenis.raf(time * 1000);
-  // });
-  // gsap.ticker.lagSmoothing(0);
-
   // Cleanup
   onBeforeUnmount(() => {
     ctx.revert(); // Clean up all GSAP animations
-    // lenis.destroy();
-    // gsap.ticker.remove(lenis.raf);
   });
 });
 
@@ -551,6 +549,52 @@ const handleImageError = (event: string | Event) => {
 </script>
 
 <style scoped>
+/* Initial states for animations to prevent flash */
+.timeline-header {
+  opacity: 0;
+  transform: translateY(50px);
+}
+
+.timeline-item {
+  opacity: 0;
+}
+
+.timeline-node {
+  transform: scale(0);
+}
+
+.timeline-date {
+  opacity: 0;
+}
+
+.project-title span {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.tech-badge {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+/* CSS fallback animations for when GSAP hasn't loaded yet */
+@media (prefers-reduced-motion: no-preference) {
+  .timeline-header {
+    animation: fadeInUp 1s ease-out forwards;
+    animation-delay: 0.1s;
+  }
+
+  .timeline-item {
+    animation: fadeInSide 0.8s ease-out forwards;
+    animation-delay: calc(var(--index, 0) * 0.1s + 0.3s);
+  }
+
+  .timeline-node {
+    animation: scaleIn 0.5s ease-out forwards;
+    animation-delay: calc(var(--index, 0) * 0.1s + 0.5s);
+  }
+}
+
 /* View transition */
 .view-transition-enter-active,
 .view-transition-leave-active {
@@ -588,16 +632,11 @@ const handleImageError = (event: string | Event) => {
   transform: scale(1);
 }
 
-/* Grid card stagger delays for CSS fallback */
-.grid-card {
-  animation: fadeInUp 0.6s ease forwards;
-  animation-delay: calc(var(--card-index) * 0.1s);
-}
-
+/* CSS animation keyframes */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(50px);
   }
   to {
     opacity: 1;
@@ -605,13 +644,41 @@ const handleImageError = (event: string | Event) => {
   }
 }
 
-/* Tech badge stagger delays */
-.tech-badge {
-  animation: scaleIn 0.4s ease forwards;
-  animation-delay: calc(var(--tech-index) * 0.05s);
+@keyframes fadeInSide {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Grid card stagger delays for CSS fallback */
+.grid-card {
+  animation: fadeInUp 0.6s ease forwards;
+  animation-delay: calc(var(--card-index) * 0.1s);
+}
+
+/* Tech badge stagger delays */
+.tech-badge {
+  animation: scaleInBadge 0.4s ease forwards;
+  animation-delay: calc(var(--tech-index) * 0.05s + 0.8s);
+}
+
+@keyframes scaleInBadge {
   from {
     opacity: 0;
     transform: scale(0.8);
@@ -634,6 +701,18 @@ const handleImageError = (event: string | Event) => {
     width: 100% !important;
     margin: 0 !important;
     page-break-inside: avoid;
+  }
+
+  /* Show all content immediately in print */
+  .timeline-header,
+  .timeline-item,
+  .timeline-node,
+  .timeline-date,
+  .project-title span,
+  .tech-badge {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
   }
 }
 </style>

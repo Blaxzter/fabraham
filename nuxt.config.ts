@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     "@nuxt/test-utils",
     "shadcn-nuxt",
     "@nuxt/image",
+    "@nuxtjs/color-mode",
   ],
 
   shadcn: {
@@ -30,5 +31,9 @@ export default defineNuxtConfig({
      * @default "./components/ui"
      */
     componentDir: "./components/ui",
+  },
+
+  colorMode: {
+    classSuffix: "",
   },
 });

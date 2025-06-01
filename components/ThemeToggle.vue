@@ -4,7 +4,9 @@
     size="icon"
     class="relative"
     :title="
-      colorMode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
+      colorMode.value === 'light'
+        ? 'Switch to dark mode'
+        : 'Switch to light mode'
     "
     @click="toggleColorMode"
   >
@@ -22,5 +24,9 @@
 import { Button } from "@/components/ui/button";
 import { Sun, Moon } from "lucide-vue-next";
 
-const { colorMode, toggleColorMode } = useTheme();
+const colorMode = useColorMode();
+
+const toggleColorMode = () => {
+  colorMode.preference = colorMode.value === "light" ? "dark" : "light";
+};
 </script>
