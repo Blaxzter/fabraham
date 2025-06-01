@@ -1,0 +1,205 @@
+/* Custom styles for Nuxt Content */
+.nuxt-content {
+  color: var(--color-foreground);
+}
+
+/* Headings */
+.nuxt-content h1,
+.nuxt-content h2,
+.nuxt-content h3,
+.nuxt-content h4 {
+  color: var(--color-foreground);
+  font-weight: 700;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--color-border);
+}
+
+.nuxt-content h1 {
+  font-size: 1.875rem; /* text-3xl */
+  line-height: 2.25rem;
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.nuxt-content h2 {
+  font-size: 1.5rem; /* text-2xl */
+  line-height: 2rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.nuxt-content h3 {
+  font-size: 1.25rem; /* text-xl */
+  line-height: 1.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.nuxt-content h4 {
+  font-size: 1.125rem; /* text-lg */
+  line-height: 1.75rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Paragraphs */
+.nuxt-content p {
+  margin-bottom: 1rem;
+  line-height: 1.75; /* leading-relaxed */
+}
+
+/* Lists */
+.nuxt-content ul,
+.nuxt-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.nuxt-content li {
+  margin-bottom: 0.5rem;
+}
+
+/* Strong text */
+.nuxt-content strong {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Code blocks */
+.nuxt-content code {
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas,
+    "Liberation Mono", Menlo, monospace;
+  background-color: var(--color-muted);
+  color: var(--color-foreground);
+}
+
+.nuxt-content pre {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  background-color: var(--color-muted);
+}
+
+.nuxt-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Blockquotes */
+.nuxt-content blockquote {
+  padding-left: 1rem;
+  font-style: italic;
+  margin-bottom: 1rem;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-left-color: var(--color-border);
+  color: var(--color-muted-foreground);
+}
+
+/* Links */
+.nuxt-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-muted-foreground);
+  text-underline-offset: 2px;
+  transition: all 0.2s;
+}
+
+.nuxt-content a:hover {
+  color: var(--color-primary);
+  text-decoration-color: var(--color-primary);
+}
+
+/* Images */
+.nuxt-content img {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 1rem;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tables */
+.nuxt-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-border);
+}
+
+.nuxt-content th,
+.nuxt-content td {
+  padding: 0.5rem 1rem;
+  text-align: left;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--color-border);
+}
+
+.nuxt-content th {
+  font-weight: 600;
+  background-color: var(--color-muted);
+}
+
+/* Additional typography improvements */
+.nuxt-content > *:first-child {
+  margin-top: 0;
+}
+
+.nuxt-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Horizontal rules */
+.nuxt-content hr {
+  margin: 2rem 0;
+  border: none;
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: var(--color-border);
+}
+
+/* Definition lists */
+.nuxt-content dl {
+  margin-bottom: 1rem;
+}
+
+.nuxt-content dt {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.nuxt-content dd {
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  .nuxt-content h1 {
+    font-size: 2.25rem; /* Larger on desktop */
+    line-height: 2.5rem;
+  }
+
+  .nuxt-content h2 {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .nuxt-content h3 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
