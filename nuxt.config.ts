@@ -11,10 +11,10 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: "cloudflare-module",
+    preset: "cloudflare-pages",
     cloudflare: {
       wrangler: {
-        name: "blaxzter-fabraham",
+        name: "homepage-fabraham",
       },
     },
   },
@@ -29,6 +29,14 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@nuxtjs/color-mode",
   ],
+
+  // Add content configuration for Cloudflare Pages
+  content: {
+    database: {
+      type: "d1",
+      bindingName: "DB",
+    },
+  },
 
   shadcn: {
     /**

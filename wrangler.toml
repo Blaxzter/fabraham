@@ -1,0 +1,10 @@
+name = "homepage-fabraham"
+compatibility_date = "2024-01-01"
+
+# D1 database configuration
+# Note: The actual database_id should be configured in Cloudflare Pages dashboard
+# or via environment variables, not committed to source control
+[env.production]
+d1_databases = [
+  { binding = "DB", database_name = "fabraham_homepage" }
+] 
