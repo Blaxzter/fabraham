@@ -13,6 +13,8 @@
       </p>
     </div>
 
+    {{ error }}
+
     <!-- Loading State -->
     <div v-if="pending" class="text-center py-12">
       <Loader2 class="w-8 h-8 animate-spin mx-auto mb-4" />
