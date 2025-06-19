@@ -22,16 +22,12 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    "@nuxt/content",
-    "@nuxt/eslint",
-    "@nuxt/fonts",
-    "@nuxt/scripts",
-    "@nuxt/test-utils",
+    "@tresjs/nuxt",
     "shadcn-nuxt",
+    "@nuxt/content",
     "@nuxt/image",
     "@nuxtjs/color-mode",
-    "@nuxthub/core",
-    "@tresjs/nuxt",
+    "@pinia/nuxt",
   ],
 
   // Add content configuration for Cloudflare Pages

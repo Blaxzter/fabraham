@@ -1,17 +1,23 @@
 <template>
   <div class="relative">
+    <!-- Controls Panel -->
+    <HomeControlsPanel />
+
     <!-- Fixed 3D Scene Background -->
     <div class="fixed inset-0 w-full h-screen">
       <HomeScene3D />
     </div>
 
     <!-- Scrollable Content Component -->
-    <HomeScrollableContent />
+    <HomeScrollableContent v-if="store.cameraControlMode !== 'orbit'" />
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useSmoothScroll } from "~/composables/useSmoothScroll";
+import { useSceneControlStore } from "~/stores/SceneControl";
+
+const store = useSceneControlStore();
 
 // Initialize smooth scroll system
 const _smoothScroll = useSmoothScroll();
