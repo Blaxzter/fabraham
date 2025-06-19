@@ -28,6 +28,7 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@nuxtjs/color-mode",
     "@pinia/nuxt",
+    "@nuxthub/core",
   ],
 
   // Add content configuration for Cloudflare Pages
