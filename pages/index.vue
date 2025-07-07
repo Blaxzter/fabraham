@@ -11,17 +11,12 @@
 </template>
 
 <script setup>
-import { useSmoothScroll } from "~/composables/useSmoothScroll";
-
-// Initialize smooth scroll system
-const _smoothScroll = useSmoothScroll();
-
 // Meta data
 useSeoMeta({
-  title: "CS Portfolio | Computer Science Projects",
+  title: "Fabraham",
   description:
     "Explore my computer science portfolio featuring web development, machine learning, and blockchain projects.",
-  ogTitle: "CS Portfolio | Computer Science Projects",
+  ogTitle: "Fabraham",
   ogDescription:
     "Explore my computer science portfolio featuring web development, machine learning, and blockchain projects.",
   ogType: "website",
