@@ -6,6 +6,7 @@ import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Object3D, PerspectiveCamera } from "three";
 
 const store = useSceneControlStore();
+const bootState = useBootStateStore();
 
 const modelRef = shallowRef<Object3D | null>(null);
 const cameraRef = shallowRef<PerspectiveCamera | null>(null);
@@ -32,6 +33,11 @@ const glComposer = {
 const { scene: gltfScene } = await useGLTF("/models/head.glb", {
     draco: true, // Enable Draco compression
 });
+
+// Mark scene as ready for boot screen
+if (import.meta.client) {
+    bootState.markSceneReady();
+}
 
 // Setup render loop to track camera changes
 const { onLoop } = useRenderLoop();
