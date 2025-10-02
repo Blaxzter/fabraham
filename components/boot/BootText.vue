@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const displayedText = ref('')
-const typewriterSpeed = props.speed || 100 // characters per second
+const typewriterSpeed = props.speed || 1000 // characters per second
 let interval: ReturnType<typeof setInterval> | null = null
 
 const textClass = computed(() => {
@@ -43,12 +43,13 @@ const textClass = computed(() => {
 })
 
 onMounted(() => {
+  // console.log('BootText mounted:', props.text, 'animate:', props.animate, import.meta.client)
   if (import.meta.client && props.animate !== false) {
     // Typewriter effect - reveal text character by character
     const chars = props.text.split('')
     const msPerChar = 1000 / typewriterSpeed
     
-    console.log('Starting typewriter:', props.text, 'speed:', typewriterSpeed, 'msPerChar:', msPerChar)
+    // console.log('Starting typewriter:', props.text, 'speed:', typewriterSpeed, 'msPerChar:', msPerChar)
     
     let currentIndex = 0
     interval = setInterval(() => {

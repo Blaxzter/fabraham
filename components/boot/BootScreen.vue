@@ -47,7 +47,7 @@
     <!-- Cursor blink effect -->
     <div
       v-if="bootState.phase !== 'complete'"
-      class="fixed bottom-8 right-8 w-3 h-5 bg-green-400 cursor-blink"
+      class="fixed bottom-16 right-8 w-3 h-5 bg-green-400 cursor-blink"
     />
 
     <!-- Sticky footer with key hints (only during boot sequence) -->

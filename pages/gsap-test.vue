@@ -153,16 +153,16 @@
           <h3 class="text-lg font-bold mb-4 text-green-400">BootText Typewriter Effect</h3>
           <div class="bg-black p-6 rounded font-mono text-sm mb-4 min-h-[120px]">
             <div v-if="showTypewriter1" class="mb-2">
-              <BootText text="Testing typewriter effect..." color="green" />
+              <BootText text="Testing typewriter effect..." color="green" animate />
             </div>
             <div v-if="showTypewriter2" class="mb-2">
-              <BootText text="This should appear character by character" color="cyan" />
+              <BootText text="This should appear character by character" color="cyan" animate />
             </div>
             <div v-if="showTypewriter3" class="mb-2">
-              <BootText text="Speed can be adjusted with the speed prop" color="yellow" :speed="50" />
+              <BootText text="Speed can be adjusted with the speed prop" color="yellow" :speed="50" animate />
             </div>
             <div v-if="showTypewriter4">
-              <BootText text="Fast typing mode! 🚀" color="white" :speed="200" />
+              <BootText text="Fast typing mode! 🚀" color="white" :speed="200" animate />
             </div>
           </div>
           <div class="flex gap-2 flex-wrap">

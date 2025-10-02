@@ -132,6 +132,9 @@ const bootToOption = () => {
 // Keyboard navigation
 onMounted(() => {
   if (import.meta.client) {
+    // Ensure first item is selected
+    selectedIndex.value = 0
+    
     // Animate menu entrance with staggered cards
     gsap.to(optionRefs.value, {
       opacity: 1,
@@ -139,16 +142,26 @@ onMounted(() => {
       scale: 1,
       stagger: 0.15,
       duration: 0.5,
-      ease: 'power2.out'
+      ease: 'power2.out',
+      onComplete: () => {
+        // Add a subtle pulse to the selected item after animation completes
+        if (optionRefs.value[0]) {
+          gsap.to(optionRefs.value[0], {
+            scale: 1.05,
+            duration: 0.3,
+            ease: 'power2.inOut'
+          })
+        }
+      }
     })
 
-    window.addEventListener('keydown', handleKeydown)
+    window.addEventListener('keydown', handleKeydown, true)
   }
 })
 
 onUnmounted(() => {
   if (import.meta.client) {
-    window.removeEventListener('keydown', handleKeydown)
+    window.removeEventListener('keydown', handleKeydown, true)
   }
 })
 
@@ -157,27 +170,33 @@ const handleKeydown = (e: KeyboardEvent) => {
     case 'ArrowUp':
     case 'ArrowLeft':
       e.preventDefault()
+      e.stopPropagation()
       selectedIndex.value = Math.max(0, selectedIndex.value - 1)
       break
     case 'ArrowDown':
     case 'ArrowRight':
       e.preventDefault()
+      e.stopPropagation()
       selectedIndex.value = Math.min(menuOptions.length - 1, selectedIndex.value + 1)
       break
     case 'Enter':
       e.preventDefault()
+      e.stopPropagation()
       bootToOption()
       break
     case '1':
       e.preventDefault()
+      e.stopPropagation()
       selectOption(0)
       break
     case '2':
       e.preventDefault()
+      e.stopPropagation()
       selectOption(1)
       break
     case '3':
       e.preventDefault()
+      e.stopPropagation()
       selectOption(2)
       break
   }
