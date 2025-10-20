@@ -2,8 +2,10 @@
 
 /* CRT Screen Effect */
 .boot-screen {
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
-  font-family: 'Courier New', monospace;
+  /* Enhanced phosphor glow for text */
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8), 0 0 10px rgba(0, 255, 0, 0.6),
+    0 0 20px rgba(0, 255, 0, 0.4), 0 0 30px rgba(0, 255, 0, 0.2);
+  font-family: "Courier New", monospace;
   letter-spacing: 0.05em;
 }
 
@@ -32,7 +34,7 @@
 }
 
 .scanline-overlay::before {
-  content: '';
+  content: "";
   position: absolute;
   width: 100%;
   height: 100px;
@@ -48,10 +50,12 @@
 
 /* Cursor blink */
 @keyframes blink {
-  0%, 49% {
+  0%,
+  49% {
     opacity: 1;
   }
-  50%, 100% {
+  50%,
+  100% {
     opacity: 0;
   }
 }
@@ -92,17 +96,13 @@
 /* Glow effect for text */
 .text-glow-green {
   color: #00ff00;
-  text-shadow: 
-    0 0 5px rgba(0, 255, 0, 0.8),
-    0 0 10px rgba(0, 255, 0, 0.6),
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8), 0 0 10px rgba(0, 255, 0, 0.6),
     0 0 15px rgba(0, 255, 0, 0.4);
 }
 
 .text-glow-cyan {
   color: #00ffff;
-  text-shadow: 
-    0 0 5px rgba(0, 255, 255, 0.8),
-    0 0 10px rgba(0, 255, 255, 0.6),
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.8), 0 0 10px rgba(0, 255, 255, 0.6),
     0 0 15px rgba(0, 255, 255, 0.4);
 }
 
@@ -124,7 +124,8 @@
 
 /* CRT noise/grain effect */
 @keyframes crt-noise {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.03;
   }
   50% {
@@ -139,9 +140,8 @@
   animation: crt-noise 0.5s infinite;
 }
 
-/* CRT Screen curvature distortion */
+/* CRT Screen color and contrast adjustments */
 .boot-screen {
-  /* Add slight barrel distortion if browser supports it */
-  filter: contrast(1.1) brightness(1.05);
+  /* Enhanced contrast and brightness to simulate CRT phosphor intensity */
+  filter: contrast(1.15) brightness(1.08) saturate(1.2);
 }
-
