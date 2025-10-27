@@ -1,8 +1,10 @@
 <template>
-  <div ref="containerRef" class="space-y-0.5 overflow-auto">
-    <BootLine v-for="(line, index) in visibleLines" :key="index">
-      <component :is="getLineWithActiveState(line, index)" />
-    </BootLine>
+  <div class="h-full flex flex-col overflow-hidden" ref="containerRef">
+    <div class="space-y-0.5">
+      <BootLine v-for="(line, index) in visibleLines" :key="index">
+        <component :is="getLineWithActiveState(line, index)" />
+      </BootLine>
+    </div>
   </div>
 </template>
 
@@ -44,7 +46,7 @@ const DISABLE_SKIP = true; // Set to true to force watching full boot sequence
 // Random delay configuration
 const ENABLE_RANDOM_DELAYS = true; // Add randomness to delays for realism
 const RANDOM_DELAY_MIN = -0.1; // Minimum random adjustment (seconds)
-const RANDOM_DELAY_MAX = 0.3; // Maximum random adjustment (seconds)
+const RANDOM_DELAY_MAX = 0.8; // Maximum random adjustment (seconds)
 // ===============================
 
 // Resolve the BootText component for use in h()
@@ -451,6 +453,7 @@ const animateBootSequence = () => {
 
         // Auto-scroll to bottom
         nextTick(() => {
+          console.log("Auto-scrolling to bottom");
           if (containerRef.value) {
             containerRef.value.scrollTop = containerRef.value.scrollHeight;
           }

@@ -8,11 +8,15 @@
 
     <!-- Content Container -->
     <div
-      class="relative w-full h-full max-w-4xl max-h-screen p-8 overflow-auto"
+      class="relative w-full h-full max-w-4xl max-h-screen p-8 overflow-hidden"
       :class="{ 'pb-20': bootState.phase === 'booting' }"
     >
       <!-- Boot Sequence Phase -->
-      <div v-if="bootState.phase === 'booting'" ref="bootSequenceRef">
+      <div
+        v-if="bootState.phase === 'booting'"
+        ref="bootSequenceRef"
+        class="h-full"
+      >
         <BootSequence
           @complete="onBootSequenceComplete"
           @easter-egg="onEasterEgg"
@@ -159,18 +163,22 @@ const onMenuSelect = async (route: string) => {
 
   // If going to home, show loading and wait for scene
   if (route === "/") {
-    bootState.setPhase("loading-scene");
+    if (bootState.sceneReady) {
+      fadeOutBootScreen();
+    } else {
+      bootState.setPhase("loading-scene");
 
-    // Wait for scene to be ready before transitioning
-    const unwatch = watch(
-      () => bootState.sceneReady,
-      (isReady) => {
-        if (isReady) {
-          unwatch();
-          fadeOutBootScreen();
+      // Wait for scene to be ready before transitioning
+      const unwatch = watch(
+        () => bootState.sceneReady,
+        (isReady) => {
+          if (isReady) {
+            unwatch();
+            fadeOutBootScreen();
+          }
         }
-      }
-    );
+      );
+    }
   } else {
     // For other routes, navigate immediately
     await navigateTo(route);
