@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div class="relative" v-if="!devMode">
     <!-- Boot Screen -->
     <BootScreen v-if="!bootState.bootCompleted" />
 
@@ -14,10 +14,16 @@
     <!-- Scrollable Content Component - Only show after boot complete -->
     <HomeScrollableContent v-if="bootState.bootCompleted" />
   </div>
+  <div v-else>
+    <HomeScene3D />
+    <HomeScrollableContent />
+  </div>
 </template>
 
 <script setup>
 const bootState = useBootStateStore();
+
+const devMode = ref(true);
 
 // Start loading scene when boot sequence starts (loads in background)
 const shouldLoadScene = computed(() => {

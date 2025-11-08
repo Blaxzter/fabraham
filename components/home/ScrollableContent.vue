@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AsciiTextAnimation from "./AsciiTextAnimation.vue";
 import TechStackScroller from "./TechStackScroller.vue";
+import ScrollIndicator from "./ScrollIndicator.vue";
 
 // Use the centralized scroll animations composable
 const { startAnimationLoop } = useScrollAnimationsStore();
@@ -32,7 +33,7 @@ onMounted(() => {
   </div>
 
   <!-- Section 2: Skills with Tech Stack Scroller -->
-  <section
+  <!-- <section
     class="min-h-screen flex items-center justify-center bg-transparent py-20"
   >
     <div class="w-full">
@@ -43,7 +44,7 @@ onMounted(() => {
         :stagger="0.15"
       />
     </div>
-  </section>
+  </section> -->
 
   <!-- Regular Content Sections (start after ASCII animation) -->
   <div class="relative z-10">
@@ -84,4 +85,10 @@ onMounted(() => {
       </div>
     </section>
   </div>
+
+  <!-- Scroll Indicator -->
+  <ScrollIndicator
+    :scroll-progress="scrollProgress"
+    :fade-out-threshold="0.05"
+  />
 </template>
