@@ -23,7 +23,11 @@
 <script setup>
 const bootState = useBootStateStore();
 
-const devMode = ref(false);
+const isOnLocalhost = computed(() => {
+  return window.location.hostname === "localhost";
+});
+
+const devMode = ref(isOnLocalhost.value);
 
 // Start loading scene when boot sequence starts (loads in background)
 const shouldLoadScene = computed(() => {
