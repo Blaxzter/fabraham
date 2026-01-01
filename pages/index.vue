@@ -23,7 +23,7 @@
 <script setup>
 const bootState = useBootStateStore();
 
-const devMode = ref(true);
+const devMode = ref(false);
 
 // Start loading scene when boot sequence starts (loads in background)
 const shouldLoadScene = computed(() => {
