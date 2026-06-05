@@ -2,6 +2,11 @@
 import { computed } from "vue";
 import type { Component } from "vue";
 import Lattice from "./setpieces/Lattice.vue";
+import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
+import RouteArc from "./setpieces/RouteArc.vue";
+import ThreadBoard from "./setpieces/ThreadBoard.vue";
+import DocumentGrid from "./setpieces/DocumentGrid.vue";
+import StaffLines from "./setpieces/StaffLines.vue";
 
 /**
  * Maps each chapter's `setPiece` to its 3D line component and renders it inside
@@ -15,6 +20,11 @@ useTimelineChapters();
 
 const SET_PIECES: Partial<Record<string, Component>> = {
   lattice: Lattice,
+  berlinSkyline: BerlinSkyline,
+  routeArc: RouteArc,
+  threadBoard: ThreadBoard,
+  documentGrid: DocumentGrid,
+  staffLines: StaffLines,
 };
 
 // Flatten chapters → individual set-pieces (a chapter may stack several).

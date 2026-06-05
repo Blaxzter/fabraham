@@ -4,7 +4,7 @@ subtitle: "2023 · 18,000 concurrent players, team of 5"
 order: 40
 location: "Berlin"
 weight: 1
-setPiece: ["lattice"]
+setPiece: ["lattice", "threadBoard"]
 setPieceVariant: "embeddings"
 accent: "#ff6b6b"
 cameraPosition: [-0.3, -0.1, 0.7]
