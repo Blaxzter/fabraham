@@ -13,14 +13,23 @@ const { docs } = useTimelineChapters();
 useScrollTimeline();
 
 // Chapter 0 (identity) is the ASCII hero; the rest are prose cards.
-const heroDoc = computed(() => docs.value[0] as { weight?: number } | undefined);
-const heroHeight = computed(() => `${(heroDoc.value?.weight ?? 2) * 100}vh`);
+const heroDoc = computed(() => docs.value[0]);
+const heroWeight = computed(
+  () => (heroDoc.value as { weight?: number } | undefined)?.weight ?? 2
+);
+const heroHeight = computed(() => `${heroWeight.value * 100}vh`);
 const restDocs = computed(() => docs.value.slice(1));
 </script>
 
 <template>
   <!-- Hero: the ASCII identity assembles across the first chapter's scroll range. -->
   <section class="relative z-10" :style="{ height: heroHeight }">
+    <!-- Real identity text (H1 + intro) for screen readers and crawlers; the
+         ASCII hero is the visual treatment of the same content. Keeps the
+         authored 00-identity.md body live and SSG-ready (#5). -->
+    <div class="sr-only">
+      <ContentRenderer v-if="heroDoc" :value="heroDoc" />
+    </div>
     <AsciiTextAnimation :scroll-progress="timeline.heroProgress" />
   </section>
 

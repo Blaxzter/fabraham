@@ -3,7 +3,7 @@ import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
-import type { Object3D, PerspectiveCamera } from "three";
+import type { Group, Object3D, PerspectiveCamera } from "three";
 import SceneSetPieces from "./SceneSetPieces.vue";
 
 const store = useSceneControlStore();
@@ -19,9 +19,13 @@ const boundingBox = shallowRef<Box3 | null>(null);
 const boxSize = shallowRef<Vector3>(new Vector3());
 const boxCenter = shallowRef<Vector3>(new Vector3());
 const modelOffset = shallowRef<Vector3>(new Vector3());
+// Head/wireframe rotation accumulators. These are mutated in onLoop and applied
+// imperatively to their Three groups (issue #4) — never bound as reactive props.
 const headRotationY = shallowRef(-0.8); // Start at center (0)
 const headRotationX = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
+const headGroupRef = shallowRef<Group | null>(null);
+const wireframeGroupRef = shallowRef<Group | null>(null);
 
 // Mouse tracking for head rotation
 const mousePosition = shallowRef({ x: 0, y: 0 });
@@ -74,7 +78,7 @@ if (import.meta.client) {
 }
 
 // Setup render loop to track camera changes
-const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
+const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // Camera ownership depends on the mode.
   if (store.cameraControlMode === "orbit") {
     // Orbit (dev): the user drives the camera; mirror it back into the store so
@@ -99,7 +103,7 @@ const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
     cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);
   }
 
-  // Update head rotation based on mouse position with smooth lerping
+  // Update head rotation toward the mouse with frame-rate-independent smoothing.
   if (isMouseTracking.value) {
     // Calculate target rotations based on mouse position
     const maxRotationY = Math.PI * 0.3; // Max 72 degrees left/right
@@ -114,17 +118,22 @@ const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
     const deltaY = targetRotationY - headRotationY.value;
     const deltaX = targetRotationX - headRotationX.value;
 
-    // Distance-based speed: faster when far away, slower when close, but with minimum
+    // Distance-based speed (faster when far, with a floor), scaled by frame time
+    // so convergence feels the same at 60Hz and 144Hz.
+    const frame = delta * 60;
     const speed = headFollowSpeed.value;
     const minSpeed = headFollowMinSpeed.value;
-    const dynamicSpeedY = Math.max(speed * (1 + Math.abs(deltaY)), minSpeed);
-    const dynamicSpeedX = Math.max(speed * (1 + Math.abs(deltaX)), minSpeed);
+    const stepY = Math.min(1, Math.max(speed * (1 + Math.abs(deltaY)), minSpeed) * frame);
+    const stepX = Math.min(1, Math.max(speed * (1 + Math.abs(deltaX)), minSpeed) * frame);
 
-    headRotationY.value += deltaY * dynamicSpeedY;
-    headRotationX.value += deltaX * dynamicSpeedX;
+    headRotationY.value += deltaY * stepY;
+    headRotationX.value += deltaX * stepX;
   }
+  // Apply imperatively to the Three group — no reactive prop patching (issue #4).
+  headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, 0);
 
   wireFrameRotationY.value = elapsed * 0.5;
+  wireframeGroupRef.value?.rotation.set(0, wireFrameRotationY.value, 0);
 };
 
 // Calculate bounding box once the model ref is available
@@ -140,6 +149,19 @@ watch(
       // Calculate offset to center the model at origin
       modelOffset.value.copy(boxCenter.value).negate();
     }
+  },
+  { immediate: true }
+);
+
+// Seed the camera with a sane pose as soon as it mounts (matches the timeline
+// fallback). This avoids a first-frame origin "flash" before onLoop runs and
+// gives OrbitControls (dev) a non-degenerate starting radius.
+watch(
+  cameraRef,
+  (cam) => {
+    if (!cam) return;
+    cam.position.set(0.06, 0.04, 0.51);
+    cam.rotation.set(-0.09, 0.13, 0.01);
   },
   { immediate: true }
 );
@@ -169,12 +191,11 @@ watch(
     />
 
     <Levioso
-      ref="groupRef"
       :speed="store.floatSpeed"
       :rotation-factor="1"
       :float-factor="store.floatFactor"
     >
-      <TresGroup :rotation="[headRotationX, headRotationY, 0]">
+      <TresGroup ref="headGroupRef">
         <!-- Load the head model with offset to center it -->
         <primitive
           v-if="gltfScene"
@@ -192,7 +213,7 @@ watch(
     <!-- Wireframe bounding box centered at origin (now toggleable) -->
     <TresGroup
       v-if="boundingBox && store.showWireframe"
-      :rotation="[0, wireFrameRotationY, 0]"
+      ref="wireframeGroupRef"
     >
       <TresMesh :position="[0, 0, 0]">
         <TresBoxGeometry :args="[boxSize.x, boxSize.y, boxSize.z]" />

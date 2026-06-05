@@ -28,6 +28,9 @@ const stopSmoothScroll = () => {
     gsap.ticker.remove(tickerFn);
     tickerFn = null;
   }
+  // Restore GSAP's documented default lag smoothing — startSmoothScroll disabled
+  // it globally, and that must not leak to other pages after teardown.
+  gsap.ticker.lagSmoothing(500, 33);
   lenis?.destroy();
   lenis = null;
 };

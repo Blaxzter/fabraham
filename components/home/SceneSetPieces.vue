@@ -27,14 +27,27 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   staffLines: StaffLines,
 };
 
+// Keep the primary piece centered on the head (e.g. the lattice that surrounds
+// it); push stacked pieces aside and back so two set-pieces in one chapter
+// (Tatort: lattice + thread-board; Experte: lattice + document-grid) read as
+// distinct motifs instead of one tangled mass at the origin.
+const SLOT_OFFSETS: [number, number, number][] = [
+  [0, 0, 0],
+  [1.4, 0.1, -0.4],
+  [-1.4, 0.1, -0.4],
+];
+const offsetFor = (slot: number): [number, number, number] =>
+  SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
+
 // Flatten chapters → individual set-pieces (a chapter may stack several).
 const pieces = computed(() =>
   timeline.chapters.flatMap((chapter, index) =>
     chapter.setPiece
-      .map((name) => ({
+      .map((name, slot) => ({
         key: `${chapter.id}:${name}`,
         index,
         chapter,
+        position: offsetFor(slot),
         component: SET_PIECES[name],
       }))
       .filter((p) => p.component)
@@ -49,5 +62,6 @@ const pieces = computed(() =>
     :key="piece.key"
     :reveal="timeline.revealFor(piece.index)"
     :variant="piece.chapter.setPieceVariant"
+    :position="piece.position"
   />
 </template>

@@ -16,7 +16,7 @@
       </div>
     </ClientOnly>
 
-    <!-- Data-driven biographical timeline (prose prerenders for SEO). -->
+    <!-- Data-driven biographical timeline (prose is SSG-ready for SEO, #5). -->
     <HomeScrollableContent v-if="showContent" />
   </div>
 </template>

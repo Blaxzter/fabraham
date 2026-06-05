@@ -23,7 +23,7 @@ const idleAnimation = ref<gsap.core.Timeline>();
 // Target texts
 const firstName = "FREDERIC";
 const lastName = "ABRAHAM";
-const title = "FULLEST STACK DEVELOPER";
+const title = "FULLEST-STACK DEVELOPER";
 
 // Computer science themed random characters
 const randomChars = [

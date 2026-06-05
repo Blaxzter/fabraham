@@ -22,8 +22,9 @@ export default defineContentConfig({
         }),
 
         // Data-driven 3D biographical timeline. One markdown file = one chapter.
-        // Adding a milestone = writing markdown; the body prerenders for SEO (#5),
-        // while the frontmatter drives the camera path and 3D line set-pieces.
+        // Adding a milestone = writing markdown; the body stays indexable markdown
+        // (prerenders for SEO once SSG #5 is enabled), while the frontmatter drives
+        // the camera path and 3D line set-pieces.
         timeline: defineCollection({
             source: 'timeline/*.md',
             type: 'page',

@@ -4,8 +4,9 @@ import { useElementVisibility } from "@vueuse/core";
 
 /**
  * Renders one timeline chapter's prose as a centered, sticky card over the 3D
- * scene. The markdown body is rendered with `<ContentRenderer>` so it stays real,
- * indexable HTML for SSG (#5). Height scales with the chapter `weight`, which is
+ * scene. The markdown body is rendered with `<ContentRenderer>` so it stays real
+ * markdown, ready to prerender to indexable HTML once SSG (#5) is enabled. Height
+ * scales with the chapter `weight`, which is
  * the same value that drives the camera segment width — one source of truth.
  */
 interface ChapterDoc {
