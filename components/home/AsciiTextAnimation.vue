@@ -90,8 +90,8 @@ const randomChars = [
 ];
 
 // Generate random character
-const getRandomChar = () => {
-  return randomChars[Math.floor(Math.random() * randomChars.length)];
+const getRandomChar = (): string => {
+  return randomChars[Math.floor(Math.random() * randomChars.length)]!;
 };
 
 // Create character elements for a text line
@@ -115,7 +115,7 @@ const createTextLine = (
     } else {
       span.textContent = getRandomChar();
       // Store original character for hover effect
-      span.setAttribute("data-content", text[i]);
+      span.setAttribute("data-content", text.charAt(i));
     }
 
     span.className = "inline-block transition-all duration-100";
@@ -249,22 +249,24 @@ const animateTextLine = (
       // Character is being revealed
       if (charProgress >= 1) {
         // Fully revealed - show target character
-        char.textContent = targetText[index];
+        char.textContent = targetText.charAt(index);
         char.style.color = finalColor;
         char.style.textShadow = `0 0 5px ${finalColor}, 0 0 10px #00ff00, 0 0 15px #00ff00`;
       } else {
         // Partially revealed - still random but with some glitch effect
         if (Math.random() < charProgress) {
-          char.textContent = targetText[index];
+          char.textContent = targetText.charAt(index);
         } else {
           char.textContent = getRandomChar();
         }
 
         // Interpolate color
-        const initialColor = char.style.color.includes("170")
+        const initialColor: [number, number, number] = char.style.color.includes(
+          "170"
+        )
           ? [0, 170, 255]
           : [0, 255, 0]; // blue for title, green for names
-        const finalColorRGB =
+        const finalColorRGB: [number, number, number] =
           finalColor === "#ffffff" ? [255, 255, 255] : [0, 170, 255];
 
         const r = Math.floor(

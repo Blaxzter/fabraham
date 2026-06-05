@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-2">
-    <BootText :text="message" color="green" />
+    <BootText :text="message ?? ''" color="green" />
     <div class="flex items-center gap-2">
       <div class="flex-1 border border-green-400 h-4 relative overflow-hidden">
         <div

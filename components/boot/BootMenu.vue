@@ -126,6 +126,7 @@ const selectOption = (index: number) => {
 
 const bootToOption = () => {
   const selected = menuOptions[selectedIndex.value]
+  if (!selected) return
   emit('select', selected.route)
 }
 

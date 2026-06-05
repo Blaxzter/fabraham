@@ -23,6 +23,7 @@ export default defineNuxtConfig({
     },
 
     modules: [
+        '@nuxt/eslint',
         '@tresjs/nuxt',
         'shadcn-nuxt',
         '@nuxt/content',

@@ -8,6 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
     "deploy": "nuxthub deploy"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "nuxt": "^4.2.2",
     "nuxthub": "^0.9.4",
     "pinia": "^3.0.4",
+    "postprocessing": "^6.38.2",
     "reka-ui": "^2.7.0",
     "shadcn-nuxt": "2.4.3",
     "tailwind-merge": "^3.4.0",
@@ -51,6 +53,7 @@
     "@nuxtjs/color-mode": "^4.0.0",
     "@types/three": "^0.182.0",
     "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.3",
     "wrangler": "^4.54.0"
   }
 }

@@ -4,9 +4,11 @@ import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Object3D, PerspectiveCamera } from "three";
+import SceneSetPieces from "./SceneSetPieces.vue";
 
 const store = useSceneControlStore();
 const bootState = useBootStateStore();
+const timeline = useTimelineStore();
 
 const modelRef = shallowRef<Object3D | null>(null);
 const cameraRef = shallowRef<PerspectiveCamera | null>(null);
@@ -17,7 +19,7 @@ const boundingBox = shallowRef<Box3 | null>(null);
 const boxSize = shallowRef<Vector3>(new Vector3());
 const boxCenter = shallowRef<Vector3>(new Vector3());
 const modelOffset = shallowRef<Vector3>(new Vector3());
-const headRotatinY = shallowRef(-0.8); // Start at center (0)
+const headRotationY = shallowRef(-0.8); // Start at center (0)
 const headRotationX = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
 
@@ -73,21 +75,28 @@ if (import.meta.client) {
 
 // Setup render loop to track camera changes
 const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
-  // Only update store from camera if in orbit mode (to avoid conflicts with scroll mode)
+  // Camera ownership depends on the mode.
   if (store.cameraControlMode === "orbit") {
+    // Orbit (dev): the user drives the camera; mirror it back into the store so
+    // the controls panel reflects the current pose.
     const position = cameraRef.value?.position;
     const rotation = cameraRef.value?.rotation;
     if (position && rotation) {
-      // Update camera position
       store.cameraPosition.x = Math.round(position.x * 100) / 100;
       store.cameraPosition.y = Math.round(position.y * 100) / 100;
       store.cameraPosition.z = Math.round(position.z * 100) / 100;
 
-      // Update camera rotation
       store.cameraRotation.x = Math.round(rotation.x * 100) / 100;
       store.cameraRotation.y = Math.round(rotation.y * 100) / 100;
       store.cameraRotation.z = Math.round(rotation.z * 100) / 100;
     }
+  } else if (timeline.enabled && cameraRef.value) {
+    // Scroll: drive the camera imperatively from the timeline progress — no
+    // reactive camera props, no per-frame layout reads (issue #4).
+    const pose = timeline.cameraAt(timeline.progress);
+    const cam = cameraRef.value;
+    cam.position.set(pose.position.x, pose.position.y, pose.position.z);
+    cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);
   }
 
   // Update head rotation based on mouse position with smooth lerping
@@ -102,7 +111,7 @@ const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
       mousePosition.value.y * maxRotationX + headRotationOffsetX.value;
 
     // Calculate deltas
-    const deltaY = targetRotationY - headRotatinY.value;
+    const deltaY = targetRotationY - headRotationY.value;
     const deltaX = targetRotationX - headRotationX.value;
 
     // Distance-based speed: faster when far away, slower when close, but with minimum
@@ -111,15 +120,12 @@ const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
     const dynamicSpeedY = Math.max(speed * (1 + Math.abs(deltaY)), minSpeed);
     const dynamicSpeedX = Math.max(speed * (1 + Math.abs(deltaX)), minSpeed);
 
-    headRotatinY.value += deltaY * dynamicSpeedY;
+    headRotationY.value += deltaY * dynamicSpeedY;
     headRotationX.value += deltaX * dynamicSpeedX;
   }
 
   wireFrameRotationY.value = elapsed * 0.5;
 };
-
-// Debug output for camera mode
-console.log("Camera control mode:", store.cameraControlMode);
 
 // Calculate bounding box once the model ref is available
 watch(
@@ -152,18 +158,10 @@ watch(
       v-if="store.cameraControlMode === 'orbit'"
       ref="orbitControlsRef"
     />
+    <!-- Camera pose is driven imperatively in onLoop (scroll) or by OrbitControls
+         (dev), so no reactive position/rotation props here (issue #4). -->
     <TresPerspectiveCamera
       ref="cameraRef"
-      :position="[
-        store.cameraPosition.x,
-        store.cameraPosition.y,
-        store.cameraPosition.z,
-      ]"
-      :rotation="[
-        store.cameraRotation.x,
-        store.cameraRotation.y,
-        store.cameraRotation.z,
-      ]"
       :fov="45"
       :aspect="1"
       :near="0.1"
@@ -176,7 +174,7 @@ watch(
       :rotation-factor="1"
       :float-factor="store.floatFactor"
     >
-      <TresGroup :rotation="[headRotationX, headRotatinY, 0]">
+      <TresGroup :rotation="[headRotationX, headRotationY, 0]">
         <!-- Load the head model with offset to center it -->
         <primitive
           v-if="gltfScene"
@@ -187,7 +185,9 @@ watch(
         />
       </TresGroup>
     </Levioso>
-    <!-- Group that rotates around origin, containing the offset model -->
+
+    <!-- Data-driven line set-pieces that bloom around the head per chapter. -->
+    <SceneSetPieces />
 
     <!-- Wireframe bounding box centered at origin (now toggleable) -->
     <TresGroup
@@ -196,11 +196,7 @@ watch(
     >
       <TresMesh :position="[0, 0, 0]">
         <TresBoxGeometry :args="[boxSize.x, boxSize.y, boxSize.z]" />
-        <TresMeshBasicMaterial
-          color="#00ff00"
-          wireframe
-          :wireframe-linecap="'butt'"
-        />
+        <TresMeshBasicMaterial color="#00ff00" wireframe />
       </TresMesh>
     </TresGroup>
 

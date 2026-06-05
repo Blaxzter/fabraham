@@ -8,7 +8,7 @@ import {
 import { ref } from "vue";
 
 const store = useSceneControlStore();
-const scrollAnimations = useScrollAnimationsStore();
+const timeline = useTimelineStore();
 
 // Tab state
 const activeTab = ref<"scene" | "lights">("scene");
@@ -142,7 +142,7 @@ const copyCurrentPosition = () => {
     @wheel.stop
   >
     <h3 class="text-lg font-semibold mb-2">
-      Controls | {{ scrollAnimations?.isEnabled }}
+      Controls | {{ timeline.enabled }}
     </h3>
 
     <!-- Tab Navigation -->
@@ -196,9 +196,9 @@ const copyCurrentPosition = () => {
               @change="
                 () => {
                   if (store.cameraControlMode === 'scroll') {
-                    scrollAnimations.enable();
+                    timeline.enable();
                   } else {
-                    scrollAnimations.disable();
+                    timeline.disable();
                   }
                 }
               "
@@ -474,12 +474,6 @@ const copyCurrentPosition = () => {
           class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm mr-2"
         >
           Add New Light
-        </button>
-        <button
-          @click="scrollAnimations.addLightAnimationExample()"
-          class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
-        >
-          Add Animation Example
         </button>
       </div>
 
