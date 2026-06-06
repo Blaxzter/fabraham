@@ -31,6 +31,11 @@ const entered = computed(() => {
   return store.progress >= start - 0.04 && store.progress <= end + 0.03;
 });
 
+// Leave clear space below the sticky headline before the first card, and a
+// little tail at the bottom, so the cluster reads under the heading.
+const TOP_PAD = 13;
+const RANGE = 83;
+
 const layout = computed(() => {
   const ms = milestones.value;
   const n = ms.length || 1;
@@ -41,7 +46,8 @@ const layout = computed(() => {
     const jitterX = (((i * 37) % 11) - 5) / 5; // -1..1
     const jitterY = (((i * 53) % 7) - 3) / 3; // -1..1
     const ax = 50 + sideSign * 16 + jitterX * 4 + (m.offset?.x ?? 0);
-    const ay = ((i + 0.6) / (n + 0.2)) * 100 + jitterY * 1.5 + (m.offset?.y ?? 0);
+    const ay =
+      TOP_PAD + ((i + 0.6) / (n + 0.2)) * RANGE + jitterY * 1.5 + (m.offset?.y ?? 0);
     return { milestone: m, doc: docs.value[i], ax, ay, sideSign };
   });
 });
@@ -103,20 +109,19 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
          travels the same path forever as a "signal flowing the timeline". -->
     <svg
       class="bio-connector"
+      :class="{ 'is-on': entered }"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       aria-hidden="true"
     >
       <path
         class="bio-connector-base"
-        :class="{ drawn: entered }"
         :d="connectorPath"
         fill="none"
         :stroke="accent"
         stroke-width="2"
         vector-effect="non-scaling-stroke"
         stroke-linecap="round"
-        stroke-linejoin="round"
         pathLength="100"
       />
       <path
@@ -155,13 +160,6 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   text-align: center;
   padding: clamp(1.5rem, 6vh, 4rem) 1.5rem 1.5rem;
   pointer-events: none;
-  /* Fade the scene/cards passing beneath so the label always reads. */
-  background: linear-gradient(
-    to bottom,
-    rgba(8, 10, 14, 0.85) 0%,
-    rgba(8, 10, 14, 0.55) 55%,
-    rgba(8, 10, 14, 0) 100%
-  );
   opacity: 0;
   transform: translateY(-12px);
   transition: opacity 0.6s ease, transform 0.6s ease;
@@ -177,7 +175,9 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent, #9ad1ff);
-  opacity: 0.9;
+  opacity: 0.95;
+  /* No backdrop band — legibility comes from the text's own shadow. */
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85), 0 0 22px rgba(0, 0, 0, 0.6);
 }
 .bio-title {
   margin: 0;
@@ -185,7 +185,7 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   font-weight: 800;
   line-height: 1.05;
   color: #fff;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9), 0 0 44px rgba(0, 0, 0, 0.6);
 }
 .bio {
   position: absolute;
@@ -196,22 +196,27 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.65;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 0.9s ease;
 }
-/* Draw the connector in once the section is entered. */
+.bio-connector.is-on {
+  opacity: 0.7;
+}
+/* The base is a dotted line that slowly marches along the path (the whole line
+   is alive, not just the pulse). `pathLength="100"` normalizes the dash units. */
 .bio-connector-base {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  transition: stroke-dashoffset 1.8s ease;
+  stroke-dasharray: 1 5;
+  animation: bio-march 1.5s linear infinite;
 }
-.bio-connector-base.drawn {
-  stroke-dashoffset: 0;
+@keyframes bio-march {
+  to {
+    stroke-dashoffset: -6; /* one dash period → seamless loop */
+  }
 }
-/* A short bright dash that travels the path forever — a pulse down the timeline. */
+/* A short bright dash that travels the path faster — a pulse down the timeline. */
 .bio-connector-flow {
   stroke-dasharray: 14 86;
-  stroke-dashoffset: 0;
   opacity: 0.9;
   animation: bio-flow 3.4s linear infinite;
 }
@@ -244,10 +249,7 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   position: absolute;
 }
 @media (prefers-reduced-motion: reduce) {
-  .bio-connector-base {
-    transition: none;
-    stroke-dashoffset: 0;
-  }
+  .bio-connector-base,
   .bio-connector-flow,
   .bio-node {
     animation: none;

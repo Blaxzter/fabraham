@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
 const SVG_URL = "/setpieces/berlin-skyline.svg";
 const TARGET_SIZE = 1.15;
 const CURVE_DIVISIONS = 24; // samples per curve when flattening paths to lines
+const DRAW_DURATION = 1.4; // seconds for the line-art to sweep on (left→right)
 
 const color = new Color("#9ad1ff");
 const lineMaterial = new LineBasicMaterial({
@@ -87,24 +88,37 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
   const cy = (minY + maxY) / 2;
   const scale = TARGET_SIZE / (Math.max(maxX - minX, maxY - minY) || 1);
 
-  const seg: number[] = [];
+  // Build line segments, then sort them left→right so the draw-on animation
+  // sweeps across the drawing instead of popping in SVG authoring order.
+  type Seg = { ax: number; ay: number; bx: number; by: number; key: number };
+  const segs: Seg[] = [];
   for (const flat of polylines) {
-    const n = flat.length / 2;
-    for (let i = 0; i < n - 1; i++) {
+    const count = flat.length / 2;
+    for (let i = 0; i < count - 1; i++) {
       // flip Y: SVG is y-down, three is y-up.
-      seg.push(
-        (flat[i * 2]! - cx) * scale,
-        -(flat[i * 2 + 1]! - cy) * scale,
-        0,
-        (flat[(i + 1) * 2]! - cx) * scale,
-        -(flat[(i + 1) * 2 + 1]! - cy) * scale,
-        0
-      );
+      const ax = (flat[i * 2]! - cx) * scale;
+      const ay = -(flat[i * 2 + 1]! - cy) * scale;
+      const bx = (flat[(i + 1) * 2]! - cx) * scale;
+      const by = -(flat[(i + 1) * 2 + 1]! - cy) * scale;
+      segs.push({ ax, ay, bx, by, key: Math.min(ax, bx) });
     }
+  }
+  segs.sort((a, b) => a.key - b.key);
+
+  const pos = new Float32Array(segs.length * 6);
+  let o = 0;
+  for (const s of segs) {
+    pos[o++] = s.ax;
+    pos[o++] = s.ay;
+    pos[o++] = 0;
+    pos[o++] = s.bx;
+    pos[o++] = s.by;
+    pos[o++] = 0;
   }
 
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(new Float32Array(seg), 3));
+  geometry.setAttribute("position", new BufferAttribute(pos, 3));
+  geometry.setDrawRange(0, 0); // start hidden; onBeforeRender sweeps it on
   const ls = new LineSegments(geometry, lineMaterial);
   ls.frustumCulled = false; // drawn in the overlay pass; don't cull on the main cam
   lines.value = ls;
@@ -122,13 +136,31 @@ onMounted(() => {
   );
 });
 
+// When the skyline becomes visible, sweep the lines on left→right (via the
+// geometry draw range), then hold; reset when it leaves so it redraws next time.
+let drawStart = -1;
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
+
 const { onBeforeRender } = useLoop();
 onBeforeRender(({ elapsed }) => {
   const group = groupRef.value;
   if (!group) return;
   const reveal = props.reveal;
-  group.visible = reveal > 0.001 && !!lines.value;
-  if (!group.visible) return;
+  const ls = lines.value;
+  group.visible = reveal > 0.001 && !!ls;
+  if (!group.visible) {
+    drawStart = -1;
+    return;
+  }
+  if (drawStart < 0) drawStart = elapsed;
+
+  if (ls) {
+    const verts = ls.geometry.getAttribute("position").count;
+    const p = smoothstep(Math.min(1, (elapsed - drawStart) / DRAW_DURATION));
+    // draw range counts vertices; keep it on segment (pair) boundaries.
+    ls.geometry.setDrawRange(0, Math.floor((verts / 2) * p) * 2);
+  }
+
   group.scale.setScalar(0.6 + 0.4 * reveal);
   // Mostly architectural/static: only a very subtle sway.
   group.rotation.z = Math.sin(elapsed * 0.4) * 0.01;
