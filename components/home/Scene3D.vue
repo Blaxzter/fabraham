@@ -4,6 +4,7 @@ import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Group, Object3D, PerspectiveCamera } from "three";
+import { useWindowSize } from "@vueuse/core";
 import SceneSetPieces from "./SceneSetPieces.vue";
 
 const store = useSceneControlStore();
@@ -27,9 +28,10 @@ const wireFrameRotationY = shallowRef(0);
 const headGroupRef = shallowRef<Group | null>(null);
 const wireframeGroupRef = shallowRef<Group | null>(null);
 
-// Mouse tracking for head rotation
+// Mouse tracking for head rotation. Disabled for now — the cursor-following head
+// is being reworked into a deliberate end-of-page feature (see GitHub issue).
 const mousePosition = shallowRef({ x: 0, y: 0 });
-const isMouseTracking = shallowRef(true); // Toggle mouse tracking on/off
+const isMouseTracking = shallowRef(false); // Toggle mouse tracking on/off
 const headFollowSpeed = shallowRef(0.02); // Controls how fast head follows cursor (0-1, where 1 is instant)
 const headFollowMinSpeed = shallowRef(0.01); // Minimum speed to ensure target is reached
 const headRotationOffsetY = shallowRef(-0.75); // Fine-tune left/right viewing direction (in radians)
@@ -165,6 +167,20 @@ watch(
   },
   { immediate: true }
 );
+
+// Keep the camera aspect matched to the (window-size) canvas so the scene isn't
+// stretched. The hard-coded aspect=1 distorted everything on wide viewports.
+const { width: windowWidth, height: windowHeight } = useWindowSize();
+watch(
+  [cameraRef, windowWidth, windowHeight],
+  () => {
+    const cam = cameraRef.value;
+    if (!cam) return;
+    cam.aspect = (windowWidth.value || 1) / (windowHeight.value || 1);
+    cam.updateProjectionMatrix();
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -182,10 +198,10 @@ watch(
     />
     <!-- Camera pose is driven imperatively in onLoop (scroll) or by OrbitControls
          (dev), so no reactive position/rotation props here (issue #4). -->
+    <!-- aspect is managed imperatively from the window size (see watch above). -->
     <TresPerspectiveCamera
       ref="cameraRef"
       :fov="45"
-      :aspect="1"
       :near="0.1"
       :far="1000"
     />
