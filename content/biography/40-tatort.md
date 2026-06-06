@@ -5,6 +5,8 @@ order: 40
 location: "Berlin"
 accent: "#ff6b6b"
 side: "auto"
+setPiece: ["lattice", "threadBoard"]
+setPieceVariant: "embeddings"
 ---
 
 ## Tatort, at scale

@@ -5,6 +5,7 @@ order: 60
 location: "Berlin"
 accent: "#ffd479"
 side: "auto"
+setPiece: ["staffLines"]
 ---
 
 ## Community

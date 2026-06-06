@@ -5,6 +5,8 @@ order: 30
 location: "Maastricht"
 accent: "#c4a0ff"
 side: "auto"
+setPiece: ["lattice"]
+setPieceVariant: "gan"
 ---
 
 ## Maastricht — M.Sc. AI

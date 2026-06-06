@@ -5,6 +5,7 @@ order: 10
 location: "Berlin"
 accent: "#9ad1ff"
 side: "auto"
+setPiece: ["berlinSkyline"]
 ---
 
 ## TU Berlin — B.Sc.

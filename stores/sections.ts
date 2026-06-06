@@ -154,6 +154,21 @@ export const useSectionsStore = defineStore("sections", () => {
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
 
+  // Reveal (0..1) for sub-beat `subIndex` of `subCount` *within* section `index`
+  // — used for the biography milestones' individual line backdrops, which bloom
+  // one after another as you scroll through the (single) biography section.
+  const subReveal = (index: number, subIndex: number, subCount: number) => {
+    const bs = boundaries.value;
+    const start = bs[index] ?? 0;
+    const end = bs[index + 1] ?? 1;
+    const span = (end - start) / (subCount || 1);
+    const subStart = start + subIndex * span;
+    const local = (progress.value - subStart) / (span || 1);
+    const fadeIn = clamp01(local / REVEAL_FADE);
+    const fadeOut = clamp01((1 - local) / REVEAL_FADE);
+    return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
+  };
+
   const enable = () => {
     enabled.value = true;
   };
@@ -182,5 +197,6 @@ export const useSectionsStore = defineStore("sections", () => {
     // helpers
     cameraAt,
     revealFor,
+    subReveal,
   };
 });

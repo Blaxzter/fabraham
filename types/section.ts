@@ -70,5 +70,8 @@ export interface BiographyMilestone {
   accent?: string;
   side: "left" | "right" | "auto";
   offset?: { x?: number; y?: number };
+  /** Line backdrop(s) that bloom while this milestone is centered. */
+  setPiece: SetPieceName[];
+  setPieceVariant: string;
   path?: string;
 }

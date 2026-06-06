@@ -9,13 +9,15 @@ import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
 
 /**
- * Maps each section's `setPiece` to its 3D line component and renders it inside
- * the canvas, fading via the section's scroll-driven `reveal`. New set-pieces
- * only need to be added to `SET_PIECES` — the section markdown references them.
+ * Renders the line set-pieces inside the canvas. Two sources:
+ * - top-level sections (`section.setPiece`), revealed across the section, and
+ * - biography milestones (`milestone.setPiece`), each blooming as its sub-beat
+ *   centers within the (single) biography section — restoring the per-milestone
+ *   backdrops (skyline, route arc, thread-board, …).
  */
 const store = useSectionsStore();
-// Ensure the section data is loaded even if the scene mounts before the content.
 useSections();
+const { milestones } = useBiographyMilestones();
 
 const SET_PIECES: Partial<Record<string, Component>> = {
   lattice: Lattice,
@@ -26,9 +28,8 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   staffLines: StaffLines,
 };
 
-// Keep the primary piece centered on the head (e.g. the lattice that surrounds
-// it); push stacked pieces aside and back so two set-pieces in one section read
-// as distinct motifs instead of one tangled mass at the origin.
+// Keep the primary piece centered on the head; push stacked pieces aside/back so
+// two set-pieces in one beat read as distinct motifs, not one tangled mass.
 const SLOT_OFFSETS: [number, number, number][] = [
   [0, 0, 0],
   [1.4, 0.1, -0.4],
@@ -37,20 +38,60 @@ const SLOT_OFFSETS: [number, number, number][] = [
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
 
-// Flatten sections → individual set-pieces (a section may stack several).
-const pieces = computed(() =>
-  store.sections.flatMap((section, index) =>
+const bioIndex = computed(() =>
+  store.sections.findIndex((s) => s.type === "biography")
+);
+
+const pieces = computed(() => {
+  // Section-level backdrops (revealed across the whole section).
+  const sectionPieces = store.sections.flatMap((section, index) =>
     section.setPiece
       .map((name, slot) => ({
-        key: `${section.id}:${name}`,
+        key: `s${index}:${slot}:${name}`,
+        kind: "section" as const,
         index,
-        section,
+        subIndex: 0,
+        subCount: 1,
+        variant: section.setPieceVariant,
         position: offsetFor(slot),
         component: SET_PIECES[name],
       }))
       .filter((p) => p.component)
-  )
-);
+  );
+
+  // Per-milestone backdrops within the biography section.
+  const bi = bioIndex.value;
+  const count = milestones.value.length || 1;
+  const milestonePieces =
+    bi < 0
+      ? []
+      : milestones.value.flatMap((m, j) =>
+          m.setPiece
+            .map((name, slot) => ({
+              key: `m${j}:${slot}:${name}`,
+              kind: "milestone" as const,
+              index: bi,
+              subIndex: j,
+              subCount: count,
+              variant: m.setPieceVariant,
+              position: offsetFor(slot),
+              component: SET_PIECES[name],
+            }))
+            .filter((p) => p.component)
+        );
+
+  return [...sectionPieces, ...milestonePieces];
+});
+
+const revealOf = (p: {
+  kind: "section" | "milestone";
+  index: number;
+  subIndex: number;
+  subCount: number;
+}) =>
+  p.kind === "milestone"
+    ? store.subReveal(p.index, p.subIndex, p.subCount)
+    : store.revealFor(p.index);
 </script>
 
 <template>
@@ -58,8 +99,8 @@ const pieces = computed(() =>
     :is="piece.component"
     v-for="piece in pieces"
     :key="piece.key"
-    :reveal="store.revealFor(piece.index)"
-    :variant="piece.section.setPieceVariant"
+    :reveal="revealOf(piece)"
+    :variant="piece.variant"
     :position="piece.position"
   />
 </template>

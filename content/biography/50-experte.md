@@ -5,6 +5,8 @@ order: 50
 location: "Berlin"
 accent: "#7fe7ff"
 side: "auto"
+setPiece: ["lattice", "documentGrid"]
+setPieceVariant: "rag"
 ---
 
 ## Experte — RAG

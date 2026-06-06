@@ -82,6 +82,8 @@ export function useBiographyMilestones() {
       accent: doc.accent,
       side: (doc.side as "left" | "right" | "auto") ?? "auto",
       offset: doc.offset ?? undefined,
+      setPiece: (doc.setPiece as SetPieceName[] | undefined) ?? [],
+      setPieceVariant: doc.setPieceVariant ?? "",
       path: doc.path,
     }))
   );

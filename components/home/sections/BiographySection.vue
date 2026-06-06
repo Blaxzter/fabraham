@@ -27,20 +27,24 @@ const layout = computed(() => {
   });
 });
 
-// Smooth quadratic connector through the anchor points (organic feel).
+// Catmull-Rom spline → cubic beziers: a smooth curve that passes THROUGH every
+// node (anchor), so the connector actually links the dots.
 const connectorPath = computed(() => {
   const pts = layout.value.map((p) => ({ x: p.ax, y: p.ay }));
   if (pts.length < 2) return "";
-  let d = `M ${pts[0]!.x.toFixed(2)} ${pts[0]!.y.toFixed(2)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const prev = pts[i - 1]!;
-    const cur = pts[i]!;
-    const mx = (prev.x + cur.x) / 2;
-    const my = (prev.y + cur.y) / 2;
-    d += ` Q ${prev.x.toFixed(2)} ${prev.y.toFixed(2)} ${mx.toFixed(2)} ${my.toFixed(2)}`;
+  const f = (n: number) => n.toFixed(2);
+  let d = `M ${f(pts[0]!.x)} ${f(pts[0]!.y)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${f(c1x)} ${f(c1y)} ${f(c2x)} ${f(c2y)} ${f(p2.x)} ${f(p2.y)}`;
   }
-  const last = pts[pts.length - 1]!;
-  d += ` L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
   return d;
 });
 
@@ -102,7 +106,7 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.4;
+  opacity: 0.6;
   pointer-events: none;
 }
 .bio-node {

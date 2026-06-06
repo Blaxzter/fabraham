@@ -5,8 +5,6 @@ order: 30
 type: "biography"
 weight: 4
 accent: "#9ad1ff"
-setPiece: ["lattice"]
-setPieceVariant: "embeddings"
 cameraPosition: [-0.2, 0.05, 1.1]
 cameraRotation: [-0.05, -0.12, 0.0]
 ---

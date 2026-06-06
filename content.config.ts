@@ -82,6 +82,9 @@ export default defineContentConfig({
                 offset: z
                     .object({ x: z.number().optional(), y: z.number().optional() })
                     .optional(),
+                // The line backdrop(s) that bloom in 3D as this milestone centers.
+                setPiece: z.array(setPieceEnum).optional(),
+                setPieceVariant: z.string().optional(),
             }),
         }),
     },

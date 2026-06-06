@@ -5,6 +5,7 @@ order: 20
 location: "En route"
 accent: "#ffd479"
 side: "auto"
+setPiece: ["routeArc"]
 ---
 
 ## The move
