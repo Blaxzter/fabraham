@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, onBeforeUnmount } from "vue";
+import { shallowRef, onMounted, onBeforeUnmount } from "vue";
 import { useLoop } from "@tresjs/core";
 import {
   AdditiveBlending,
@@ -7,18 +7,26 @@ import {
   BufferGeometry,
   Color,
   Group,
-  Line,
   LineBasicMaterial,
   LineSegments,
 } from "three";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 
 /**
- * A clean LINE SILHOUETTE of a stylized Berlin skyline for the "TU Berlin / B.Sc."
- * chapter. The Fernsehturm (mast + wireframe sphere rings + antenna spike) anchors
- * the scene, flanked by simple rectangular building outlines along a ground line.
- * Only lines read through the ASCII post-process, so this is pure wireframe.
+ * Berlin skyline as **SVG line-art**, rendered into the 3D scene as lines.
  *
- * `reveal` (0..1, scroll-driven) fades and scales it in while its chapter is centered.
+ * The art is authored as a normal SVG (a continuous single-line drawing reads
+ * best) and dropped into `public/setpieces/berlin-skyline.svg`. We load it with
+ * three's `SVGLoader`, sample every sub-path into a polyline, then normalise the
+ * whole drawing: centre it on the origin, flip Y (SVG is y-down), and scale the
+ * largest dimension to `TARGET_SIZE` world units so it fits the camera frame.
+ * Swap the SVG file and the skyline updates — no code change.
+ *
+ * Only lines (no fills) so it reads through the ASCII post-process; rendered via
+ * the selective set-piece overlay (see SceneSetPieces.vue), additive + no depth
+ * write, like every other set-piece.
+ *
+ * `reveal` (0..1, scroll-driven) fades and scales it in while its beat centers.
  */
 interface Props {
   reveal?: number;
@@ -31,80 +39,12 @@ const props = withDefaults(defineProps<Props>(), {
   position: () => [0, 0, 0],
 });
 
-// Deterministic PRNG so the skyline layout is stable across reloads.
-const mulberry32 = (seed: number) => () => {
-  seed |= 0;
-  seed = (seed + 0x6d2b79f5) | 0;
-  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
+// Source art + the world size the normalised drawing is scaled to fit.
+const SVG_URL = "/setpieces/berlin-skyline.svg";
+const TARGET_SIZE = 1.15;
+const CURVE_DIVISIONS = 24; // samples per curve when flattening paths to lines
 
-const rand = mulberry32(0xb3211); // "Berlin" seed → fixed building heights
-
-// Helper: push the four edges of an axis-aligned rectangle outline (in XY).
-const pushRect = (out: number[], x0: number, x1: number, y0: number, y1: number) => {
-  out.push(x0, y0, 0, x1, y0, 0); // bottom
-  out.push(x1, y0, 0, x1, y1, 0); // right
-  out.push(x1, y1, 0, x0, y1, 0); // top
-  out.push(x0, y1, 0, x0, y0, 0); // left
-};
-
-const buildSkyline = () => {
-  const seg: number[] = [];
-  const groundY = -0.8;
-  const halfSpan = 1.3; // overall span ~2.6 wide
-
-  // Horizontal ground line the silhouette stands on.
-  seg.push(-halfSpan, groundY, 0, halfSpan, groundY, 0);
-
-  // Fernsehturm at the centre: tall vertical mast.
-  const mastTop = 0.55;
-  seg.push(0, groundY, 0, 0, mastTop, 0);
-
-  // Thin antenna spike above the sphere.
-  const sphereCy = mastTop + 0.12;
-  const sphereR = 0.12;
-  seg.push(0, sphereCy + sphereR, 0, 0, 0.8, 0);
-
-  // 4-6 rectangular building outlines flanking the tower, varying heights.
-  const slots = [-1.15, -0.85, -0.55, 0.55, 0.85, 1.15];
-  for (let i = 0; i < slots.length; i++) {
-    const cx = slots[i]!;
-    const w = 0.18 + rand() * 0.1;
-    const h = 0.28 + rand() * 0.55;
-    pushRect(seg, cx - w / 2, cx + w / 2, groundY, groundY + h);
-  }
-
-  return { seg: new Float32Array(seg), sphereCy, sphereR };
-};
-
-// Build the Fernsehturm sphere as a few wireframe lat/long rings (line loops).
-const buildSphereRings = (cy: number, r: number) => {
-  const ring: number[] = [];
-  const steps = 28;
-  // Two latitude rings (horizontal circles in the XZ-ish plane, drawn in XY for silhouette).
-  for (const lat of [-0.4, 0.0, 0.4]) {
-    const rr = r * Math.cos(lat);
-    const yy = cy + r * Math.sin(lat);
-    for (let s = 0; s <= steps; s++) {
-      const a = (s / steps) * Math.PI * 2;
-      ring.push(Math.cos(a) * rr, yy, Math.sin(a) * rr);
-    }
-  }
-  // One vertical longitude ring (the outline circle in XY) for the silhouette.
-  for (let s = 0; s <= steps; s++) {
-    const a = (s / steps) * Math.PI * 2;
-    ring.push(Math.cos(a) * r, cy + Math.sin(a) * r, 0);
-  }
-  return new Float32Array(ring);
-};
-
-const { seg, sphereCy, sphereR } = buildSkyline();
 const color = new Color("#9ad1ff");
-
-const lineGeometry = new BufferGeometry();
-lineGeometry.setAttribute("position", new BufferAttribute(seg, 3));
 const lineMaterial = new LineBasicMaterial({
   color,
   transparent: true,
@@ -112,46 +52,98 @@ const lineMaterial = new LineBasicMaterial({
   blending: AdditiveBlending,
   depthWrite: false,
 });
-const skyline = new LineSegments(lineGeometry, lineMaterial);
-
-const ringGeometry = new BufferGeometry();
-ringGeometry.setAttribute("position", new BufferAttribute(buildSphereRings(sphereCy, sphereR), 3));
-const ringMaterial = new LineBasicMaterial({
-  color,
-  transparent: true,
-  opacity: 0,
-  blending: AdditiveBlending,
-  depthWrite: false,
-});
-const sphere = new Line(ringGeometry, ringMaterial);
 
 const groupRef = shallowRef<Group | null>(null);
+const lines = shallowRef<LineSegments | null>(null);
+let disposed = false;
+
+// Flatten every sub-path of the parsed SVG into world-space line segments,
+// centered + Y-flipped + scaled to TARGET_SIZE.
+const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
+  const polylines: number[][] = [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const path of paths) {
+    for (const sub of path.subPaths) {
+      const pts = sub.getPoints(CURVE_DIVISIONS);
+      if (pts.length < 2) continue;
+      const flat: number[] = [];
+      for (const p of pts) {
+        flat.push(p.x, p.y);
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+      polylines.push(flat);
+    }
+  }
+  if (!polylines.length) return;
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const scale = TARGET_SIZE / (Math.max(maxX - minX, maxY - minY) || 1);
+
+  const seg: number[] = [];
+  for (const flat of polylines) {
+    const n = flat.length / 2;
+    for (let i = 0; i < n - 1; i++) {
+      // flip Y: SVG is y-down, three is y-up.
+      seg.push(
+        (flat[i * 2]! - cx) * scale,
+        -(flat[i * 2 + 1]! - cy) * scale,
+        0,
+        (flat[(i + 1) * 2]! - cx) * scale,
+        -(flat[(i + 1) * 2 + 1]! - cy) * scale,
+        0
+      );
+    }
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new BufferAttribute(new Float32Array(seg), 3));
+  const ls = new LineSegments(geometry, lineMaterial);
+  ls.frustumCulled = false; // drawn in the overlay pass; don't cull on the main cam
+  lines.value = ls;
+};
+
+onMounted(() => {
+  const loader = new SVGLoader();
+  loader.load(
+    SVG_URL,
+    (data) => {
+      if (!disposed) buildFromSvg(data.paths);
+    },
+    undefined,
+    (err) => console.warn(`[BerlinSkyline] could not load ${SVG_URL}`, err)
+  );
+});
 
 const { onBeforeRender } = useLoop();
 onBeforeRender(({ elapsed }) => {
   const group = groupRef.value;
   if (!group) return;
   const reveal = props.reveal;
-  group.visible = reveal > 0.001;
+  group.visible = reveal > 0.001 && !!lines.value;
   if (!group.visible) return;
   group.scale.setScalar(0.6 + 0.4 * reveal);
   // Mostly architectural/static: only a very subtle sway.
   group.rotation.z = Math.sin(elapsed * 0.4) * 0.01;
-  lineMaterial.opacity = 0.6 * reveal;
-  ringMaterial.opacity = 0.6 * reveal;
+  lineMaterial.opacity = 0.85 * reveal;
 });
 
 onBeforeUnmount(() => {
-  lineGeometry.dispose();
+  disposed = true;
+  lines.value?.geometry.dispose();
   lineMaterial.dispose();
-  ringGeometry.dispose();
-  ringMaterial.dispose();
 });
 </script>
 
 <template>
   <TresGroup ref="groupRef" :position="props.position" :visible="false">
-    <primitive :object="skyline" />
-    <primitive :object="sphere" />
+    <primitive v-if="lines" :object="lines" />
   </TresGroup>
 </template>

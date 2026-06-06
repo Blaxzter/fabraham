@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PLACEHOLDER Berlin skyline line-art.
+  Replace this file with your own SVG line drawing (continuous single-line art
+  reads best). It is loaded by components/home/setpieces/BerlinSkyline.vue via
+  three's SVGLoader: every <path>/<polyline>/<circle>/… sub-path is sampled into
+  3D lines, then auto-centred, Y-flipped and scaled to fit the frame — so you can
+  drop in any size/viewBox and it just works. Use fill="none" + strokes; the
+  scene recolours it, so the stroke colour here is irrelevant.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 112" fill="none" stroke="#000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+  <polyline points="4,104 28,104 28,76 52,76 52,104 74,104 74,60 96,60 96,104 120,104 120,50 132,50 132,104 152,104 152,28 158,6 164,28 164,104 186,104 186,66 208,66 208,104 232,104 232,46 254,46 254,104 278,104 278,72 300,72 300,104 320,104" />
+  <circle cx="158" cy="40" r="9" />
+</svg>

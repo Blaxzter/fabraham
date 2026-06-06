@@ -32,12 +32,15 @@ const props = withDefaults(defineProps<Props>(), {
   position: () => [0, 0, 0],
 });
 
-// Escalating density / colour as the AI story deepens.
+// Escalating density / colour as the AI story deepens. The radii envelop the
+// 2× head (centred on the origin = the head's centre), and the set-piece overlay
+// runs a head depth pre-pass so the head actually occludes the *back* of the
+// graph — the face sits inside the node cloud rather than behind a flat veil.
 const VARIANTS = {
-  gan: { nodes: 28, radius: 1.1, connect: 0.55, color: "#c4a0ff" },
-  embeddings: { nodes: 54, radius: 1.25, connect: 0.5, color: "#7fe7ff" },
-  rag: { nodes: 80, radius: 1.4, connect: 0.42, color: "#ffffff" },
-  default: { nodes: 36, radius: 1.15, connect: 0.5, color: "#9ad1ff" },
+  gan: { nodes: 30, radius: 1.35, connect: 0.52, color: "#c4a0ff" },
+  embeddings: { nodes: 58, radius: 1.55, connect: 0.46, color: "#7fe7ff" },
+  rag: { nodes: 86, radius: 1.75, connect: 0.4, color: "#ffffff" },
+  default: { nodes: 38, radius: 1.45, connect: 0.48, color: "#9ad1ff" },
 } as const;
 
 const cfg = VARIANTS[props.variant as keyof typeof VARIANTS] ?? VARIANTS.default;
@@ -98,7 +101,7 @@ const pointGeometry = new BufferGeometry();
 pointGeometry.setAttribute("position", new BufferAttribute(pts, 3));
 const pointMaterial = new PointsMaterial({
   color,
-  size: 0.05,
+  size: 0.07,
   transparent: true,
   opacity: 0,
   blending: AdditiveBlending,

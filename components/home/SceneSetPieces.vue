@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, shallowRef } from "vue";
+import { computed, shallowRef, onBeforeUnmount } from "vue";
 import type { Component } from "vue";
 import { useLoop, useTresContext } from "@tresjs/core";
+import { MeshBasicMaterial } from "three";
 import type { Group } from "three";
 import Lattice from "./setpieces/Lattice.vue";
 import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
@@ -21,22 +22,19 @@ import StaffLines from "./setpieces/StaffLines.vue";
  * ------------------------------------------------------
  * The ASCII `EffectComposer` quantizes the WHOLE rendered scene, so thin lines
  * rendered the normal way get mangled into the same character grid as the head
- * and barely read (the Berlin skyline was effectively invisible). To fix that
- * WITHOUT changing the set-piece contract, we render them selectively:
+ * and barely read (the Berlin skyline was effectively invisible). We render them
+ * selectively instead: set-pieces live on dedicated layers the composer's
+ * RenderPass (camera on layer 0) never sees, so only the head/backdrop get
+ * ASCII'd. Then, in the same TresJS render loop (`onRender` fires right after
+ * the composer), we re-draw the set-pieces crisp on top:
  *
- *   1. every set-piece object is put on a dedicated render layer
- *      (`SETPIECE_LAYER`). The composer's RenderPass renders with a camera that
- *      only sees layer 0, so the set-pieces are excluded from the ASCII'd image
- *      — only the head/backdrop get quantized.
- *   2. after the composer has drawn the ASCII'd scene to the canvas, we make ONE
- *      extra draw call that re-renders just the set-piece layer, crisp, on top.
+ *   1. on-top backdrops (skyline, route arc, …) draw over the ASCII'd head;
+ *   2. the head is stamped into the depth buffer (depth only);
+ *   3. the graph cloud (lattice) draws depth-tested against that, so the head
+ *      occludes its back half — the face sits *inside* the graph.
  *
- * This keeps the lines sharp and fully 3D/camera-coupled (they are the same
- * Three objects, drawn with the same camera and pose) while the head stays
- * ASCII. It runs inside the single TresJS render loop (`onRender` fires right
- * after the composer) — no second rAF, no per-frame layout reads, nothing
- * retained or allocated per frame (issue #4). The six set-piece components are
- * untouched: only how/where they render changes.
+ * Lines stay sharp and fully 3D/camera-coupled. No second rAF, no per-frame
+ * layout reads, nothing allocated per frame (issue #4).
  */
 const store = useSectionsStore();
 useSections();
@@ -51,6 +49,12 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   staffLines: StaffLines,
 };
 
+// Pieces that should be DEPTH-OCCLUDED by the head (the head hides their back
+// half, so the face sits inside them). The lattice is a 3D cloud that wraps the
+// head; the rest are flat backdrops that read best drawn fully on top (otherwise
+// the close-up beats would hide them behind the head).
+const OCCLUDED_PIECES = new Set(["lattice"]);
+
 // Keep the primary piece centered on the head; push stacked pieces aside/back so
 // two set-pieces in one beat read as distinct motifs, not one tangled mass.
 const SLOT_OFFSETS: [number, number, number][] = [
@@ -60,17 +64,6 @@ const SLOT_OFFSETS: [number, number, number][] = [
 ];
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
-
-// Per-piece "fit" scale (a where-they-render concern, so it lives here, not in
-// the components). Most set-pieces are roughly spherical and frame well at 1×.
-// The Berlin skyline is a wide, flat silhouette (~2.6 units across) — at 1× the
-// camera frustum crops everything but the central mast, so it never reads as a
-// skyline. Scaling it down lets the whole silhouette (tower + flanking blocks)
-// sit inside the frame.
-const FIT_SCALE: Partial<Record<string, number>> = {
-  berlinSkyline: 0.45,
-};
-const scaleFor = (name: string): number => FIT_SCALE[name] ?? 1;
 
 const bioIndex = computed(() =>
   store.sections.findIndex((s) => s.type === "biography")
@@ -88,7 +81,7 @@ const pieces = computed(() => {
         subCount: 1,
         variant: section.setPieceVariant,
         position: offsetFor(slot),
-        scale: scaleFor(name),
+        occluded: OCCLUDED_PIECES.has(name),
         component: SET_PIECES[name],
       }))
       .filter((p) => p.component)
@@ -110,7 +103,7 @@ const pieces = computed(() => {
               subCount: count,
               variant: m.setPieceVariant,
               position: offsetFor(slot),
-              scale: scaleFor(name),
+              occluded: OCCLUDED_PIECES.has(name),
               component: SET_PIECES[name],
             }))
             .filter((p) => p.component)
@@ -130,22 +123,22 @@ const revealOf = (p: {
     : store.revealFor(p.index);
 
 // --- Selective render (issue #17) ---------------------------------------------
-// Layer the set-pieces sit on. Anything that is NOT this layer (the head, the
-// backdrop, dev helpers) renders through the ASCII pass on layer 0 as before.
+// Render layers. The composer's ASCII RenderPass uses the camera on layer 0, so
+// anything NOT on layer 0 is excluded from the ASCII'd image and instead drawn
+// crisp in the overlay below.
+//   1 = set-pieces drawn on top (flat backdrops: skyline, staff lines, …)
+//   3 = set-pieces depth-occluded by the head (the graph cloud → head inside it)
+//   2 = the head, used as a depth-only occluder (tagged in Scene3D.vue)
 const SETPIECE_LAYER = 1;
+const OCCLUDED_LAYER = 3;
+const HEAD_LAYER = 2;
+
+// Writes depth only (no colour): used to stamp the head's silhouette into the
+// depth buffer so the occluded set-pieces test against it.
+const depthOnlyMat = new MeshBasicMaterial({ colorWrite: false });
 
 const { scene, camera, renderer } = useTresContext();
 const setPiecesRoot = shallowRef<Group | null>(null);
-
-// Set-pieces mount once (after the async content loads) and never swap, so the
-// only time the layer assignment needs to (re)run is when the number of mounted
-// pieces changes. Steady state is a single integer compare per frame.
-let layeredChildCount = -1;
-const assignLayer = (root: Group) => {
-  // Layers are per-object (not inherited), so tag the whole subtree.
-  root.traverse((o) => o.layers.set(SETPIECE_LAYER));
-  layeredChildCount = root.children.length;
-};
 
 const { onRender } = useLoop();
 onRender(() => {
@@ -155,42 +148,68 @@ onRender(() => {
   const scn = scene.value;
   if (!root || !gl || !cam || !scn) return;
 
-  if (root.children.length !== layeredChildCount) assignLayer(root);
+  // Tag each piece's subtree onto its layer (1 = on-top, 3 = occluded). Layers
+  // are per-object (not inherited) and some pieces add geometry asynchronously
+  // (e.g. the SVG skyline mounts its lines after a fetch), so we re-tag every
+  // frame — idempotent, a handful of objects, no allocation/layout read (stays
+  // within the issue #4 budget). Children render in `pieces` order; if that ever
+  // doesn't line up, fall back to tagging everything on-top.
+  const kids = root.children;
+  const ps = pieces.value;
+  if (kids.length === ps.length) {
+    for (let i = 0; i < kids.length; i++) {
+      kids[i]!.traverse((o) =>
+        o.layers.set(ps[i]!.occluded ? OCCLUDED_LAYER : SETPIECE_LAYER)
+      );
+    }
+  } else {
+    root.traverse((o) => o.layers.set(SETPIECE_LAYER));
+  }
 
   // Composite the crisp set-pieces over the ASCII'd scene the composer just drew
-  // to the canvas: aim the camera at the set-piece layer only, keep the existing
-  // colour buffer (autoClear=false), clear depth so no line is clipped by stale
-  // depth, draw, then restore the camera/renderer so the next composer frame
-  // renders the ASCII'd scene (layer 0) exactly as before.
+  // to the canvas. Keep the existing colour buffer (autoClear=false) and clear
+  // depth so nothing is clipped by stale depth.
   const prevAutoClear = gl.autoClear;
   const prevBackground = scn.background;
+  const prevOverride = scn.overrideMaterial;
   gl.autoClear = false;
   scn.background = null;
-  cam.layers.set(SETPIECE_LAYER);
   gl.clearDepth();
+
+  // 1) On-top backdrops (no occluder yet → all visible over the head).
+  cam.layers.set(SETPIECE_LAYER);
   gl.render(scn, cam);
+
+  // 2) Stamp the head into the depth buffer (depth only, no colour).
+  cam.layers.set(HEAD_LAYER);
+  scn.overrideMaterial = depthOnlyMat;
+  gl.render(scn, cam);
+  scn.overrideMaterial = prevOverride;
+
+  // 3) Occluded pieces (the graph): depth-tested against the head, so the head
+  //    hides the back of the cloud and the face reads as being *inside* it.
+  cam.layers.set(OCCLUDED_LAYER);
+  gl.render(scn, cam);
+
   cam.layers.set(0);
   scn.background = prevBackground;
   gl.autoClear = prevAutoClear;
+});
+
+onBeforeUnmount(() => {
+  depthOnlyMat.dispose();
 });
 </script>
 
 <template>
   <TresGroup ref="setPiecesRoot">
-    <!-- Wrapper carries the per-piece fit scale (composes with the component's
-         own reveal-driven scale); the component still positions itself via the
-         :position prop. -->
-    <TresGroup
+    <component
+      :is="piece.component"
       v-for="piece in pieces"
       :key="piece.key"
-      :scale="[piece.scale, piece.scale, piece.scale]"
-    >
-      <component
-        :is="piece.component"
-        :reveal="revealOf(piece)"
-        :variant="piece.variant"
-        :position="piece.position"
-      />
-    </TresGroup>
+      :reveal="revealOf(piece)"
+      :variant="piece.variant"
+      :position="piece.position"
+    />
   </TresGroup>
 </template>

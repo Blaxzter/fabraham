@@ -150,6 +150,12 @@ watch(
 
       // Calculate offset to center the model at origin
       modelOffset.value.copy(boxCenter.value).negate();
+
+      // Also tag the head onto layer 2 (keeping the default layer 0). The
+      // set-piece overlay (SceneSetPieces.vue) renders this layer depth-only as
+      // an occluder so the head hides the back of the graph set-piece — the face
+      // sits *inside* the lattice. Keep in sync with HEAD_LAYER there.
+      newModel.traverse((o) => o.layers.enable(2));
     }
   },
   { immediate: true }
