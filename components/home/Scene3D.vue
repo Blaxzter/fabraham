@@ -9,7 +9,7 @@ import SceneSetPieces from "./SceneSetPieces.vue";
 
 const store = useSceneControlStore();
 const bootState = useBootStateStore();
-const timeline = useTimelineStore();
+const sectionsStore = useSectionsStore();
 
 const modelRef = shallowRef<Object3D | null>(null);
 const cameraRef = shallowRef<PerspectiveCamera | null>(null);
@@ -96,10 +96,10 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
       store.cameraRotation.y = Math.round(rotation.y * 100) / 100;
       store.cameraRotation.z = Math.round(rotation.z * 100) / 100;
     }
-  } else if (timeline.enabled && cameraRef.value) {
-    // Scroll: drive the camera imperatively from the timeline progress — no
+  } else if (sectionsStore.enabled && cameraRef.value) {
+    // Scroll: drive the camera imperatively from the scroll progress — no
     // reactive camera props, no per-frame layout reads (issue #4).
-    const pose = timeline.cameraAt(timeline.progress);
+    const pose = sectionsStore.cameraAt(sectionsStore.progress);
     const cam = cameraRef.value;
     cam.position.set(pose.position.x, pose.position.y, pose.position.z);
     cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);

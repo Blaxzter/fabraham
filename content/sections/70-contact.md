@@ -2,8 +2,8 @@
 title: "Let's build something that holds up"
 subtitle: "Berlin → Maastricht → Berlin · and onward"
 order: 70
-location: "Berlin"
-weight: 1
+type: "contact"
+weight: 1.5
 accent: "#00ff9c"
 cameraPosition: [0.0, 0.04, 1.85]
 cameraRotation: [-0.04, 0.0, 0.0]

@@ -39,14 +39,14 @@ const stopSmoothScroll = () => {
  * Owns the scroll → progress pipeline and its teardown (issue #4):
  * one Lenis + one ScrollTrigger, no per-frame layout reads, no leaked rAF.
  *
- * The single ScrollTrigger maps document scroll → `timelineStore.progress`; the
+ * The single ScrollTrigger maps document scroll → `sectionsStore.progress`; the
  * camera and everything else derive from that one value. ASCII cell/font size
  * are pushed to the SceneControl store reactively (scroll-driven, not 60fps).
  *
  * Call once from the component that owns the scrollable content lifecycle.
  */
 export function useScrollTimeline() {
-  const timeline = useTimelineStore();
+  const store = useSectionsStore();
   const sceneControl = useSceneControlStore();
 
   let ctx: ReturnType<typeof gsap.context> | null = null;
@@ -61,24 +61,24 @@ export function useScrollTimeline() {
       ScrollTrigger.create({
         start: 0,
         end: "max",
-        onUpdate: (self) => timeline.setProgress(self.progress),
+        onUpdate: (self) => store.setProgress(self.progress),
       });
     });
 
     // Push ASCII params reactively off progress (replaces the old per-frame writes).
     stopAscii = watch(
-      () => timeline.progress,
+      () => store.progress,
       () => {
-        sceneControl.cellSize = timeline.asciiCellSize;
-        sceneControl.fontSize = timeline.asciiFontSize;
+        sceneControl.cellSize = store.asciiCellSize;
+        sceneControl.fontSize = store.asciiFontSize;
       },
       { immediate: true }
     );
 
-    // The document height depends on the (async-loaded) chapters; refresh the
-    // trigger whenever the chapter count changes and on resize.
+    // The document height depends on the (async-loaded) sections; refresh the
+    // trigger whenever the section count changes and on resize.
     stopRefresh = watch(
-      () => timeline.chapters.length,
+      () => store.sections.length,
       () => requestAnimationFrame(() => ScrollTrigger.refresh()),
       { immediate: true }
     );

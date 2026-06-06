@@ -1,17 +1,17 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { gsap } from "gsap";
-import type { CameraPose, TimelineChapter } from "~/types/timeline";
+import type { CameraPose, Section } from "~/types/section";
 
 // Hero ASCII ramp — the cell/font size sweep that happens while the very first
-// (identity) chapter is on screen. Matches the original hero feel.
+// (identity) section is on screen. Matches the original hero feel.
 const ASCII_CELL_START = 45;
 const ASCII_CELL_END = 9;
 const ASCII_FONT_START = 15;
 const ASCII_FONT_END = 44;
 
-// Set-piece reveal window: fraction of a chapter's scroll range used to fade a
-// set-piece in (and, symmetrically, out) so it blooms while the chapter is centered.
+// Set-piece reveal window: fraction of a section's scroll range used to fade a
+// set-piece in (and, symmetrically, out) so it blooms while the section is centered.
 const REVEAL_FADE = 0.25;
 
 const lerp = (a: number, b: number, t: number) => gsap.utils.interpolate(a, b, t);
@@ -25,32 +25,32 @@ const FALLBACK_POSE: CameraPose = {
 };
 
 /**
- * Single source of truth for the scroll-driven 3D timeline.
+ * Single source of truth for the scroll-driven 3D scene.
  *
  * This store holds only *shared state* (issue #4): the current scroll `progress`
- * and the chapter config. It owns NO requestAnimationFrame loop — scroll is read
+ * and the section config. It owns NO requestAnimationFrame loop — scroll is read
  * by a GSAP ScrollTrigger (see `useScrollTimeline`) which writes `progress`, and
  * the camera is mutated imperatively inside the TresJS render loop (see Scene3D).
  * The keyframe interpolation below is the single interpolator reused for the
- * camera, ASCII params and set-piece reveal.
+ * camera and set-piece reveal as the camera moves between sections.
  */
-export const useTimelineStore = defineStore("timeline", () => {
+export const useSectionsStore = defineStore("sections", () => {
   // Shared state
   const enabled = ref(true);
   const progress = ref(0); // 0..1 across the whole scroll
-  const chapters = ref<TimelineChapter[]>([]);
+  const sections = ref<Section[]>([]);
 
-  const setChapters = (next: TimelineChapter[]) => {
-    chapters.value = next;
+  const setSections = (next: Section[]) => {
+    sections.value = next;
   };
   const setProgress = (p: number) => {
     progress.value = clamp01(p);
   };
 
-  // Normalized cumulative boundaries derived from chapter weights — length n+1,
-  // e.g. [0, 0.2, 0.45, …, 1]. boundaries[i]..boundaries[i+1] is chapter i's range.
+  // Normalized cumulative boundaries derived from section weights — length n+1,
+  // e.g. [0, 0.2, 0.45, …, 1]. boundaries[i]..boundaries[i+1] is section i's range.
   const boundaries = computed(() => {
-    const weights = chapters.value.map((c) => c.weight || 1);
+    const weights = sections.value.map((s) => s.weight || 1);
     const total = weights.reduce((a, b) => a + b, 0) || 1;
     const result = [0];
     let acc = 0;
@@ -61,22 +61,22 @@ export const useTimelineStore = defineStore("timeline", () => {
     return result;
   });
 
-  // The progress value at the *center* of each chapter — the camera "anchor" the
-  // camera arrives at while that chapter is centered on screen.
+  // The progress value at the *center* of each section — the camera "anchor" the
+  // camera arrives at while that section is centered on screen.
   const anchors = computed(() =>
-    chapters.value.map((_, i) => (boundaries.value[i]! + boundaries.value[i + 1]!) / 2)
+    sections.value.map((_, i) => (boundaries.value[i]! + boundaries.value[i + 1]!) / 2)
   );
 
   const activeIndex = computed(() => {
     const bs = boundaries.value;
     const p = progress.value;
-    for (let i = 0; i < chapters.value.length; i++) {
+    for (let i = 0; i < sections.value.length; i++) {
       if (p >= bs[i]! && p < bs[i + 1]!) return i;
     }
-    return Math.max(0, chapters.value.length - 1);
+    return Math.max(0, sections.value.length - 1);
   });
 
-  // Progress within the active chapter (0..1).
+  // Progress within the active section (0..1).
   const localProgress = computed(() => {
     const bs = boundaries.value;
     const i = activeIndex.value;
@@ -84,7 +84,7 @@ export const useTimelineStore = defineStore("timeline", () => {
     return clamp01((progress.value - (bs[i] ?? 0)) / span);
   });
 
-  // Progress through the hero (chapter 0) — feeds the ASCII name assembly.
+  // Progress through the hero (section 0) — feeds the ASCII name assembly.
   const heroProgress = computed(() => {
     const end = boundaries.value[1] ?? 1;
     return clamp01(progress.value / (end || 1));
@@ -108,7 +108,7 @@ export const useTimelineStore = defineStore("timeline", () => {
   };
 
   const cameraAt = (p: number): CameraPose => {
-    const cs = chapters.value;
+    const cs = sections.value;
     if (!cs.length) return copyPose(FALLBACK_POSE);
     const an = anchors.value;
     if (p <= an[0]!) return copyPose(cs[0]!.camera);
@@ -141,8 +141,8 @@ export const useTimelineStore = defineStore("timeline", () => {
     Math.round(lerp(ASCII_FONT_START, ASCII_FONT_END, heroProgress.value))
   );
 
-  // Reveal (0..1) for the set-piece of chapter `index`: blooms in over the first
-  // REVEAL_FADE of the chapter, holds, fades out over the last REVEAL_FADE.
+  // Reveal (0..1) for the set-piece of section `index`: blooms in over the first
+  // REVEAL_FADE of the section, holds, fades out over the last REVEAL_FADE.
   const revealFor = (index: number) => {
     const bs = boundaries.value;
     const start = bs[index] ?? 0;
@@ -165,9 +165,9 @@ export const useTimelineStore = defineStore("timeline", () => {
     // state
     enabled,
     progress,
-    chapters,
+    sections,
     // mutations
-    setChapters,
+    setSections,
     setProgress,
     enable,
     disable,

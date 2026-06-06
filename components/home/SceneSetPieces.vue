@@ -9,14 +9,13 @@ import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
 
 /**
- * Maps each chapter's `setPiece` to its 3D line component and renders it inside
- * the canvas, fading via the chapter's scroll-driven `reveal`. New set-pieces
- * (BerlinSkyline, RouteArc, ThreadBoard, DocumentGrid, StaffLines) only need to
- * be added to `SET_PIECES` — the chapter markdown already references them.
+ * Maps each section's `setPiece` to its 3D line component and renders it inside
+ * the canvas, fading via the section's scroll-driven `reveal`. New set-pieces
+ * only need to be added to `SET_PIECES` — the section markdown references them.
  */
-const timeline = useTimelineStore();
-// Ensure the chapter data is loaded even if the scene mounts before the content.
-useTimelineChapters();
+const store = useSectionsStore();
+// Ensure the section data is loaded even if the scene mounts before the content.
+useSections();
 
 const SET_PIECES: Partial<Record<string, Component>> = {
   lattice: Lattice,
@@ -28,9 +27,8 @@ const SET_PIECES: Partial<Record<string, Component>> = {
 };
 
 // Keep the primary piece centered on the head (e.g. the lattice that surrounds
-// it); push stacked pieces aside and back so two set-pieces in one chapter
-// (Tatort: lattice + thread-board; Experte: lattice + document-grid) read as
-// distinct motifs instead of one tangled mass at the origin.
+// it); push stacked pieces aside and back so two set-pieces in one section read
+// as distinct motifs instead of one tangled mass at the origin.
 const SLOT_OFFSETS: [number, number, number][] = [
   [0, 0, 0],
   [1.4, 0.1, -0.4],
@@ -39,14 +37,14 @@ const SLOT_OFFSETS: [number, number, number][] = [
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
 
-// Flatten chapters → individual set-pieces (a chapter may stack several).
+// Flatten sections → individual set-pieces (a section may stack several).
 const pieces = computed(() =>
-  timeline.chapters.flatMap((chapter, index) =>
-    chapter.setPiece
+  store.sections.flatMap((section, index) =>
+    section.setPiece
       .map((name, slot) => ({
-        key: `${chapter.id}:${name}`,
+        key: `${section.id}:${name}`,
         index,
-        chapter,
+        section,
         position: offsetFor(slot),
         component: SET_PIECES[name],
       }))
@@ -60,8 +58,8 @@ const pieces = computed(() =>
     :is="piece.component"
     v-for="piece in pieces"
     :key="piece.key"
-    :reveal="timeline.revealFor(piece.index)"
-    :variant="piece.chapter.setPieceVariant"
+    :reveal="store.revealFor(piece.index)"
+    :variant="piece.section.setPieceVariant"
     :position="piece.position"
   />
 </template>

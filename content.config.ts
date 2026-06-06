@@ -1,7 +1,16 @@
 import { defineContentConfig, defineCollection, z } from '@nuxt/content';
 
-// A reusable [x, y, z] tuple for camera poses authored in chapter frontmatter.
+// A reusable [x, y, z] tuple for camera poses authored in section frontmatter.
 const vec3 = z.array(z.number()).length(3);
+
+const setPieceEnum = z.enum([
+    'lattice',
+    'berlinSkyline',
+    'routeArc',
+    'threadBoard',
+    'documentGrid',
+    'staffLines',
+]);
 
 export default defineContentConfig({
     collections: {
@@ -21,46 +30,58 @@ export default defineContentConfig({
             }),
         }),
 
-        // Data-driven 3D biographical timeline. One markdown file = one chapter.
-        // Adding a milestone = writing markdown; the body stays indexable markdown
-        // (prerenders for SEO once SSG #5 is enabled), while the frontmatter drives
-        // the camera path and 3D line set-pieces.
-        timeline: defineCollection({
-            source: 'timeline/*.md',
+        // Top-level peer "sections" — the backbone of the scroll experience. Each
+        // section is a content piece (of a `type`) paired with a 3D scene state
+        // (camera pose + set-pieces); the scroll engine interpolates the camera
+        // between sections. Adding/reordering a section = editing markdown.
+        sections: defineCollection({
+            source: 'sections/*.md',
             type: 'page',
             schema: z.object({
                 title: z.string(),
                 subtitle: z.string().optional(),
-                // Sort key. Use gapped numeric prefixes on filenames too (10, 20, …)
-                // so new chapters can be inserted between existing ones.
                 order: z.number(),
-                // Geographic anchor for the Berlin → Maastricht → Berlin spine.
-                location: z.string().optional(),
-                // Relative scroll length; drives both the DOM section height and the
-                // camera segment width. The hero is heavier (it owns the ASCII assemble).
+                type: z.enum(['biography', 'tech-stack', 'contact', 'interlude']),
+                // Relative scroll length AND camera segment width.
                 weight: z.number().default(1),
-                // Thin line/wireframe set-pieces that accompany this chapter.
-                // An array so a chapter can stack pieces (e.g. Tatort = the
-                // embeddings lattice + a thread-board topology).
-                setPiece: z
-                    .array(
-                        z.enum([
-                            'lattice',
-                            'berlinSkyline',
-                            'routeArc',
-                            'threadBoard',
-                            'documentGrid',
-                            'staffLines',
-                        ])
-                    )
+                // Artistic alignment of the HTML content piece over the canvas.
+                align: z
+                    .enum(['center', 'left', 'right', 'top', 'bottom', 'free'])
+                    .default('center'),
+                offset: z
+                    .object({ x: z.number().optional(), y: z.number().optional() })
                     .optional(),
-                // Variant for the recurring lattice motif (gan → embeddings → rag), etc.
-                setPieceVariant: z.string().optional(),
-                // Accent colour for the chapter card.
+                maxWidth: z.string().optional(),
                 accent: z.string().optional(),
-                // Camera pose the camera settles into while this chapter is centered.
+                // 3D renderings active during this section.
+                setPiece: z.array(setPieceEnum).optional(),
+                setPieceVariant: z.string().optional(),
+                // Camera pose the camera settles into while this section is centered.
                 cameraPosition: vec3,
                 cameraRotation: vec3,
+                // Per-type config (e.g. tech-stack items) — narrowed by consumers.
+                data: z.record(z.string(), z.any()).optional(),
+            }),
+        }),
+
+        // Biographical milestones, rendered as ONE artistic cluster by the
+        // `biography` section. These are pure content — no camera spine of their
+        // own (that belongs to the biography section).
+        biography: defineCollection({
+            source: 'biography/*.md',
+            type: 'page',
+            schema: z.object({
+                title: z.string(),
+                subtitle: z.string().optional(),
+                order: z.number(),
+                location: z.string().optional(),
+                accent: z.string().optional(),
+                // Which side of the connector line the card sits on.
+                side: z.enum(['left', 'right', 'auto']).default('auto'),
+                // Free artistic nudge for the loose-cluster layout.
+                offset: z
+                    .object({ x: z.number().optional(), y: z.number().optional() })
+                    .optional(),
             }),
         }),
     },

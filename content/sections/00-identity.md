@@ -2,7 +2,7 @@
 title: "Frederic Abraham"
 subtitle: "Fullest-Stack Developer"
 order: 0
-location: "Berlin"
+type: "interlude"
 weight: 2
 accent: "#00ff9c"
 cameraPosition: [0.06, 0.04, 0.48]

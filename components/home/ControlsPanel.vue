@@ -8,7 +8,7 @@ import {
 import { ref } from "vue";
 
 const store = useSceneControlStore();
-const timeline = useTimelineStore();
+const timeline = useSectionsStore();
 
 // Tab state
 const activeTab = ref<"scene" | "lights">("scene");
