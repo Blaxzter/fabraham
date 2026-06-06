@@ -8,6 +8,10 @@ import BiographyCard from "./BiographyCard.vue";
 // from the section weight) and absolutely-positions each milestone at a
 // deterministic anchor; the SVG connector is drawn through the same anchors so
 // the line and the cards always agree (no DOM measurement → SSG-safe).
+//
+// A sticky headline (sourced from the section frontmatter title/subtitle) pins
+// to the top of the section so the cluster reads as a clearly labeled chapter
+// as you scroll through it.
 const props = defineProps<{ section?: Section; doc?: unknown; visible?: boolean }>();
 
 const { docs, milestones } = useBiographyMilestones();
@@ -65,6 +69,18 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
 </script>
 
 <template>
+  <!-- Sticky chapter label: real HTML from the section frontmatter (SSG-safe),
+       pinned to the top of the (tall) biography section so it reads as a
+       labeled chapter the milestone cluster flows under. -->
+  <header
+    class="bio-heading"
+    :class="{ 'is-visible': visible }"
+    :style="{ '--accent': accent }"
+  >
+    <p v-if="section?.subtitle" class="bio-route">{{ section.subtitle }}</p>
+    <h2 v-if="section?.title" class="bio-title">{{ section.title }}</h2>
+  </header>
+
   <div class="bio" :style="{ '--accent': accent }">
     <svg
       class="bio-connector"
@@ -97,6 +113,48 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
 </template>
 
 <style scoped>
+.bio-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: clamp(1.5rem, 6vh, 4rem) 1.5rem 1.5rem;
+  pointer-events: none;
+  /* Fade the scene/cards passing beneath so the label always reads. */
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 10, 14, 0.85) 0%,
+    rgba(8, 10, 14, 0.55) 55%,
+    rgba(8, 10, 14, 0) 100%
+  );
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.bio-heading.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.bio-route {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent, #9ad1ff);
+  opacity: 0.9;
+}
+.bio-title {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
+}
 .bio {
   position: absolute;
   inset: 0;
