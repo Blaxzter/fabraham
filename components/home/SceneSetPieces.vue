@@ -10,6 +10,7 @@ import RouteArc from "./setpieces/RouteArc.vue";
 import ThreadBoard from "./setpieces/ThreadBoard.vue";
 import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
+import SignalField from "./setpieces/SignalField.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -47,6 +48,7 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   threadBoard: ThreadBoard,
   documentGrid: DocumentGrid,
   staffLines: StaffLines,
+  signalField: SignalField,
 };
 
 // Pieces that should be DEPTH-OCCLUDED by the head (the head hides their back

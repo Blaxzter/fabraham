@@ -20,22 +20,26 @@ const boundingBox = shallowRef<Box3 | null>(null);
 const boxSize = shallowRef<Vector3>(new Vector3());
 const boxCenter = shallowRef<Vector3>(new Vector3());
 const modelOffset = shallowRef<Vector3>(new Vector3());
-// Head/wireframe rotation accumulators. These are mutated in onLoop and applied
-// imperatively to their Three groups (issue #4) — never bound as reactive props.
-const headRotationY = shallowRef(-0.8); // Start at center (0)
+// The head holds a resting profile for the whole scroll, then turns to address
+// the visitor at the finale (see onLoop). Rotation accumulators are mutated in
+// the loop and applied imperatively to the Three group — never reactive props
+// (issue #4).
+const RESTING_YAW = -0.8; // profile the head gazes in through the journey
+const ADDRESS_YAW = 0.45; // at the finale, turn to look toward the terminal card (screen-right)
+const ADDRESS_PITCH = 0.02;
+const MAX_YAW = 0.22; // gentle cursor parallax once addressing the visitor
+const MAX_PITCH = 0.14;
+const headRotationY = shallowRef(RESTING_YAW);
 const headRotationX = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
 const headGroupRef = shallowRef<Group | null>(null);
 const wireframeGroupRef = shallowRef<Group | null>(null);
 
-// Mouse tracking for head rotation. Disabled for now — the cursor-following head
-// is being reworked into a deliberate end-of-page feature (see GitHub issue).
+// Cursor position (normalised -1..1), always recorded; only *applied* to the head
+// while the contact beat is centered (store.addressing). Honour reduced-motion by
+// dropping the cursor-follow — the head still turns to face front.
 const mousePosition = shallowRef({ x: 0, y: 0 });
-const isMouseTracking = shallowRef(false); // Toggle mouse tracking on/off
-const headFollowSpeed = shallowRef(0.02); // Controls how fast head follows cursor (0-1, where 1 is instant)
-const headFollowMinSpeed = shallowRef(0.01); // Minimum speed to ensure target is reached
-const headRotationOffsetY = shallowRef(-0.75); // Fine-tune left/right viewing direction (in radians)
-const headRotationOffsetX = shallowRef(0); // Fine-tune up/down viewing direction (in radians)
+const prefersReducedMotion = shallowRef(false);
 
 // ASCII and rendering configuration
 const gl = {
@@ -59,21 +63,22 @@ if (import.meta.client) {
   bootState.markSceneReady();
 }
 
-// Mouse tracking setup
+// Track the cursor (always) + the reduced-motion preference. The head only acts
+// on these at the finale; recording them is just two numbers, event-driven.
 if (import.meta.client) {
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!isMouseTracking.value) return;
+  prefersReducedMotion.value = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
 
-    // Normalize mouse position to -1 to 1 range
+  const handleMouseMove = (event: MouseEvent) => {
+    // Normalize mouse position to -1..1.
     mousePosition.value = {
       x: (event.clientX / window.innerWidth) * 2 - 1,
-      y: (event.clientY / window.innerHeight) * 2 - 1, // Not inverted
+      y: (event.clientY / window.innerHeight) * 2 - 1,
     };
   };
 
   window.addEventListener("mousemove", handleMouseMove);
-
-  // Cleanup on unmount
   onBeforeUnmount(() => {
     window.removeEventListener("mousemove", handleMouseMove);
   });
@@ -105,32 +110,21 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
     cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);
   }
 
-  // Update head rotation toward the mouse with frame-rate-independent smoothing.
-  if (isMouseTracking.value) {
-    // Calculate target rotations based on mouse position
-    const maxRotationY = Math.PI * 0.3; // Max 72 degrees left/right
-    const targetRotationY =
-      mousePosition.value.x * maxRotationY + headRotationOffsetY.value;
-
-    const maxRotationX = Math.PI * 0.18; // Max 54 degrees up/down
-    const targetRotationX =
-      mousePosition.value.y * maxRotationX + headRotationOffsetX.value;
-
-    // Calculate deltas
-    const deltaY = targetRotationY - headRotationY.value;
-    const deltaX = targetRotationX - headRotationX.value;
-
-    // Distance-based speed (faster when far, with a floor), scaled by frame time
-    // so convergence feels the same at 60Hz and 144Hz.
-    const frame = delta * 60;
-    const speed = headFollowSpeed.value;
-    const minSpeed = headFollowMinSpeed.value;
-    const stepY = Math.min(1, Math.max(speed * (1 + Math.abs(deltaY)), minSpeed) * frame);
-    const stepX = Math.min(1, Math.max(speed * (1 + Math.abs(deltaX)), minSpeed) * frame);
-
-    headRotationY.value += deltaY * stepY;
-    headRotationX.value += deltaX * stepX;
-  }
+  // Head addressing: hold the resting profile through the journey, then swing to
+  // look toward the terminal card as the contact beat centers (addressing → 1),
+  // with a gentle cursor parallax on top. Frame-rate-independent smoothing; no
+  // extra rAF or layout read — addressing comes from store getters, the cursor
+  // from an event. The base aim is part of `addressing` (not the cursor), so it
+  // still turns under prefers-reduced-motion (only the parallax is dropped).
+  const addressing = sectionsStore.addressing;
+  const cursorScale = prefersReducedMotion.value ? 0 : addressing;
+  const baseYaw = RESTING_YAW * (1 - addressing) + ADDRESS_YAW * addressing;
+  const basePitch = ADDRESS_PITCH * addressing;
+  const targetY = baseYaw + mousePosition.value.x * MAX_YAW * cursorScale;
+  const targetX = basePitch + mousePosition.value.y * MAX_PITCH * cursorScale;
+  const ease = 1 - Math.pow(1 - 0.12, delta * 60);
+  headRotationY.value += (targetY - headRotationY.value) * ease;
+  headRotationX.value += (targetX - headRotationX.value) * ease;
   // Apply imperatively to the Three group — no reactive prop patching (issue #4).
   headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, 0);
 

@@ -1,8 +1,10 @@
 // Type definitions for the data-driven section/scene framework.
-// Top-level "sections" live in `content/sections/*.md`; biographical milestones
-// (rendered as one artistic cluster by the biography section) live in
-// `content/biography/*.md`. Both are validated by the zod schemas in
-// `content.config.ts` and normalized into the shapes below.
+// Top-level "sections" are the scene SPINE — declared as typed config in
+// `components/home/sections/registry.ts` (order, type, weight, camera pose,
+// set-pieces, layout), each paired with a dedicated Vue component. Biographical
+// milestones — the one genuinely content-shaped, repeating collection — stay as
+// markdown in `content/biography/*.md`, validated by the zod schema in
+// `content.config.ts` and normalized into `BiographyMilestone` below.
 
 export interface Vec3 {
   x: number;
@@ -26,9 +28,10 @@ export type SetPieceName =
   | "routeArc"
   | "threadBoard"
   | "documentGrid"
-  | "staffLines";
+  | "staffLines"
+  | "signalField";
 
-export type SectionType = "biography" | "tech-stack" | "contact" | "interlude";
+export type SectionType = "hero" | "biography" | "contact" | "interlude";
 
 export type Align = "center" | "left" | "right" | "top" | "bottom" | "free";
 
@@ -39,12 +42,16 @@ export interface SectionLayout {
   maxWidth?: string;
 }
 
-/** A top-level peer section: a content piece + a 3D scene state. */
+/**
+ * A top-level peer section's SPINE: the scene state the scroll engine needs.
+ * This is the shared shape held in the sections store (issue #4); the dedicated
+ * component and layout mode that render it live on `SectionDef` (registry.ts).
+ */
 export interface Section {
   id: string;
   order: number;
   type: SectionType;
-  title: string;
+  title?: string;
   subtitle?: string;
   /** Relative scroll length; drives DOM section height and camera segment width. */
   weight: number;
@@ -55,9 +62,6 @@ export interface Section {
   accent?: string;
   /** Camera pose the camera arrives at while this section is centered. */
   camera: CameraPose;
-  /** Per-type config (e.g. tech-stack items) — narrowed by consumers. */
-  data?: Record<string, unknown>;
-  path?: string;
 }
 
 /** A biographical milestone rendered inside the biography section's cluster. */

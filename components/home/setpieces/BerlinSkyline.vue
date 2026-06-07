@@ -22,11 +22,16 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
  * largest dimension to `TARGET_SIZE` world units so it fits the camera frame.
  * Swap the SVG file and the skyline updates — no code change.
  *
+ * It is **permanently animated**: the full drawing stays visible (dim) while a
+ * brighter highlight band sweeps left→right across it forever — the segments are
+ * sorted by x so the sweep reads as a light "building" the city across the
+ * skyline. (Per-element motion — e.g. the plane flying, clouds drifting —
+ * would need those elements tagged as groups in the SVG; this whole-drawing
+ * sweep needs no markup.)
+ *
  * Only lines (no fills) so it reads through the ASCII post-process; rendered via
  * the selective set-piece overlay (see SceneSetPieces.vue), additive + no depth
- * write, like every other set-piece.
- *
- * `reveal` (0..1, scroll-driven) fades and scales it in while its beat centers.
+ * write. `reveal` (0..1, scroll-driven) fades and scales it in while its beat centers.
  */
 interface Props {
   reveal?: number;
@@ -43,11 +48,18 @@ const props = withDefaults(defineProps<Props>(), {
 const SVG_URL = "/setpieces/berlin-skyline.svg";
 const TARGET_SIZE = 1.15;
 const CURVE_DIVISIONS = 24; // samples per curve when flattening paths to lines
-const DRAW_DURATION = 1.4; // seconds for the line-art to sweep on (left→right)
+const SWEEP_SECONDS = 5.5; // time for the highlight to cross the whole drawing
+const SWEEP_FRACTION = 0.16; // width of the moving highlight band (fraction of segments)
 
-const color = new Color("#9ad1ff");
-const lineMaterial = new LineBasicMaterial({
-  color,
+const baseMaterial = new LineBasicMaterial({
+  color: new Color("#7ec7e6"),
+  transparent: true,
+  opacity: 0,
+  blending: AdditiveBlending,
+  depthWrite: false,
+});
+const scanMaterial = new LineBasicMaterial({
+  color: new Color("#ffffff"),
   transparent: true,
   opacity: 0,
   blending: AdditiveBlending,
@@ -55,11 +67,13 @@ const lineMaterial = new LineBasicMaterial({
 });
 
 const groupRef = shallowRef<Group | null>(null);
-const lines = shallowRef<LineSegments | null>(null);
+const baseLine = shallowRef<LineSegments | null>(null);
+const scanLine = shallowRef<LineSegments | null>(null);
+let segCount = 0;
 let disposed = false;
 
 // Flatten every sub-path of the parsed SVG into world-space line segments,
-// centered + Y-flipped + scaled to TARGET_SIZE.
+// sorted left→right, centered + Y-flipped + scaled to TARGET_SIZE.
 const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
   const polylines: number[][] = [];
   let minX = Infinity;
@@ -88,8 +102,6 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
   const cy = (minY + maxY) / 2;
   const scale = TARGET_SIZE / (Math.max(maxX - minX, maxY - minY) || 1);
 
-  // Build line segments, then sort them left→right so the draw-on animation
-  // sweeps across the drawing instead of popping in SVG authoring order.
   type Seg = { ax: number; ay: number; bx: number; by: number; key: number };
   const segs: Seg[] = [];
   for (const flat of polylines) {
@@ -103,7 +115,7 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
       segs.push({ ax, ay, bx, by, key: Math.min(ax, bx) });
     }
   }
-  segs.sort((a, b) => a.key - b.key);
+  segs.sort((a, b) => a.key - b.key); // left→right, so the sweep moves across
 
   const pos = new Float32Array(segs.length * 6);
   let o = 0;
@@ -115,13 +127,22 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
     pos[o++] = s.by;
     pos[o++] = 0;
   }
+  segCount = segs.length;
 
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(pos, 3));
-  geometry.setDrawRange(0, 0); // start hidden; onBeforeRender sweeps it on
-  const ls = new LineSegments(geometry, lineMaterial);
-  ls.frustumCulled = false; // drawn in the overlay pass; don't cull on the main cam
-  lines.value = ls;
+  // Base: the whole drawing, dim. Scan: the same geometry, bright, with a
+  // moving draw-range window (animated in onBeforeRender).
+  const geomBase = new BufferGeometry();
+  geomBase.setAttribute("position", new BufferAttribute(pos, 3));
+  const base = new LineSegments(geomBase, baseMaterial);
+  base.frustumCulled = false; // drawn in the overlay pass; don't cull on the main cam
+  baseLine.value = base;
+
+  const geomScan = new BufferGeometry();
+  geomScan.setAttribute("position", new BufferAttribute(pos.slice(), 3));
+  geomScan.setDrawRange(0, 0);
+  const scan = new LineSegments(geomScan, scanMaterial);
+  scan.frustumCulled = false;
+  scanLine.value = scan;
 };
 
 onMounted(() => {
@@ -136,46 +157,44 @@ onMounted(() => {
   );
 });
 
-// When the skyline becomes visible, sweep the lines on left→right (via the
-// geometry draw range), then hold; reset when it leaves so it redraws next time.
-let drawStart = -1;
-const smoothstep = (t: number) => t * t * (3 - 2 * t);
-
 const { onBeforeRender } = useLoop();
 onBeforeRender(({ elapsed }) => {
   const group = groupRef.value;
   if (!group) return;
   const reveal = props.reveal;
-  const ls = lines.value;
-  group.visible = reveal > 0.001 && !!ls;
-  if (!group.visible) {
-    drawStart = -1;
-    return;
-  }
-  if (drawStart < 0) drawStart = elapsed;
-
-  if (ls) {
-    const verts = ls.geometry.getAttribute("position").count;
-    const p = smoothstep(Math.min(1, (elapsed - drawStart) / DRAW_DURATION));
-    // draw range counts vertices; keep it on segment (pair) boundaries.
-    ls.geometry.setDrawRange(0, Math.floor((verts / 2) * p) * 2);
-  }
+  group.visible = reveal > 0.001 && !!baseLine.value;
+  if (!group.visible) return;
 
   group.scale.setScalar(0.6 + 0.4 * reveal);
   // Mostly architectural/static: only a very subtle sway.
   group.rotation.z = Math.sin(elapsed * 0.4) * 0.01;
-  lineMaterial.opacity = 0.85 * reveal;
+  baseMaterial.opacity = 0.55 * reveal;
+  scanMaterial.opacity = 0.7 * reveal;
+
+  // Sweep the bright highlight band left→right across the segments, forever.
+  const scan = scanLine.value;
+  if (scan && segCount > 0) {
+    const win = Math.max(1, Math.floor(segCount * SWEEP_FRACTION));
+    const span = segCount + win;
+    const head = Math.floor(((elapsed % SWEEP_SECONDS) / SWEEP_SECONDS) * span) - win;
+    const start = Math.max(0, head);
+    const stop = Math.min(segCount, head + win);
+    scan.geometry.setDrawRange(start * 2, Math.max(0, stop - start) * 2);
+  }
 });
 
 onBeforeUnmount(() => {
   disposed = true;
-  lines.value?.geometry.dispose();
-  lineMaterial.dispose();
+  baseLine.value?.geometry.dispose();
+  scanLine.value?.geometry.dispose();
+  baseMaterial.dispose();
+  scanMaterial.dispose();
 });
 </script>
 
 <template>
   <TresGroup ref="groupRef" :position="props.position" :visible="false">
-    <primitive v-if="lines" :object="lines" />
+    <primitive v-if="baseLine" :object="baseLine" />
+    <primitive v-if="scanLine" :object="scanLine" />
   </TresGroup>
 </template>

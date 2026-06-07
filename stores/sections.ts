@@ -14,6 +14,18 @@ const ASCII_FONT_END = 44;
 // set-piece in (and, symmetrically, out) so it blooms while the section is centered.
 const REVEAL_FADE = 0.25;
 
+// Vertical layout of the biography milestone cluster, shared by BiographySection
+// (where it places the cards/nodes/connector) and `subReveal` below (where each
+// milestone's set-piece blooms). Sharing one formula keeps the 3D backdrop
+// aligned with its card even after the headline spacing was added. Values are
+// fractions of the (tall) biography section.
+export const BIO_TOP_PAD = 0.13; // clear space under the sticky headline
+export const BIO_RANGE = 0.83; // vertical span the cluster occupies
+export const bioMilestoneCenter = (j: number, n: number) =>
+  BIO_TOP_PAD + ((j + 0.6) / (n + 0.2)) * BIO_RANGE;
+export const bioMilestoneHalfWindow = (n: number) =>
+  (BIO_RANGE / (n + 0.2)) * 0.5;
+
 const lerp = (a: number, b: number, t: number) => gsap.utils.interpolate(a, b, t);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smoothstep = (v: number) => v * v * (3 - 2 * v);
@@ -39,6 +51,14 @@ export const useSectionsStore = defineStore("sections", () => {
   const enabled = ref(true);
   const progress = ref(0); // 0..1 across the whole scroll
   const sections = ref<Section[]>([]);
+
+  // A one-shot "signal sent" pulse. The contact CLI bumps this on each command;
+  // the finale SignalField edge-detects the change and fires a bright ring that
+  // converges on the head — the transmission the visitor just sent, received.
+  const pulseSeq = ref(0);
+  const emitPulse = () => {
+    pulseSeq.value++;
+  };
 
   const setSections = (next: Section[]) => {
     sections.value = next;
@@ -150,7 +170,11 @@ export const useSectionsStore = defineStore("sections", () => {
     const span = end - start || 1;
     const local = (progress.value - start) / span;
     const fadeIn = clamp01(local / REVEAL_FADE);
-    const fadeOut = clamp01((1 - local) / REVEAL_FADE);
+    // The final section has nothing after it — hold its set-piece once revealed
+    // (don't fade it back out as the page bottoms out, so the finale's signal
+    // keeps pulsing while the visitor reads/interacts with the contact card).
+    const isLast = index >= sections.value.length - 1;
+    const fadeOut = isLast ? 1 : clamp01((1 - local) / REVEAL_FADE);
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
 
@@ -161,13 +185,32 @@ export const useSectionsStore = defineStore("sections", () => {
     const bs = boundaries.value;
     const start = bs[index] ?? 0;
     const end = bs[index + 1] ?? 1;
-    const span = (end - start) / (subCount || 1);
-    const subStart = start + subIndex * span;
-    const local = (progress.value - subStart) / (span || 1);
+    const range = end - start || 1;
+    // Bloom centered on the milestone card's position (same layout the cards
+    // use) so the set-piece tracks its card, not an evenly-divided sub-beat.
+    const center = start + bioMilestoneCenter(subIndex, subCount) * range;
+    const half = (bioMilestoneHalfWindow(subCount) || 0.0001) * range;
+    const local = (progress.value - (center - half)) / (2 * half);
     const fadeIn = clamp01(local / REVEAL_FADE);
     const fadeOut = clamp01((1 - local) / REVEAL_FADE);
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
+
+  // How strongly the head should "address" the visitor (0..1). Zero everywhere
+  // except the final section when it is the contact beat, where it ramps to 1
+  // over the first 60% of the section's scroll range. Scene3D reads this in its
+  // render loop to swing the head from its resting profile to facing — and then
+  // tracking — the cursor (the deliberate end-of-page beat), imperatively, with
+  // no extra rAF or layout read (issue #4).
+  const addressing = computed(() => {
+    const n = sections.value.length;
+    if (!n || sections.value[n - 1]?.type !== "contact") return 0;
+    const bs = boundaries.value;
+    const start = bs[n - 1] ?? 0;
+    const end = bs[n] ?? 1;
+    const local = (progress.value - start) / (end - start || 1);
+    return smoothstep(clamp01(local / 0.6));
+  });
 
   const enable = () => {
     enabled.value = true;
@@ -181,9 +224,11 @@ export const useSectionsStore = defineStore("sections", () => {
     enabled,
     progress,
     sections,
+    pulseSeq,
     // mutations
     setSections,
     setProgress,
+    emitPulse,
     enable,
     disable,
     // derived
@@ -194,6 +239,7 @@ export const useSectionsStore = defineStore("sections", () => {
     heroProgress,
     asciiCellSize,
     asciiFontSize,
+    addressing,
     // helpers
     cameraAt,
     revealFor,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Section } from "~/types/section";
+import { bioMilestoneCenter } from "~/stores/sections";
 import BiographyCard from "./BiographyCard.vue";
 
 // The biography as ONE section: a loose, artistic cluster of milestone cards
@@ -12,7 +13,7 @@ import BiographyCard from "./BiographyCard.vue";
 // A sticky headline (sourced from the section frontmatter title/subtitle) pins
 // to the top of the section so the cluster reads as a clearly labeled chapter
 // as you scroll through it.
-const props = defineProps<{ section?: Section; doc?: unknown; visible?: boolean }>();
+const props = defineProps<{ section?: Section; visible?: boolean }>();
 
 const store = useSectionsStore();
 const { docs, milestones } = useBiographyMilestones();
@@ -31,11 +32,6 @@ const entered = computed(() => {
   return store.progress >= start - 0.04 && store.progress <= end + 0.03;
 });
 
-// Leave clear space below the sticky headline before the first card, and a
-// little tail at the bottom, so the cluster reads under the heading.
-const TOP_PAD = 13;
-const RANGE = 83;
-
 const layout = computed(() => {
   const ms = milestones.value;
   const n = ms.length || 1;
@@ -46,8 +42,10 @@ const layout = computed(() => {
     const jitterX = (((i * 37) % 11) - 5) / 5; // -1..1
     const jitterY = (((i * 53) % 7) - 3) / 3; // -1..1
     const ax = 50 + sideSign * 16 + jitterX * 4 + (m.offset?.x ?? 0);
+    // Vertical anchor comes from the SHARED layout helper so the milestone's 3D
+    // set-piece blooms at the same scroll position the card sits at.
     const ay =
-      TOP_PAD + ((i + 0.6) / (n + 0.2)) * RANGE + jitterY * 1.5 + (m.offset?.y ?? 0);
+      bioMilestoneCenter(i, n) * 100 + jitterY * 1.5 + (m.offset?.y ?? 0);
     return { milestone: m, doc: docs.value[i], ax, ay, sideSign };
   });
 });

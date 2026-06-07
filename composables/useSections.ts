@@ -1,64 +1,31 @@
 import { computed, watchEffect } from "vue";
-import type {
-  Align,
-  BiographyMilestone,
-  Section,
-  SectionType,
-  SetPieceName,
-  Vec3,
-} from "~/types/section";
-
-const toVec3 = (tuple: unknown): Vec3 => {
-  const [x = 0, y = 0, z = 0] = Array.isArray(tuple) ? (tuple as number[]) : [];
-  return { x, y, z };
-};
+import type { BiographyMilestone, SetPieceName } from "~/types/section";
+import { SECTION_DEFS, spineOf } from "~/components/home/sections/registry";
 
 /**
- * Loads the `content/sections` collection and normalizes it into the shape the
- * 3D/animation layer needs, syncing it into the sections store. The markdown
- * bodies stay queryable for `<ContentRenderer>` (SSG-ready for SEO, #5).
+ * The top-level section sequence + scene spine, sourced from the typed registry
+ * (`components/home/sections/registry.ts`) and synced into the sections store.
  *
- * `useAsyncData` dedupes by key, so Scene3D and ScrollableContent can both call
- * this without double-fetching.
+ * The spine is config every section needs (order, type, weight, camera pose,
+ * set-pieces, layout) — not content — so it lives in code, not markdown
+ * frontmatter. Each def names its own dedicated component, so app-like sections
+ * (hero, contact) are no longer forced through a `content/*.md` body. Markdown
+ * is reserved for the biography milestones (`useBiographyMilestones`).
+ *
+ * Returns the full `defs` (component + layout mode) for the renderer, and keeps
+ * only the store-held spine in Pinia (no Vue component in shared state).
  */
 export function useSections() {
   const store = useSectionsStore();
 
-  const { data, pending, error, refresh } = useAsyncData("sections-data", () =>
-    queryCollection("sections").order("order", "ASC").all()
+  const defs = computed(() =>
+    [...SECTION_DEFS].sort((a, b) => a.order - b.order)
   );
 
-  const docs = computed(() => data.value ?? []);
+  // Keep the store's shared state in sync (single source for camera/reveal math).
+  watchEffect(() => store.setSections(defs.value.map(spineOf)));
 
-  const sections = computed<Section[]>(() =>
-    docs.value.map((doc) => ({
-      id: doc.path ?? doc.id ?? doc.title,
-      order: doc.order ?? 0,
-      type: (doc.type as SectionType) ?? "interlude",
-      title: doc.title ?? "",
-      subtitle: doc.subtitle,
-      weight: doc.weight ?? 1,
-      layout: {
-        align: (doc.align as Align) ?? "center",
-        offset: doc.offset ?? undefined,
-        maxWidth: doc.maxWidth,
-      },
-      setPiece: (doc.setPiece as SetPieceName[] | undefined) ?? [],
-      setPieceVariant: doc.setPieceVariant ?? "",
-      accent: doc.accent,
-      camera: {
-        position: toVec3(doc.cameraPosition),
-        rotation: toVec3(doc.cameraRotation),
-      },
-      data: doc.data as Record<string, unknown> | undefined,
-      path: doc.path,
-    }))
-  );
-
-  // Keep the store in sync whenever the content (re)loads.
-  watchEffect(() => store.setSections(sections.value));
-
-  return { docs, sections, pending, error, refresh };
+  return { defs };
 }
 
 /**

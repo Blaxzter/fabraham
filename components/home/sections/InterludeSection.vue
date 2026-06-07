@@ -4,7 +4,7 @@ import type { Section } from "~/types/section";
 // An "interlude" is a beat with no content card — just a camera move and whatever
 // background 3D set-pieces bloom. Renders at most a faint eyebrow label. Also the
 // dispatcher fallback for not-yet-implemented section types.
-defineProps<{ section: Section; doc?: unknown; visible?: boolean }>();
+defineProps<{ section: Section; visible?: boolean }>();
 </script>
 
 <template>

@@ -1,52 +1,40 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useElementVisibility } from "@vueuse/core";
-import type { Component } from "vue";
-import type { Section } from "~/types/section";
-import BiographySection from "./sections/BiographySection.vue";
-import ContactSection from "./sections/ContactSection.vue";
-import InterludeSection from "./sections/InterludeSection.vue";
+import type { SectionDef } from "./sections/registry";
 
 // Renders one peer section: provides the scroll-length + alignment shell and
-// dispatches to the right component by `type`. Card-type sections are pinned and
-// centered (with per-section alignment/offset); the biography flows full-height.
-const props = defineProps<{ section: Section; doc: unknown; index: number }>();
-
-const COMPONENTS: Partial<Record<Section["type"], Component>> = {
-  biography: BiographySection,
-  contact: ContactSection,
-  interlude: InterludeSection,
-  // 'tech-stack' deferred → falls back to InterludeSection for now.
-};
-const cmp = computed(() => COMPONENTS[props.section.type] ?? InterludeSection);
-
-// The biography is a tall flowing cluster; everything else is a pinned card.
-const pinned = computed(() => props.section.type !== "biography");
+// renders the section's own dedicated component (from the registry) in one of
+// three layout modes:
+//   flow   → the component fills the section height (the biography cluster);
+//   pinned → a sticky, centered card using the section's layout align/offset;
+//   bare   → just a height spacer, the component positions itself (the hero).
+const props = defineProps<{ def: SectionDef; index: number }>();
 
 const sectionRef = ref<HTMLElement | null>(null);
 const isVisible = useElementVisibility(sectionRef, { threshold: 0.25 });
 
-const minHeight = computed(() => `${(props.section.weight || 1) * 100}vh`);
-const accent = computed(() => props.section.accent ?? "#00ff9c");
+const minHeight = computed(() => `${(props.def.weight || 1) * 100}vh`);
+const accent = computed(() => props.def.accent ?? "#00ff9c");
 
 const justifyContent = computed(() => {
-  const a = props.section.layout.align;
+  const a = props.def.layout.align;
   if (a === "left") return "flex-start";
   if (a === "right") return "flex-end";
   return "center";
 });
 const alignItems = computed(() => {
-  const a = props.section.layout.align;
+  const a = props.def.layout.align;
   if (a === "top") return "flex-start";
   if (a === "bottom") return "flex-end";
   return "center";
 });
 const offsetTransform = computed(() => {
-  const o = props.section.layout.offset;
+  const o = props.def.layout.offset;
   if (!o) return undefined;
   return `translate(${o.x ?? 0}vw, ${o.y ?? 0}vh)`;
 });
-const maxWidth = computed(() => props.section.layout.maxWidth ?? "36rem");
+const maxWidth = computed(() => props.def.layout.maxWidth ?? "36rem");
 </script>
 
 <template>
@@ -55,28 +43,30 @@ const maxWidth = computed(() => props.section.layout.maxWidth ?? "36rem");
     class="section"
     :style="{ minHeight, '--accent': accent }"
   >
-    <!-- Pinned card sections (contact, interlude, …) -->
+    <!-- Pinned card sections (contact, interludes). -->
     <div
-      v-if="pinned"
+      v-if="def.mode === 'pinned'"
       class="section-sticky"
       :style="{ justifyContent, alignItems }"
     >
       <div class="section-card" :style="{ transform: offsetTransform, maxWidth }">
-        <component
-          :is="cmp"
-          :section="section"
-          :doc="doc"
-          :visible="isVisible"
-        />
+        <component :is="def.component" :section="def" :visible="isVisible" />
       </div>
     </div>
 
-    <!-- Flowing sections (biography cluster) fill the section height. -->
+    <!-- Bare sections (the hero): the component owns its own positioning. -->
+    <component
+      v-else-if="def.mode === 'bare'"
+      :is="def.component"
+      :section="def"
+      :visible="isVisible"
+    />
+
+    <!-- Flowing sections (the biography cluster) fill the section height. -->
     <component
       v-else
-      :is="cmp"
-      :section="section"
-      :doc="doc"
+      :is="def.component"
+      :section="def"
       :visible="isVisible"
     />
   </section>
