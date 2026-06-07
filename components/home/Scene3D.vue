@@ -6,10 +6,12 @@ import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Group, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
 import SceneSetPieces from "./SceneSetPieces.vue";
+import TuningGizmos from "./TuningGizmos.vue";
 
 const store = useSceneControlStore();
 const bootState = useBootStateStore();
 const sectionsStore = useSectionsStore();
+const isDev = import.meta.dev;
 
 const modelRef = shallowRef<Object3D | null>(null);
 const cameraRef = shallowRef<PerspectiveCamera | null>(null);
@@ -24,12 +26,15 @@ const modelOffset = shallowRef<Vector3>(new Vector3());
 // the visitor at the finale (see onLoop). Rotation accumulators are mutated in
 // the loop and applied imperatively to the Three group — never reactive props
 // (issue #4).
-const RESTING_YAW = -0.8; // profile the head gazes in through the journey
-const ADDRESS_YAW = 0.45; // at the finale, turn to look toward the terminal card (screen-right)
-const ADDRESS_PITCH = 0.02;
-const MAX_YAW = 0.22; // gentle cursor parallax once addressing the visitor
-const MAX_PITCH = 0.14;
-const headRotationY = shallowRef(RESTING_YAW);
+// Head-addressing angles — live-tunable in dev (TuningPanel); defaults baked in.
+const tuneHead = useTuning("headAddress", "Head addressing");
+const restingYaw = tuneHead.num("restingYaw", -0.8, { min: -2, max: 2, step: 0.01, label: "Resting yaw" });
+const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
+const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
+const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
+const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
+
+const headRotationY = shallowRef(restingYaw.value);
 const headRotationX = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
 const headGroupRef = shallowRef<Group | null>(null);
@@ -118,10 +123,10 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // still turns under prefers-reduced-motion (only the parallax is dropped).
   const addressing = sectionsStore.addressing;
   const cursorScale = prefersReducedMotion.value ? 0 : addressing;
-  const baseYaw = RESTING_YAW * (1 - addressing) + ADDRESS_YAW * addressing;
-  const basePitch = ADDRESS_PITCH * addressing;
-  const targetY = baseYaw + mousePosition.value.x * MAX_YAW * cursorScale;
-  const targetX = basePitch + mousePosition.value.y * MAX_PITCH * cursorScale;
+  const baseYaw = restingYaw.value * (1 - addressing) + addressYaw.value * addressing;
+  const basePitch = addressPitch.value * addressing;
+  const targetY = baseYaw + mousePosition.value.x * maxYaw.value * cursorScale;
+  const targetX = basePitch + mousePosition.value.y * maxPitch.value * cursorScale;
   const ease = 1 - Math.pow(1 - 0.12, delta * 60);
   headRotationY.value += (targetY - headRotationY.value) * ease;
   headRotationX.value += (targetX - headRotationX.value) * ease;
@@ -211,7 +216,9 @@ watch(
       :rotation-factor="1"
       :float-factor="store.floatFactor"
     >
-      <TresGroup ref="headGroupRef">
+      <!-- name="headGroup" lets SignalField anchor the forehead point to the
+           head's live world matrix (so it rotates/floats with the head). -->
+      <TresGroup ref="headGroupRef" name="headGroup">
         <!-- Load the head model with offset to center it -->
         <primitive
           v-if="gltfScene"
@@ -225,6 +232,9 @@ watch(
 
     <!-- Data-driven line set-pieces that bloom around the head per chapter. -->
     <SceneSetPieces />
+
+    <!-- Dev-only: markers for tunable vec3 anchors (forehead, emitter, …). -->
+    <TuningGizmos v-if="isDev" />
 
     <!-- Wireframe bounding box centered at origin (now toggleable) -->
     <TresGroup

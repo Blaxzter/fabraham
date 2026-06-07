@@ -60,6 +60,15 @@ export const useSectionsStore = defineStore("sections", () => {
     pulseSeq.value++;
   };
 
+  // Screen-space anchor (NDC, -1..1) of the contact terminal card, published by
+  // ContactSection (via useElementBounding). SignalField projects it into 3D so
+  // the finale's signal emits from the card's real on-screen position
+  // (viewport/scroll-aware) instead of a fixed world point. null when unmounted.
+  const contactAnchor = ref<{ x: number; y: number } | null>(null);
+  const setContactAnchor = (a: { x: number; y: number } | null) => {
+    contactAnchor.value = a;
+  };
+
   const setSections = (next: Section[]) => {
     sections.value = next;
   };
@@ -225,10 +234,12 @@ export const useSectionsStore = defineStore("sections", () => {
     progress,
     sections,
     pulseSeq,
+    contactAnchor,
     // mutations
     setSections,
     setProgress,
     emitPulse,
+    setContactAnchor,
     enable,
     disable,
     // derived

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
+import { useElementBounding } from "@vueuse/core";
 import type { Section } from "~/types/section";
 
 // The finale: a CLI/terminal sign-off — and a real, typeable shell for the
@@ -25,6 +26,28 @@ const flash = () => {
   if (sendingTimer) clearTimeout(sendingTimer);
   sendingTimer = setTimeout(() => (sending.value = false), 480);
 };
+
+// Publish the card's on-screen position (NDC) so the finale's signal emits from
+// the card's real location — viewport- and scroll-aware. We use the card's
+// left-centre, the edge facing the head.
+const termEl = ref<HTMLElement | null>(null);
+const { left, top, height, width } = useElementBounding(termEl);
+watch(
+  [left, top, height, width],
+  () => {
+    if (!import.meta.client || !width.value) {
+      store.setContactAnchor(null);
+      return;
+    }
+    const vw = window.innerWidth || 1;
+    const vh = window.innerHeight || 1;
+    const px = left.value;
+    const py = top.value + height.value / 2;
+    store.setContactAnchor({ x: (px / vw) * 2 - 1, y: -((py / vh) * 2 - 1) });
+  },
+  { immediate: true }
+);
+onBeforeUnmount(() => store.setContactAnchor(null));
 
 // ----- the little shell ------------------------------------------------------
 type Line = { kind: "in" | "out"; text?: string; html?: string };
@@ -235,6 +258,7 @@ const focusInput = () => inputRef.value?.focus();
 
 <template>
   <article
+    ref="termEl"
     class="terminal"
     :class="{ 'is-visible': visible, sending }"
     :style="{ '--accent': accent }"
@@ -336,9 +360,34 @@ const focusInput = () => inputRef.value?.focus();
     0 0 42px color-mix(in srgb, var(--accent, #00ff9c) 18%, transparent);
   overflow: hidden;
   cursor: text;
+  position: relative;
   opacity: 0;
   transform: translateY(26px);
   transition: opacity 0.6s ease, transform 0.6s ease;
+}
+/* A gentle ambient "breathe": an inner edge glow that pulses while the card is
+   live — the terminal idling like a piece of running hardware. Kept on a pseudo
+   layer (inset shadow) so it never fights the outer .sending command flash. */
+.terminal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--accent, #00ff9c) 28%, transparent);
+  opacity: 0;
+}
+.terminal.is-visible::after {
+  animation: term-breathe 4.2s ease-in-out infinite;
+}
+@keyframes term-breathe {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 .terminal.is-visible {
   opacity: 1;
@@ -537,8 +586,12 @@ const focusInput = () => inputRef.value?.focus();
   .t-line {
     transition: none;
   }
-  .cursor {
+  .cursor,
+  .terminal.is-visible::after {
     animation: none;
+  }
+  .terminal.is-visible::after {
+    opacity: 0.28;
   }
 }
 </style>

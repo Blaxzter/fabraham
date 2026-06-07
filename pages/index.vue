@@ -18,6 +18,11 @@
 
     <!-- Data-driven biographical timeline (prose is SSG-ready for SEO, #5). -->
     <HomeScrollableContent v-if="showContent" />
+
+    <!-- Dev-only live tuning panel (3D anchors, head angles, …). -->
+    <ClientOnly>
+      <HomeTuningPanel v-if="isDev" />
+    </ClientOnly>
   </div>
 </template>
 

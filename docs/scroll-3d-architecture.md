@@ -204,19 +204,37 @@ section's scroll range.
 
 ## The finale (contact)
 
-The last section is the payoff:
+The last section is the payoff — a transmission from the visitor to the head:
 
 - **The head turns to address you.** Through the whole journey the head holds a
   resting profile (gazing into its own data). As the contact beat centers,
   `store.addressing` ramps `0 → 1` and `Scene3D` blends the head's gaze from that
-  profile to facing — and then softly tracking — the cursor (the long-dormant
-  cursor-follow, now a deliberate end-of-page beat). Reduced-motion drops the
-  cursor-follow but still faces front.
-- **It broadcasts.** `SignalField` — concentric ring pulses emanating outward —
-  reads as the head transmitting after a scroll spent ingesting.
-- **A terminal sign-off.** `ContactSection` is a CLI/terminal card that types
-  itself in (CSS-only, reduced-motion aware), with the GitHub + Respeak CTAs as
-  real, crawlable `<a>` "command output".
+  profile toward the terminal card, with a gentle cursor parallax on top.
+  Reduced-motion drops the parallax but still turns. The angles
+  (`restingYaw`/`addressYaw`/…) are live-tunable (see [tuning.md](./tuning.md)).
+- **An interactive terminal.** `ContactSection` is a CLI/terminal card that types
+  itself in (CSS-only, reduced-motion aware, with an ambient inner-glow breathe).
+  Beyond the static, crawlable session + GitHub/Respeak `<a>` CTAs, it's a **real
+  shell**: `help`, `ls`, `cat`, `open`, command history (↑/↓), and easter eggs
+  (`sudo …`, `vim`, `matrix`, …).
+- **The signal streams in.** `SignalField` is a transmission, not a broadcast:
+  ripples are born at the terminal and stream up a link line, shrinking, until
+  they converge into the head's forehead. Both ends are **anchored to real
+  things, not fixed world coords**:
+  - the **forehead** is a head-local offset transformed by the head's live world
+    matrix each frame, so it rotates and floats *with* the head (the head group is
+    tagged `name="headGroup"` so the set-piece can find it);
+  - the **emitter** is the terminal card's on-screen rect (published by
+    `ContactSection` via `useElementBounding` → `store.contactAnchor` as NDC) ray-
+    cast through the camera onto a plane, so it tracks the card across
+    viewport/scroll.
+- **CLI ↔ scene.** Every typed command bumps `store.pulseSeq`; `SignalField`
+  edge-detects it and fires a bright, fast ripple along the same path, while the
+  terminal flashes its glow — so the CLI visibly *sends* the signal the head
+  receives.
+
+The finale's positions are art-directed, so the values above are wired through the
+dev tuning layer — see **[tuning.md](./tuning.md)**.
 
 ---
 
