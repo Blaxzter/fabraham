@@ -1,51 +1,57 @@
 <template>
-  <div class="relative" v-if="!devMode">
-    <!-- Boot Screen -->
-    <BootScreen v-if="!bootState.bootCompleted" />
+  <div class="relative">
+    <!-- Boot screen is client-only and skipped in dev for faster iteration. -->
+    <ClientOnly>
+      <BootScreen v-if="!isDev && !bootState.bootCompleted" />
+    </ClientOnly>
 
-    <!-- Fixed 3D Scene Background - Start loading during boot sequence -->
-    <div
-      v-if="shouldLoadScene"
-      class="fixed inset-0 w-full h-screen pointer-events-none"
-    >
-      <HomeScene3D />
-    </div>
+    <!-- Fixed 3D scene background. Client-only so the page stays SSG-compatible
+         (the canvas + GLB loader never run during prerender, issue #5). -->
+    <ClientOnly>
+      <div
+        v-if="shouldLoadScene"
+        class="fixed inset-0 w-full h-screen pointer-events-none"
+      >
+        <HomeScene3D />
+      </div>
+    </ClientOnly>
 
-    <!-- Scrollable Content Component - Only show after boot complete -->
-    <HomeScrollableContent v-if="bootState.bootCompleted" />
-  </div>
-  <div v-else>
-    <HomeScene3D />
-    <HomeScrollableContent />
+    <!-- Data-driven biographical timeline (prose is SSG-ready for SEO, #5). -->
+    <HomeScrollableContent v-if="showContent" />
+
+    <!-- Dev-only live tuning panel (3D anchors, head angles, …). -->
+    <ClientOnly>
+      <HomeTuningPanel v-if="isDev" />
+    </ClientOnly>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const bootState = useBootStateStore();
 
-const isOnLocalhost = computed(() => {
-  return window.location.hostname === "localhost";
-});
+// `import.meta.dev` is build-time constant — no hostname sniffing, no stale ref.
+const isDev = import.meta.dev;
 
-const devMode = ref(isOnLocalhost.value);
+// In dev, skip the boot screen and show the experience immediately.
+const showContent = computed(() => isDev || bootState.bootCompleted);
 
-// Start loading scene when boot sequence starts (loads in background)
-const shouldLoadScene = computed(() => {
-  return (
+// Start loading the scene while the boot sequence runs (hides perceived latency).
+const shouldLoadScene = computed(
+  () =>
+    isDev ||
     bootState.phase === "booting" ||
     bootState.phase === "loading-scene" ||
     bootState.bootCompleted
-  );
-});
+);
 
 // Meta data
 useSeoMeta({
-  title: "Fabraham",
+  title: "Frederic Abraham — Fullest-Stack Developer",
   description:
-    "Explore my computer science portfolio featuring web development, machine learning, and blockchain projects.",
-  ogTitle: "Fabraham",
+    "The career of Frederic Abraham as a scroll-driven 3D timeline: TU Berlin (B.Sc.), an M.Sc. in AI at Maastricht, and scaling AI products at Respeak in Berlin — GANs, embeddings, and RAG.",
+  ogTitle: "Frederic Abraham — Fullest-Stack Developer",
   ogDescription:
-    "Explore my computer science portfolio featuring web development, machine learning, and blockchain projects.",
+    "A biographical 3D timeline: Berlin → Maastricht → Berlin. Generative AI, embeddings at scale, and retrieval-augmented generation.",
   ogType: "website",
 });
 </script>

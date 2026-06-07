@@ -7,6 +7,10 @@ export default defineNuxtConfig({
 
     ssr: false,
 
+    // Pin the dev server to 3030 so this project doesn't collide with other
+    // local Nuxt apps (e.g. the Gesangbuch PWA on 3000).
+    devServer: { port: 3030 },
+
     css: ['~/assets/css/tailwind.css', '~/assets/css/boot.css'],
     vite: {
         plugins: [tailwindcss()],
@@ -23,6 +27,7 @@ export default defineNuxtConfig({
     },
 
     modules: [
+        '@nuxt/eslint',
         '@tresjs/nuxt',
         'shadcn-nuxt',
         '@nuxt/content',

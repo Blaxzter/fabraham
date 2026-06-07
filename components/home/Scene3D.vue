@@ -3,10 +3,15 @@ import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
-import type { Object3D, PerspectiveCamera } from "three";
+import type { Group, Object3D, PerspectiveCamera } from "three";
+import { useWindowSize } from "@vueuse/core";
+import SceneSetPieces from "./SceneSetPieces.vue";
+import TuningGizmos from "./TuningGizmos.vue";
 
 const store = useSceneControlStore();
 const bootState = useBootStateStore();
+const sectionsStore = useSectionsStore();
+const isDev = import.meta.dev;
 
 const modelRef = shallowRef<Object3D | null>(null);
 const cameraRef = shallowRef<PerspectiveCamera | null>(null);
@@ -17,17 +22,29 @@ const boundingBox = shallowRef<Box3 | null>(null);
 const boxSize = shallowRef<Vector3>(new Vector3());
 const boxCenter = shallowRef<Vector3>(new Vector3());
 const modelOffset = shallowRef<Vector3>(new Vector3());
-const headRotatinY = shallowRef(-0.8); // Start at center (0)
+// The head holds a resting profile for the whole scroll, then turns to address
+// the visitor at the finale (see onLoop). Rotation accumulators are mutated in
+// the loop and applied imperatively to the Three group — never reactive props
+// (issue #4).
+// Head-addressing angles — live-tunable in dev (TuningPanel); defaults baked in.
+const tuneHead = useTuning("headAddress", "Head addressing");
+const restingYaw = tuneHead.num("restingYaw", -0.8, { min: -2, max: 2, step: 0.01, label: "Resting yaw" });
+const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
+const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
+const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
+const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
+
+const headRotationY = shallowRef(restingYaw.value);
 const headRotationX = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
+const headGroupRef = shallowRef<Group | null>(null);
+const wireframeGroupRef = shallowRef<Group | null>(null);
 
-// Mouse tracking for head rotation
+// Cursor position (normalised -1..1), always recorded; only *applied* to the head
+// while the contact beat is centered (store.addressing). Honour reduced-motion by
+// dropping the cursor-follow — the head still turns to face front.
 const mousePosition = shallowRef({ x: 0, y: 0 });
-const isMouseTracking = shallowRef(true); // Toggle mouse tracking on/off
-const headFollowSpeed = shallowRef(0.02); // Controls how fast head follows cursor (0-1, where 1 is instant)
-const headFollowMinSpeed = shallowRef(0.01); // Minimum speed to ensure target is reached
-const headRotationOffsetY = shallowRef(-0.75); // Fine-tune left/right viewing direction (in radians)
-const headRotationOffsetX = shallowRef(0); // Fine-tune up/down viewing direction (in radians)
+const prefersReducedMotion = shallowRef(false);
 
 // ASCII and rendering configuration
 const gl = {
@@ -51,75 +68,74 @@ if (import.meta.client) {
   bootState.markSceneReady();
 }
 
-// Mouse tracking setup
+// Track the cursor (always) + the reduced-motion preference. The head only acts
+// on these at the finale; recording them is just two numbers, event-driven.
 if (import.meta.client) {
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!isMouseTracking.value) return;
+  prefersReducedMotion.value = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
 
-    // Normalize mouse position to -1 to 1 range
+  const handleMouseMove = (event: MouseEvent) => {
+    // Normalize mouse position to -1..1.
     mousePosition.value = {
       x: (event.clientX / window.innerWidth) * 2 - 1,
-      y: (event.clientY / window.innerHeight) * 2 - 1, // Not inverted
+      y: (event.clientY / window.innerHeight) * 2 - 1,
     };
   };
 
   window.addEventListener("mousemove", handleMouseMove);
-
-  // Cleanup on unmount
   onBeforeUnmount(() => {
     window.removeEventListener("mousemove", handleMouseMove);
   });
 }
 
 // Setup render loop to track camera changes
-const onLoop = ({ elapsed }: { delta: number; elapsed: number }) => {
-  // Only update store from camera if in orbit mode (to avoid conflicts with scroll mode)
+const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
+  // Camera ownership depends on the mode.
   if (store.cameraControlMode === "orbit") {
+    // Orbit (dev): the user drives the camera; mirror it back into the store so
+    // the controls panel reflects the current pose.
     const position = cameraRef.value?.position;
     const rotation = cameraRef.value?.rotation;
     if (position && rotation) {
-      // Update camera position
       store.cameraPosition.x = Math.round(position.x * 100) / 100;
       store.cameraPosition.y = Math.round(position.y * 100) / 100;
       store.cameraPosition.z = Math.round(position.z * 100) / 100;
 
-      // Update camera rotation
       store.cameraRotation.x = Math.round(rotation.x * 100) / 100;
       store.cameraRotation.y = Math.round(rotation.y * 100) / 100;
       store.cameraRotation.z = Math.round(rotation.z * 100) / 100;
     }
+  } else if (sectionsStore.enabled && cameraRef.value) {
+    // Scroll: drive the camera imperatively from the scroll progress — no
+    // reactive camera props, no per-frame layout reads (issue #4).
+    const pose = sectionsStore.cameraAt(sectionsStore.progress);
+    const cam = cameraRef.value;
+    cam.position.set(pose.position.x, pose.position.y, pose.position.z);
+    cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);
   }
 
-  // Update head rotation based on mouse position with smooth lerping
-  if (isMouseTracking.value) {
-    // Calculate target rotations based on mouse position
-    const maxRotationY = Math.PI * 0.3; // Max 72 degrees left/right
-    const targetRotationY =
-      mousePosition.value.x * maxRotationY + headRotationOffsetY.value;
-
-    const maxRotationX = Math.PI * 0.18; // Max 54 degrees up/down
-    const targetRotationX =
-      mousePosition.value.y * maxRotationX + headRotationOffsetX.value;
-
-    // Calculate deltas
-    const deltaY = targetRotationY - headRotatinY.value;
-    const deltaX = targetRotationX - headRotationX.value;
-
-    // Distance-based speed: faster when far away, slower when close, but with minimum
-    const speed = headFollowSpeed.value;
-    const minSpeed = headFollowMinSpeed.value;
-    const dynamicSpeedY = Math.max(speed * (1 + Math.abs(deltaY)), minSpeed);
-    const dynamicSpeedX = Math.max(speed * (1 + Math.abs(deltaX)), minSpeed);
-
-    headRotatinY.value += deltaY * dynamicSpeedY;
-    headRotationX.value += deltaX * dynamicSpeedX;
-  }
+  // Head addressing: hold the resting profile through the journey, then swing to
+  // look toward the terminal card as the contact beat centers (addressing → 1),
+  // with a gentle cursor parallax on top. Frame-rate-independent smoothing; no
+  // extra rAF or layout read — addressing comes from store getters, the cursor
+  // from an event. The base aim is part of `addressing` (not the cursor), so it
+  // still turns under prefers-reduced-motion (only the parallax is dropped).
+  const addressing = sectionsStore.addressing;
+  const cursorScale = prefersReducedMotion.value ? 0 : addressing;
+  const baseYaw = restingYaw.value * (1 - addressing) + addressYaw.value * addressing;
+  const basePitch = addressPitch.value * addressing;
+  const targetY = baseYaw + mousePosition.value.x * maxYaw.value * cursorScale;
+  const targetX = basePitch + mousePosition.value.y * maxPitch.value * cursorScale;
+  const ease = 1 - Math.pow(1 - 0.12, delta * 60);
+  headRotationY.value += (targetY - headRotationY.value) * ease;
+  headRotationX.value += (targetX - headRotationX.value) * ease;
+  // Apply imperatively to the Three group — no reactive prop patching (issue #4).
+  headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, 0);
 
   wireFrameRotationY.value = elapsed * 0.5;
+  wireframeGroupRef.value?.rotation.set(0, wireFrameRotationY.value, 0);
 };
-
-// Debug output for camera mode
-console.log("Camera control mode:", store.cameraControlMode);
 
 // Calculate bounding box once the model ref is available
 watch(
@@ -133,7 +149,40 @@ watch(
 
       // Calculate offset to center the model at origin
       modelOffset.value.copy(boxCenter.value).negate();
+
+      // Also tag the head onto layer 2 (keeping the default layer 0). The
+      // set-piece overlay (SceneSetPieces.vue) renders this layer depth-only as
+      // an occluder so the head hides the back of the graph set-piece — the face
+      // sits *inside* the lattice. Keep in sync with HEAD_LAYER there.
+      newModel.traverse((o) => o.layers.enable(2));
     }
+  },
+  { immediate: true }
+);
+
+// Seed the camera with a sane pose as soon as it mounts (matches the timeline
+// fallback). This avoids a first-frame origin "flash" before onLoop runs and
+// gives OrbitControls (dev) a non-degenerate starting radius.
+watch(
+  cameraRef,
+  (cam) => {
+    if (!cam) return;
+    cam.position.set(0.06, 0.04, 0.51);
+    cam.rotation.set(-0.09, 0.13, 0.01);
+  },
+  { immediate: true }
+);
+
+// Keep the camera aspect matched to the (window-size) canvas so the scene isn't
+// stretched. The hard-coded aspect=1 distorted everything on wide viewports.
+const { width: windowWidth, height: windowHeight } = useWindowSize();
+watch(
+  [cameraRef, windowWidth, windowHeight],
+  () => {
+    const cam = cameraRef.value;
+    if (!cam) return;
+    cam.aspect = (windowWidth.value || 1) / (windowHeight.value || 1);
+    cam.updateProjectionMatrix();
   },
   { immediate: true }
 );
@@ -152,31 +201,24 @@ watch(
       v-if="store.cameraControlMode === 'orbit'"
       ref="orbitControlsRef"
     />
+    <!-- Camera pose is driven imperatively in onLoop (scroll) or by OrbitControls
+         (dev), so no reactive position/rotation props here (issue #4). -->
+    <!-- aspect is managed imperatively from the window size (see watch above). -->
     <TresPerspectiveCamera
       ref="cameraRef"
-      :position="[
-        store.cameraPosition.x,
-        store.cameraPosition.y,
-        store.cameraPosition.z,
-      ]"
-      :rotation="[
-        store.cameraRotation.x,
-        store.cameraRotation.y,
-        store.cameraRotation.z,
-      ]"
       :fov="45"
-      :aspect="1"
       :near="0.1"
       :far="1000"
     />
 
     <Levioso
-      ref="groupRef"
       :speed="store.floatSpeed"
       :rotation-factor="1"
       :float-factor="store.floatFactor"
     >
-      <TresGroup :rotation="[headRotationX, headRotatinY, 0]">
+      <!-- name="headGroup" lets SignalField anchor the forehead point to the
+           head's live world matrix (so it rotates/floats with the head). -->
+      <TresGroup ref="headGroupRef" name="headGroup">
         <!-- Load the head model with offset to center it -->
         <primitive
           v-if="gltfScene"
@@ -187,20 +229,21 @@ watch(
         />
       </TresGroup>
     </Levioso>
-    <!-- Group that rotates around origin, containing the offset model -->
+
+    <!-- Data-driven line set-pieces that bloom around the head per chapter. -->
+    <SceneSetPieces />
+
+    <!-- Dev-only: markers for tunable vec3 anchors (forehead, emitter, …). -->
+    <TuningGizmos v-if="isDev" />
 
     <!-- Wireframe bounding box centered at origin (now toggleable) -->
     <TresGroup
       v-if="boundingBox && store.showWireframe"
-      :rotation="[0, wireFrameRotationY, 0]"
+      ref="wireframeGroupRef"
     >
       <TresMesh :position="[0, 0, 0]">
         <TresBoxGeometry :args="[boxSize.x, boxSize.y, boxSize.z]" />
-        <TresMeshBasicMaterial
-          color="#00ff00"
-          wireframe
-          :wireframe-linecap="'butt'"
-        />
+        <TresMeshBasicMaterial color="#00ff00" wireframe />
       </TresMesh>
     </TresGroup>
 
