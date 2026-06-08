@@ -1,0 +1,11 @@
+{
+  // Static-assets-only deploy: `nuxt generate` prerenders the whole site to
+  // .output/public and `wrangler deploy` uploads it to Cloudflare's edge.
+  // There is no Worker script (no "main") and no D1 — the site is pure static
+  // files, so nothing runs server-side at request time.
+  "name": "fabraham",
+  "compatibility_date": "2025-05-15",
+  "assets": {
+    "directory": "./.output/public"
+  }
+}
