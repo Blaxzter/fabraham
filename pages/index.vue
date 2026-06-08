@@ -16,8 +16,20 @@
       </div>
     </ClientOnly>
 
-    <!-- Data-driven biographical timeline (prose is SSG-ready for SEO, #5). -->
-    <HomeScrollableContent v-if="showContent" />
+    <!-- Data-driven biographical timeline. ALWAYS rendered so the prose
+         prerenders to static HTML for crawlers (#5). Kept visually hidden +
+         non-interactive until the boot intro finishes, then fades in. Using
+         opacity (not v-if) keeps SSR and client-first-paint identical — no
+         hydration mismatch, no pre-boot content flash — and the text stays
+         indexable. -->
+    <div
+      :class="[
+        'transition-opacity duration-700',
+        contentRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none',
+      ]"
+    >
+      <HomeScrollableContent />
+    </div>
 
     <!-- Dev-only live tuning panel (3D anchors, head angles, …). -->
     <ClientOnly>
@@ -32,8 +44,10 @@ const bootState = useBootStateStore();
 // `import.meta.dev` is build-time constant — no hostname sniffing, no stale ref.
 const isDev = import.meta.dev;
 
-// In dev, skip the boot screen and show the experience immediately.
-const showContent = computed(() => isDev || bootState.bootCompleted);
+// Reveal the page content once the boot intro completes (instant in dev). The
+// content is always in the DOM (for prerender/SEO); this only toggles its
+// visibility, so the value must match on server and client-first-paint.
+const contentRevealed = computed(() => isDev || bootState.bootCompleted);
 
 // Start loading the scene while the boot sequence runs (hides perceived latency).
 const shouldLoadScene = computed(

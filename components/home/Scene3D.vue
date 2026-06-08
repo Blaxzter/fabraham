@@ -55,10 +55,10 @@ const glComposer = {
   multisampling: 4,
 };
 
-// Load GLTF model with DRACO support
-const { state: gltfModel } = await useGLTF("/models/head.glb", {
-  draco: true, // Enable Draco compression
-});
+// Load the head model. Textures are 1024² WebP (EXT_texture_webp); geometry is
+// ~10k verts uncompressed — no DRACO in the file, so no decoder is loaded
+// (`pnpm optimize:model` rebuilds this asset; see package.json).
+const { state: gltfModel } = await useGLTF("/models/head.glb");
 
 // Extract the scene from the GLTF model
 const gltfScene = computed(() => gltfModel.value?.scene);
