@@ -52,7 +52,7 @@ const { scene, camera } = useTresContext();
 const COLOR = new Color("#00ff9c");
 const BURST_COLOR = new Color("#eafff6"); // brighter — a command's pulse
 
-// Live-tunable in dev (TuningPanel); these defaults are baked into the build.
+// Live-tunable in dev (dev panel); these defaults are baked into the build.
 const tune = useTuning("signalField", "Signal Field");
 // Head-LOCAL offset of the forehead (rotates/floats with the head).
 const forehead = tune.vec3(

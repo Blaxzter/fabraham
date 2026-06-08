@@ -4,17 +4,6 @@ import { BlendFunction } from "postprocessing";
 import type { LightConfig } from "~/types/lights";
 
 export const useSceneControlStore = defineStore("sceneControl", () => {
-  // UI Controls
-  const showControlsPanel = ref(true);
-
-  // Collapsed sections state
-  const collapsedSections = ref({
-    camera: false,
-    scene: true,
-    lights: true,
-    ascii: false,
-  });
-
   // Scene Controls
   const showWireframe = ref(true);
   const showRotationAxis = ref(false);
@@ -165,11 +154,9 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
   const opacity = ref(1);
   const blendFunction = ref(BlendFunction.NORMAL);
 
-  // float effect
-  const floatEffect = ref(false);
+  // float effect (Levioso in Scene3D)
   const floatSpeed = ref(1);
   const floatFactor = ref(0);
-  const floatRange = ref(0.1);
 
   // Computed effect props that update reactively
   const effectProps = computed(() => ({
@@ -206,10 +193,6 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
   ];
 
   return {
-    // UI Controls
-    showControlsPanel,
-    collapsedSections,
-
     // Scene Controls
     showWireframe,
     showRotationAxis,
@@ -248,10 +231,8 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
     blendFunction,
 
     // float effect
-    floatEffect,
     floatSpeed,
     floatFactor,
-    floatRange,
 
     // Computed
     effectProps,

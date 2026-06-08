@@ -2,7 +2,7 @@
   <div class="relative">
     <!-- Boot screen is client-only and skipped in dev for faster iteration. -->
     <ClientOnly>
-      <BootScreen v-if="!isDev && !bootState.bootCompleted" />
+      <BootScreen v-if="!isDev && !bootState.bootCompleted && !skipBootIntro" />
     </ClientOnly>
 
     <!-- Fixed 3D scene background. Client-only so the page stays SSG-compatible
@@ -25,15 +25,18 @@
     <div
       :class="[
         'transition-opacity duration-700',
-        contentRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        contentRevealed && !orbitInspect
+          ? 'opacity-100'
+          : 'opacity-0 pointer-events-none',
       ]"
     >
       <HomeScrollableContent />
     </div>
 
-    <!-- Dev-only live tuning panel (3D anchors, head angles, …). -->
+    <!-- Dev-only unified control panel (camera/positioning, scene, ASCII,
+         lights + registered tuning groups). -->
     <ClientOnly>
-      <HomeTuningPanel v-if="isDev" />
+      <HomeDevPanel v-if="isDev" />
     </ClientOnly>
   </div>
 </template>
@@ -43,6 +46,19 @@ const bootState = useBootStateStore();
 
 // `import.meta.dev` is build-time constant — no hostname sniffing, no stale ref.
 const isDev = import.meta.dev;
+
+// Dev-only: when the panel switches the camera to free-orbit, hide the scroll
+// overlay so it doesn't fight OrbitControls (prod never enters orbit mode).
+const { cameraControlMode } = storeToRefs(useSceneControlStore());
+const orbitInspect = computed(() => isDev && cameraControlMode.value === "orbit");
+
+// Visitor preference (from /setup): skip the boot intro and go straight in.
+// Read client-side only, so this completes boot after hydration — no SSR/first-
+// paint mismatch (mirrors the post-boot content reveal).
+const { skipBootIntro } = usePreferences();
+onMounted(() => {
+  if (skipBootIntro.value && !bootState.bootCompleted) bootState.completeBootSequence();
+});
 
 // Reveal the page content once the boot intro completes (instant in dev). The
 // content is always in the DOM (for prerender/SEO); this only toggles its

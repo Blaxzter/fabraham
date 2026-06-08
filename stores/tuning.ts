@@ -1,12 +1,13 @@
 import { defineStore } from "pinia";
 import { reactive, ref, computed, watch } from "vue";
 import type { Ref } from "vue";
+import tuningConfig from "~/tuning.config.json";
 
 /**
  * Generic dev-only tuning layer.
  *
  * Any component registers tunable params (numbers, 3D points, colours, bools)
- * with one line via the `useTuning(group)` composable; the TuningPanel renders
+ * with one line via the `useTuning(group)` composable; the dev panel renders
  * live controls for all of them and `vec3` points flagged `gizmo` get a 3D marker
  * (TuningGizmos). Code stays the source of truth: the registered defaults are
  * canonical, edits persist to localStorage so reloads keep them, and the panel
@@ -47,12 +48,22 @@ export interface TuneGroup {
 
 const LS_KEY = "fab:tuning";
 
+// The committed config file is the deployed source of truth — what every visitor
+// gets. It's a layer between the inline `useTuning` defaults and the dev-only
+// localStorage scratchpad (see precedence in `register`). Same shape: group → key
+// → value. Edited via the panel's "save to config file" (writes it on disk in dev).
+type TuneConfig = Record<string, Record<string, unknown>>;
+const config = tuningConfig as TuneConfig;
+
 const clone = <T>(v: T): T =>
   typeof v === "object" && v !== null ? ({ ...v } as T) : v;
 
 export const useTuningStore = defineStore("tuning", () => {
   const groups = reactive<Record<string, TuneGroup>>({});
   const values = reactive<Record<string, Record<string, unknown>>>({});
+  // The "committed" baseline a `reset` returns to: config-file value if present,
+  // else the inline default. (NOT the inline default alone — reset should go back
+  // to what ships, not the factory fallback.)
   const defaults: Record<string, Record<string, unknown>> = {};
 
   const panelOpen = ref(false); // opens via the ⚙ toggle (so it never blocks the scene)
@@ -82,13 +93,21 @@ export const useTuningStore = defineStore("tuning", () => {
     meta?: TuneMeta
   ) => {
     ensureGroup(groupId, groupLabel);
-    defaults[groupId]![key] = clone(def);
+    // Reset baseline = committed config value if present, else the inline default.
+    const cfg = config[groupId]?.[key];
+    defaults[groupId]![key] = clone(cfg !== undefined ? cfg : def);
     if (!groups[groupId]!.fields.some((f) => f.key === key)) {
       groups[groupId]!.fields.push({ key, kind, ...meta });
     }
     if (values[groupId]![key] === undefined) {
+      // Precedence: localStorage scratchpad (dev edits) → config file → inline default.
       const ov = overrides[groupId]?.[key];
-      values[groupId]![key] = ov !== undefined ? clone(ov) : clone(def);
+      values[groupId]![key] =
+        ov !== undefined
+          ? clone(ov)
+          : cfg !== undefined
+            ? clone(cfg)
+            : clone(def);
     }
   };
 
@@ -142,6 +161,30 @@ export const useTuningStore = defineStore("tuning", () => {
   const exportGroup = (groupId: string) =>
     JSON.stringify(values[groupId] ?? {}, null, 2);
 
+  // Write the current values to the committed tuning.config.json via the dev-only
+  // endpoint, so they ship to everyone (no per-visitor calibration). On success
+  // the saved values become the new reset baseline and the localStorage scratch is
+  // dropped — the file is now the single source of truth. Dev-only by construction
+  // (the panel that calls this never mounts in prod).
+  const saveState = ref<"idle" | "saving" | "saved" | "error">("idle");
+  const saveToFile = async () => {
+    saveState.value = "saving";
+    try {
+      const payload = JSON.parse(JSON.stringify(values)) as typeof config;
+      await $fetch("/api/_tuning", { method: "POST", body: payload });
+      for (const g in payload) {
+        defaults[g] ??= {};
+        for (const k in payload[g]!) defaults[g]![k] = clone(payload[g]![k]);
+      }
+      if (import.meta.client) localStorage.removeItem(LS_KEY);
+      saveState.value = "saved";
+      setTimeout(() => (saveState.value = "idle"), 1500);
+    } catch {
+      saveState.value = "error";
+      setTimeout(() => (saveState.value = "idle"), 2500);
+    }
+  };
+
   // Points (vec3 + gizmo) to mark in the 3D scene.
   const gizmoFields = computed(() => {
     const out: { group: string; field: TuneField; value: Vec3Val }[] = [];
@@ -180,6 +223,8 @@ export const useTuningStore = defineStore("tuning", () => {
     bool,
     resetGroup,
     exportGroup,
+    saveToFile,
+    saveState,
     gizmoFields,
   };
 });

@@ -26,7 +26,7 @@ const modelOffset = shallowRef<Vector3>(new Vector3());
 // the visitor at the finale (see onLoop). Rotation accumulators are mutated in
 // the loop and applied imperatively to the Three group — never reactive props
 // (issue #4).
-// Head-addressing angles — live-tunable in dev (TuningPanel); defaults baked in.
+// Head-addressing angles — live-tunable in dev (dev panel); defaults baked in.
 const tuneHead = useTuning("headAddress", "Head addressing");
 const restingYaw = tuneHead.num("restingYaw", -0.8, { min: -2, max: 2, step: 0.01, label: "Resting yaw" });
 const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
@@ -42,9 +42,10 @@ const wireframeGroupRef = shallowRef<Group | null>(null);
 
 // Cursor position (normalised -1..1), always recorded; only *applied* to the head
 // while the contact beat is centered (store.addressing). Honour reduced-motion by
-// dropping the cursor-follow — the head still turns to face front.
+// dropping the cursor-follow — the head still turns to face front. The preference
+// resolves OS prefers-reduced-motion + the manual override from /setup.
 const mousePosition = shallowRef({ x: 0, y: 0 });
-const prefersReducedMotion = shallowRef(false);
+const { reducedMotion } = usePreferences();
 
 // ASCII and rendering configuration
 const gl = {
@@ -68,13 +69,9 @@ if (import.meta.client) {
   bootState.markSceneReady();
 }
 
-// Track the cursor (always) + the reduced-motion preference. The head only acts
-// on these at the finale; recording them is just two numbers, event-driven.
+// Track the cursor (always). The head only acts on it at the finale; recording
+// it is just two numbers, event-driven.
 if (import.meta.client) {
-  prefersReducedMotion.value = window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
-  ).matches;
-
   const handleMouseMove = (event: MouseEvent) => {
     // Normalize mouse position to -1..1.
     mousePosition.value = {
@@ -122,7 +119,7 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // from an event. The base aim is part of `addressing` (not the cursor), so it
   // still turns under prefers-reduced-motion (only the parallax is dropped).
   const addressing = sectionsStore.addressing;
-  const cursorScale = prefersReducedMotion.value ? 0 : addressing;
+  const cursorScale = reducedMotion.value ? 0 : addressing;
   const baseYaw = restingYaw.value * (1 - addressing) + addressYaw.value * addressing;
   const basePitch = addressPitch.value * addressing;
   const targetY = baseYaw + mousePosition.value.x * maxYaw.value * cursorScale;

@@ -167,8 +167,9 @@ Every set-piece follows the same shape (see `Lattice.vue` / `SignalField.vue`):
 | `stores/sections.ts` | **Shared state only** (issue #4): `progress`, the `sections` spine, and the derived getters — `boundaries`, `anchors`, `activeIndex`, `localProgress`, `heroProgress`, `cameraAt`, `revealFor`, `subReveal`, `asciiCellSize/FontSize`, and `addressing` (how strongly the head faces the visitor). Owns **no** rAF loop. Contains the single keyframe interpolator reused for camera + reveal. |
 | `composables/useSections.ts` | Sources the section sequence from `registry.ts` into the store (`useSections`); loads + normalizes the `content/biography` collection (`useBiographyMilestones`). |
 | `composables/useScrollTimeline.ts` | Owns the Lenis singleton (driven by `gsap.ticker`), the single `ScrollTrigger`, and their teardown. |
-| `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). |
+| `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [tuning.md](./tuning.md). |
 | `stores/BootState.ts` | Boot sequence phases. |
+| `composables/usePreferences.ts` | Visitor preferences (reduced-motion, skip boot intro), set on `/setup`, persisted to `localStorage`. Theme is owned by `useColorMode`. |
 
 ---
 

@@ -1,6 +1,9 @@
 import { reactive, ref } from "vue";
 import type { Ref } from "vue";
 import type { TuneMeta, Vec3Val } from "~/stores/tuning";
+import tuningConfig from "~/tuning.config.json";
+
+const config = tuningConfig as Record<string, Record<string, unknown>>;
 
 /**
  * Register tunable params for a component and get back reactive handles.
@@ -8,12 +11,14 @@ import type { TuneMeta, Vec3Val } from "~/stores/tuning";
  *   const t = useTuning("signalField", "Signal Field");
  *   const forehead = t.vec3("forehead", { x: 0.08, y: 0.3, z: 0.2 }, { gizmo: true });
  *   const period   = t.num("period", 2.6, { min: 0.5, max: 8, step: 0.1 });
- *   // read forehead.x / period.value — live-editable via the TuningPanel in dev.
+ *   // read forehead.x / period.value — live-editable via the dev panel in dev.
  *
  * In dev these are backed by the tuning store (panel-editable, persisted,
- * exportable). In production the composable returns plain refs of the defaults —
- * no store, no panel, no persistence — so the registered defaults ARE the values
- * and there is zero runtime cost.
+ * exportable). In production the composable returns plain refs — no store, no
+ * panel, no persistence — reading the committed `tuning.config.json` if it has a
+ * value for the key, else the inline default. So the deployed values are whatever
+ * was saved from the panel (config file), with the inline defaults as fallback,
+ * at zero runtime cost.
  */
 export interface TuningHandle {
   num: (key: string, def: number, meta?: TuneMeta) => Ref<number>;
@@ -24,11 +29,13 @@ export interface TuningHandle {
 
 export function useTuning(groupId: string, groupLabel?: string): TuningHandle {
   if (!import.meta.dev) {
+    const g = config[groupId];
     return {
-      num: (_k, def) => ref(def),
-      vec3: (_k, def) => reactive({ ...def }),
-      color: (_k, def) => ref(def),
-      bool: (_k, def) => ref(def),
+      num: (key, def) => ref((g?.[key] as number) ?? def),
+      vec3: (key, def) =>
+        reactive({ ...def, ...((g?.[key] as Partial<Vec3Val>) ?? {}) }),
+      color: (key, def) => ref((g?.[key] as string) ?? def),
+      bool: (key, def) => ref((g?.[key] as boolean) ?? def),
     };
   }
   const store = useTuningStore();

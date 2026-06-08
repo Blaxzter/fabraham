@@ -34,6 +34,12 @@ export default defineNuxtConfig({
             crawlLinks: true,
             routes: ['/', '/projects'],
         },
+        // Dev-only fs mount at the project root, used by server/api/_tuning.post.ts
+        // so the dev tuning panel can write tuning.config.json. Not present in the
+        // static prod build (devStorage applies only to `nuxt dev`).
+        devStorage: {
+            root: { driver: 'fs', base: '.' },
+        },
     },
 
     modules: [
