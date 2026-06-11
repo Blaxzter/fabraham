@@ -1,1 +1,25 @@
-{}
+{
+  "signalField": {
+    "forehead": {
+      "x": 0.2,
+      "y": 0.22,
+      "z": 0.07
+    },
+    "emitterPlaneZ": 0,
+    "emitterNudge": {
+      "x": 0.15,
+      "y": -0.02,
+      "z": 0
+    },
+    "rStart": 0.47,
+    "rEnd": 0.04,
+    "period": 2
+  },
+  "headAddress": {
+    "restingYaw": -0.44,
+    "addressYaw": 0.06,
+    "addressPitch": 0.02,
+    "maxYaw": 0.22,
+    "maxPitch": 0.14
+  }
+}

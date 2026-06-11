@@ -27,7 +27,9 @@ const modelOffset = shallowRef<Vector3>(new Vector3());
 // the loop and applied imperatively to the Three group — never reactive props
 // (issue #4).
 // Head-addressing angles — live-tunable in dev (dev panel); defaults baked in.
-const tuneHead = useTuning("headAddress", "Head addressing");
+// Tagged to the "contact" scene (the finale where the head turns to address the
+// visitor), so the panel shows these rotation controls under that scene.
+const tuneHead = useTuning("headAddress", "Head addressing", "contact");
 const restingYaw = tuneHead.num("restingYaw", -0.8, { min: -2, max: 2, step: 0.01, label: "Resting yaw" });
 const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
 const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
