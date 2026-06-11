@@ -53,6 +53,8 @@ const COLOR = new Color("#00ff9c");
 const BURST_COLOR = new Color("#eafff6"); // brighter — a command's pulse
 
 // Live-tunable in dev (dev panel); these defaults are baked into the build.
+// The group id matches the "signalField" set-piece name, so the dev panel's
+// scenes tab shows these controls under every scene that renders it (the finale).
 const tune = useTuning("signalField", "Signal Field");
 // Head-LOCAL offset of the forehead (rotates/floats with the head).
 const forehead = tune.vec3(

@@ -43,6 +43,10 @@ export interface TuneField extends TuneMeta {
 export interface TuneGroup {
   id: string;
   label: string;
+  /** Optional scroll-section id this group belongs to (registry.ts section id).
+   *  Groups with a section are shown under the dev panel's "scenes" tab beside
+   *  their scene; groups without one are global (shown under "global"). */
+  section?: string;
   fields: TuneField[];
 }
 
@@ -78,8 +82,11 @@ export const useTuningStore = defineStore("tuning", () => {
     }
   }
 
-  const ensureGroup = (id: string, label?: string) => {
+  const ensureGroup = (id: string, label?: string, section?: string) => {
     if (!groups[id]) groups[id] = { id, label: label || id, fields: [] };
+    // section is group-level metadata; the last (non-undefined) caller wins so a
+    // group can be tagged from its `useTuning(..., section)` call.
+    if (section !== undefined) groups[id]!.section = section;
     if (!values[id]) values[id] = {};
     if (!defaults[id]) defaults[id] = {};
   };
@@ -90,9 +97,10 @@ export const useTuningStore = defineStore("tuning", () => {
     key: string,
     kind: TuneKind,
     def: unknown,
-    meta?: TuneMeta
+    meta?: TuneMeta,
+    groupSection?: string
   ) => {
-    ensureGroup(groupId, groupLabel);
+    ensureGroup(groupId, groupLabel, groupSection);
     // Reset baseline = committed config value if present, else the inline default.
     const cfg = config[groupId]?.[key];
     defaults[groupId]![key] = clone(cfg !== undefined ? cfg : def);
@@ -116,9 +124,10 @@ export const useTuningStore = defineStore("tuning", () => {
     groupLabel: string | undefined,
     key: string,
     def: number,
-    meta?: TuneMeta
+    meta?: TuneMeta,
+    groupSection?: string
   ): Ref<number> => {
-    register(groupId, groupLabel, key, "number", def, meta);
+    register(groupId, groupLabel, key, "number", def, meta, groupSection);
     return computed(() => values[groupId]![key] as number);
   };
   const vec3 = (
@@ -126,9 +135,10 @@ export const useTuningStore = defineStore("tuning", () => {
     groupLabel: string | undefined,
     key: string,
     def: Vec3Val,
-    meta?: TuneMeta
+    meta?: TuneMeta,
+    groupSection?: string
   ): Vec3Val => {
-    register(groupId, groupLabel, key, "vec3", def, meta);
+    register(groupId, groupLabel, key, "vec3", def, meta, groupSection);
     return values[groupId]![key] as Vec3Val; // reactive object
   };
   const color = (
@@ -136,9 +146,10 @@ export const useTuningStore = defineStore("tuning", () => {
     groupLabel: string | undefined,
     key: string,
     def: string,
-    meta?: TuneMeta
+    meta?: TuneMeta,
+    groupSection?: string
   ): Ref<string> => {
-    register(groupId, groupLabel, key, "color", def, meta);
+    register(groupId, groupLabel, key, "color", def, meta, groupSection);
     return computed(() => values[groupId]![key] as string);
   };
   const bool = (
@@ -146,9 +157,10 @@ export const useTuningStore = defineStore("tuning", () => {
     groupLabel: string | undefined,
     key: string,
     def: boolean,
-    meta?: TuneMeta
+    meta?: TuneMeta,
+    groupSection?: string
   ): Ref<boolean> => {
-    register(groupId, groupLabel, key, "bool", def, meta);
+    register(groupId, groupLabel, key, "bool", def, meta, groupSection);
     return computed(() => values[groupId]![key] as boolean);
   };
 

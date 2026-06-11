@@ -10,11 +10,16 @@ import SceneSection from "./devpanel/SceneSection.vue";
 import AsciiSection from "./devpanel/AsciiSection.vue";
 import LightsSection from "./devpanel/LightsSection.vue";
 import TuningGroups from "./devpanel/TuningGroups.vue";
-import { computed } from "vue";
+import ScenesTab from "./devpanel/ScenesTab.vue";
+import { computed, ref } from "vue";
 
 // Panel open/closed state reuses the tuning store flag (shared with prod-safe
 // no-op path), so there's one toggle for the whole panel.
 const tuning = useTuningStore();
+
+// Two tabs: "global" = scene-wide tools (camera, ASCII, scene, lights + global
+// tuning groups); "scenes" = per-section controls that follow the scroll.
+const tab = ref<"global" | "scenes">("global");
 
 const saveLabel = computed(() => {
     switch (tuning.saveState) {
@@ -40,27 +45,50 @@ const saveLabel = computed(() => {
             {{ tuning.panelOpen ? "×" : "⚙" }}
         </button>
 
-        <div v-if="tuning.panelOpen" class="dvp-body">
+        <!-- data-lenis-prevent: keep the page's Lenis smooth-scroll from
+             hijacking wheel/touch inside the panel so it scrolls natively. -->
+        <div v-if="tuning.panelOpen" class="dvp-body" data-lenis-prevent>
             <p class="dvp-head">dev panel</p>
 
-            <DevPanelSection title="Camera" :default-open="true">
-                <CameraSection />
-            </DevPanelSection>
+            <div class="dvp-tabs">
+                <button
+                    class="dvp-tab"
+                    :class="{ active: tab === 'global' }"
+                    @click="tab = 'global'"
+                >
+                    global
+                </button>
+                <button
+                    class="dvp-tab"
+                    :class="{ active: tab === 'scenes' }"
+                    @click="tab = 'scenes'"
+                >
+                    scenes
+                </button>
+            </div>
 
-            <DevPanelSection title="ASCII" :default-open="true">
-                <AsciiSection />
-            </DevPanelSection>
+            <template v-if="tab === 'global'">
+                <DevPanelSection title="Camera" :default-open="true">
+                    <CameraSection />
+                </DevPanelSection>
 
-            <DevPanelSection title="Scene">
-                <SceneSection />
-            </DevPanelSection>
+                <DevPanelSection title="ASCII" :default-open="true">
+                    <AsciiSection />
+                </DevPanelSection>
 
-            <DevPanelSection title="Lights">
-                <LightsSection />
-            </DevPanelSection>
+                <DevPanelSection title="Scene">
+                    <SceneSection />
+                </DevPanelSection>
 
-            <!-- Dynamically-registered tuning groups (head, set-pieces, …). -->
-            <TuningGroups />
+                <DevPanelSection title="Lights">
+                    <LightsSection />
+                </DevPanelSection>
+
+                <!-- Global tuning groups (not tied to a scene). -->
+                <TuningGroups />
+            </template>
+
+            <ScenesTab v-else />
 
             <div class="dvp-foot">
                 <button
@@ -117,6 +145,7 @@ const saveLabel = computed(() => {
     width: 18rem;
     max-height: 86vh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0.6rem 0.7rem 0.8rem;
     border-radius: 0.5rem;
     border: 1px solid rgba(0, 255, 156, 0.4);
@@ -131,6 +160,36 @@ const saveLabel = computed(() => {
     letter-spacing: 0.25em;
     text-transform: uppercase;
     opacity: 0.55;
+}
+
+/* Tabs (global / scenes) */
+.dvp-tabs {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+}
+.dvp-tab {
+    flex: 1;
+    padding: 0.25rem;
+    border-radius: 0.3rem;
+    border: 1px solid rgba(0, 255, 156, 0.25);
+    background: transparent;
+    color: #9fe;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.65;
+}
+.dvp-tab:hover {
+    opacity: 1;
+}
+.dvp-tab.active {
+    background: rgba(0, 255, 156, 0.12);
+    border-color: rgba(0, 255, 156, 0.55);
+    color: #00ff9c;
+    opacity: 1;
 }
 
 /* Section (collapsible) */
@@ -171,6 +230,57 @@ const saveLabel = computed(() => {
 }
 .dvp-sec-body {
     padding: 0.4rem 0 0.5rem 0.1rem;
+}
+
+/* Scenes tab */
+.dvp-scene.active {
+    /* accent the scene the scroll is currently on */
+    margin: 0 -0.7rem;
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    border-left: 2px solid #00ff9c;
+    background: rgba(0, 255, 156, 0.06);
+}
+.dvp-scene-type {
+    margin-left: 0.4rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.45;
+    font-weight: 400;
+}
+.dvp-scene-live {
+    font-size: 0.6rem;
+    color: #00ff9c;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+.dvp-scene-group {
+    border-top: 1px solid rgba(0, 255, 156, 0.14);
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+}
+.dvp-swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 0.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Biography milestones, nested under their section */
+.dvp-milestone {
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+    border-top: 1px solid rgba(0, 255, 156, 0.12);
+    border-left: 1px solid rgba(0, 255, 156, 0.12);
+}
+.dvp-milestone.active {
+    border-left: 2px solid #00ff9c;
+    background: rgba(0, 255, 156, 0.05);
+}
+.dvp-milestone .dvp-sec-title {
+    font-weight: 400;
+    font-size: 0.7rem;
 }
 
 /* Fields */

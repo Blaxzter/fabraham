@@ -41,8 +41,9 @@ The rest of this doc describes the generic tuning layer (#1).
 | `server/api/_tuning.post.ts` | Dev-only Nitro route that the panel POSTs to; merges + writes `tuning.config.json` on disk. Absent in the static prod build. |
 | `composables/useTuning.ts` | The API components call. Dev → store-backed; prod → plain refs reading the config file, else the inline default. |
 | `stores/tuning.ts` | The dev store: registered groups/fields/values, config-file + `localStorage` precedence, `saveToFile()`. |
-| `components/home/DevPanel.vue` | The DOM panel shell (⚙, top-right) + shared `.dvp-*` styles + the *save to config file* button. Mounted dev-only in `pages/index.vue` as `<HomeDevPanel>`. |
-| `components/home/devpanel/*.vue` | The panel sections: `CameraSection`, `SceneSection`, `AsciiSection`, `LightsSection` (bound to `SceneControl`) and `TuningGroups` (the generic `useTuning` renderer), wrapped in a collapsible `DevPanelSection`. |
+| `components/home/DevPanel.vue` | The DOM panel shell (⚙, top-right) + the **global / scenes** tabs + shared `.dvp-*` styles + the *save to config file* button. Mounted dev-only in `pages/index.vue` as `<HomeDevPanel>`. |
+| `components/home/devpanel/*.vue` | The panel content: scene-control sections (`CameraSection`, `SceneSection`, `AsciiSection`, `LightsSection`), the global `TuningGroups` list, the `ScenesTab` (per-section / per-milestone view), and shared renderers `TuningGroupFields` / `TuningGroupBlock`, in a collapsible `DevPanelSection`. |
+| `composables/useDevPanelGroups.ts` | Routes each tuning group to the global tab or to a scene/milestone (by set-piece name or explicit `section` tag). |
 | `components/home/TuningGizmos.vue` | 3D markers for `vec3` points flagged `gizmo`. Mounted dev-only inside the canvas (`Scene3D`). |
 
 ## Using it in a component
@@ -84,6 +85,42 @@ config-file lookup); the value you pass is the inline fallback default.
   This is the step that makes dev == deployed.
 - Edits persist to `localStorage` (`fab:tuning`) as you drag, so reloads keep your
   in-progress tweaks until you save, reset, or clear storage.
+
+## Tabs: global vs. scenes
+
+The panel body has two tabs:
+
+- **global** — the scene-wide tools: camera, ASCII, scene-debug, lights, and any
+  tuning group that isn't tied to a scene (e.g. *Head addressing*).
+- **scenes** — one row per scroll section, **sourced live from `SECTION_DEFS`
+  (`registry.ts`)** — so adding/removing a section there updates this list
+  automatically; there is **nothing to maintain in the panel by hand.** It's a
+  single-open accordion that *follows the scroll*: the section you're scrolled to
+  auto-opens (and you can click any other open). Each row shows the section's
+  camera pose, accent, set-pieces, and the tuning groups that belong to it.
+  - **The biography section ("the path so far") expands into its individual
+    milestones** (`content/biography/*.md`), each a sub-beat with its own
+    set-piece; scrolling through the section follows down to the active milestone.
+
+### How a tuning group lands under a scene
+
+You don't tag scenes by hand. Routing (see `composables/useDevPanelGroups.ts`):
+
+1. **Set-pieces — name the group after the set-piece.** A group whose **id equals
+   a set-piece name** (`useTuning("lattice", "Lattice")` ↔ `setPiece: ["lattice"]`)
+   shows up beside **every** section/milestone that renders that set-piece. This is
+   the normal case — the section↔set-piece mapping already lives in `registry.ts` /
+   the milestone frontmatter, so the panel reuses it.
+2. **Non-set-piece groups — pass a section id** as the third arg of `useTuning`
+   (`useTuning("headAddress", "Head addressing", "contact")`) to pin the group to
+   that scene's id (`registry.ts`).
+3. **Everything else is global** (no section id, not a set-piece used anywhere).
+
+> So to make a set-piece tunable, add `useTuning` calls inside its component and
+> name the group after the set-piece — its controls appear under the right
+> milestone(s) with no extra wiring. Currently only `SignalField` is wired up; the
+> other set-pieces (`Lattice`, `RouteArc`, `ThreadBoard`, `DocumentGrid`,
+> `StaffLines`) still carry hard-coded constants ripe for this treatment.
 
 ## Workflow
 
