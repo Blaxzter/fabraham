@@ -16,8 +16,13 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
   // Camera control mode
   const cameraControlMode = ref<"scroll" | "orbit">("scroll");
 
-  // Light system controls
-  const enableColoredLights = ref(true);
+  // Light system controls. The scroll-driven spotlight rig (ScrollSpotlights.vue)
+  // now owns face lighting — it needs the head DARK through the hero so the
+  // spotlights' "tada" reveal at the interlude reads. So the legacy colored
+  // point/spot lights are OFF by default (they lit the head every frame and
+  // flattened the reveal); flip this on in the dev panel's Lights section to
+  // bring back the multicolour atmosphere.
+  const enableColoredLights = ref(false);
   const showLightHelpers = ref(false);
 
   // Dynamic lights dictionary

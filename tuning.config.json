@@ -16,7 +16,6 @@
     "period": 2
   },
   "headAddress": {
-    "restingYaw": -0.44,
     "addressYaw": 0.06,
     "addressPitch": 0.02,
     "maxYaw": 0.22,

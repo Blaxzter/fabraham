@@ -6,6 +6,7 @@ import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Group, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
 import SceneSetPieces from "./SceneSetPieces.vue";
+import ScrollSpotlights from "./ScrollSpotlights.vue";
 import TuningGizmos from "./TuningGizmos.vue";
 
 const store = useSceneControlStore();
@@ -26,18 +27,25 @@ const modelOffset = shallowRef<Vector3>(new Vector3());
 // the visitor at the finale (see onLoop). Rotation accumulators are mutated in
 // the loop and applied imperatively to the Three group — never reactive props
 // (issue #4).
-// Head-addressing angles — live-tunable in dev (dev panel); defaults baked in.
-// Tagged to the "contact" scene (the finale where the head turns to address the
-// visitor), so the panel shows these rotation controls under that scene.
+// The head's per-scene BASE pose (position + rotation) is now a keyframe track in
+// the sections store (edited in the dev panel scenes tab → Head; see headAt),
+// replacing the old constant resting yaw. These remaining angles are the finale
+// "addressing" OVERLAY: at the contact beat the head turns from its keyframed
+// rotation toward the CLI, with a cursor parallax. Live-tunable, tagged to contact.
 const tuneHead = useTuning("headAddress", "Head addressing", "contact");
-const restingYaw = tuneHead.num("restingYaw", -0.8, { min: -2, max: 2, step: 0.01, label: "Resting yaw" });
 const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
 const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
 const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
 const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
 
-const headRotationY = shallowRef(restingYaw.value);
+// The constant base lighting the scroll spotlights sit on top of. Lives in the
+// spotlights store (edited in the dev panel's Spotlights section, alongside the
+// rig knobs); lower the base fill to deepen the dark so the "tada" reveal pops.
+const spotlights = useSpotlightsStore();
+
+const headRotationY = shallowRef(-0.44); // seeded to the resting yaw to avoid a first-frame swing
 const headRotationX = shallowRef(0);
+const headRotationZ = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
 const headGroupRef = shallowRef<Group | null>(null);
 const wireframeGroupRef = shallowRef<Group | null>(null);
@@ -114,23 +122,32 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
     cam.rotation.set(pose.rotation.x, pose.rotation.y, pose.rotation.z);
   }
 
-  // Head addressing: hold the resting profile through the journey, then swing to
-  // look toward the terminal card as the contact beat centers (addressing → 1),
-  // with a gentle cursor parallax on top. Frame-rate-independent smoothing; no
-  // extra rAF or layout read — addressing comes from store getters, the cursor
-  // from an event. The base aim is part of `addressing` (not the cursor), so it
-  // still turns under prefers-reduced-motion (only the parallax is dropped).
+  // Head pose: a scroll-driven BASE pose (position offset + rotation) from the
+  // head keyframe track, with the finale "addressing" turn + cursor parallax
+  // overlaid on the rotation. The base position is applied directly (scroll-
+  // interpolated, smooth); the rotation is smoothed (frame-rate-independent) so
+  // the cursor parallax doesn't jitter. No extra rAF or layout read (issue #4).
+  const headPose = sectionsStore.headAt(sectionsStore.progress);
+  headGroupRef.value?.position.set(
+    headPose.position.x,
+    headPose.position.y,
+    headPose.position.z
+  );
+  // At the contact beat, addressing ramps 0→1 and swings the head from its
+  // keyframed rotation toward the CLI; the cursor parallax rides on top (dropped
+  // under prefers-reduced-motion, but the turn itself still happens).
   const addressing = sectionsStore.addressing;
   const cursorScale = reducedMotion.value ? 0 : addressing;
-  const baseYaw = restingYaw.value * (1 - addressing) + addressYaw.value * addressing;
-  const basePitch = addressPitch.value * addressing;
+  const baseYaw = headPose.rotation.y * (1 - addressing) + addressYaw.value * addressing;
+  const basePitch = headPose.rotation.x * (1 - addressing) + addressPitch.value * addressing;
   const targetY = baseYaw + mousePosition.value.x * maxYaw.value * cursorScale;
   const targetX = basePitch + mousePosition.value.y * maxPitch.value * cursorScale;
   const ease = 1 - Math.pow(1 - 0.12, delta * 60);
   headRotationY.value += (targetY - headRotationY.value) * ease;
   headRotationX.value += (targetX - headRotationX.value) * ease;
+  headRotationZ.value += (headPose.rotation.z - headRotationZ.value) * ease;
   // Apply imperatively to the Three group — no reactive prop patching (issue #4).
-  headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, 0);
+  headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, headRotationZ.value);
 
   wireFrameRotationY.value = elapsed * 0.5;
   wireframeGroupRef.value?.rotation.set(0, wireFrameRotationY.value, 0);
@@ -274,9 +291,14 @@ watch(
       </Backdrop>
     </TresMesh>
 
-    <!-- Lighting for better model visibility -->
-    <TresDirectionalLight :position="[5, 5, 5]" :intensity="0.5" cast-shadow />
-    <TresAmbientLight :intensity="0.1" />
+    <!-- Constant base lighting (tunable). The scroll spotlights add focused,
+         scroll-driven light on top of this. -->
+    <TresDirectionalLight :position="[5, 5, 5]" :intensity="spotlights.baseFill" cast-shadow />
+    <TresAmbientLight :intensity="spotlights.baseAmbient" />
+
+    <!-- Scroll-driven spotlight rig: dark through the hero, then lights kick on
+         at the interlude and follow the scroll across the set-pieces. -->
+    <ScrollSpotlights />
 
     <HomeLights />
 

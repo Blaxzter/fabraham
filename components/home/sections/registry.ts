@@ -33,6 +33,16 @@ const v3 = (x: number, y: number, z: number) => ({ x, y, z });
 
 // The scroll experience, in order. Camera poses / weights / accents are the same
 // values the markdown frontmatter carried, so the camera path is unchanged.
+//
+// A section's `camera` is a single pose held at the section centre. To pan the
+// camera THROUGH several poses while a section is on screen, give it
+// `cameraKeyframes` instead (anchored like the spotlights — `t` is the local
+// position 0..1, `milestone` pins to a biography card). Example:
+//   cameraKeyframes: [
+//     { t: 0.0, position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, 0, 0) },
+//     { milestone: 3, position: v3(0.3, 0.05, 1.25), rotation: v3(-0.05, 0.04, 0) },
+//     { t: 1.0, position: v3(-0.05, 0.05, 1.35), rotation: v3(-0.05, -0.03, 0) },
+//   ],
 export const SECTION_DEFS: SectionDef[] = [
   {
     id: "identity",
@@ -112,4 +122,6 @@ export const spineOf = (def: SectionDef): Section => ({
   setPieceVariant: def.setPieceVariant,
   accent: def.accent,
   camera: def.camera,
+  cameraKeyframes: def.cameraKeyframes,
+  headKeyframes: def.headKeyframes,
 });

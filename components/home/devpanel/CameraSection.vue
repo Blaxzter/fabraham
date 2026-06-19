@@ -2,7 +2,7 @@
 // The camera / positioning workflow: switch between scroll-driven and free
 // orbit, read the live pose, and copy it as a registry-ready snippet to paste
 // into a section's `camera` in components/home/sections/registry.ts.
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const store = useSceneControlStore();
 const timeline = useSectionsStore();
@@ -16,20 +16,51 @@ const onModeChange = () => {
 
 const fmt = (n: number) => n.toFixed(2);
 
-const copied = ref(false);
-const copyPose = async () => {
-  const p = store.cameraPosition;
-  const r = store.cameraRotation;
-  const snippet = `camera: { position: v3(${fmt(p.x)}, ${fmt(p.y)}, ${fmt(
-    p.z
-  )}), rotation: v3(${fmt(r.x)}, ${fmt(r.y)}, ${fmt(r.z)}) },`;
+// The section (+ biography card) + local position the current scroll falls in —
+// so a copied camera keyframe is anchored where you are (paste into that section's
+// cameraKeyframes). Drives both the snippet AND its label, so they always agree.
+const here = computed(() => timeline.anchorAt(timeline.progress));
+const hereLabel = computed(() => {
+  const a = here.value;
+  const card = a.milestone != null ? ` card ${a.milestone}` : "";
+  return `${a.section || "?"}${card} ${Math.round(a.t * 100)}%`;
+});
+
+const copied = ref<"" | "pose" | "kf">("");
+const flash = (which: "pose" | "kf") => {
+  copied.value = which;
+  setTimeout(() => (copied.value = ""), 1300);
+};
+const write = async (text: string, which: "pose" | "kf") => {
   try {
-    await navigator.clipboard.writeText(snippet);
-    copied.value = true;
-    setTimeout(() => (copied.value = false), 1300);
+    await navigator.clipboard.writeText(text);
+    flash(which);
   } catch {
     /* clipboard blocked — ignore */
   }
+};
+
+// Single pose for a section's `camera:` field (held at the section centre).
+const copyPose = () => {
+  const p = store.cameraPosition;
+  const r = store.cameraRotation;
+  write(
+    `camera: { position: v3(${fmt(p.x)}, ${fmt(p.y)}, ${fmt(p.z)}), rotation: v3(${fmt(r.x)}, ${fmt(r.y)}, ${fmt(r.z)}) },`,
+    "pose"
+  );
+};
+
+// One entry for a section's `cameraKeyframes` — anchored at the current local t
+// so the camera pans THROUGH it as you scroll the section it belongs to.
+const copyKeyframe = () => {
+  const p = store.cameraPosition;
+  const r = store.cameraRotation;
+  const a = here.value;
+  const ms = a.milestone != null ? ` milestone: ${a.milestone},` : "";
+  write(
+    `{ t: ${fmt(a.t)},${ms} position: v3(${fmt(p.x)}, ${fmt(p.y)}, ${fmt(p.z)}), rotation: v3(${fmt(r.x)}, ${fmt(r.y)}, ${fmt(r.z)}) },`,
+    "kf"
+  );
 };
 </script>
 
@@ -66,10 +97,15 @@ const copyPose = async () => {
   </div>
 
   <button class="dvp-btn dvp-btn-block" @click="copyPose">
-    {{ copied ? "copied pose" : "copy camera pose" }}
+    {{ copied === "pose" ? "copied pose" : "copy camera pose" }}
+  </button>
+  <button class="dvp-btn dvp-btn-block" @click="copyKeyframe">
+    {{ copied === "kf" ? "copied keyframe" : `copy keyframe @ ${hereLabel}` }}
   </button>
   <p class="dvp-hint">
-    Orbit to a pose, then paste into a section's <code>camera</code> in
-    <code>registry.ts</code>.
+    <strong>pose</strong> → a section's <code>camera</code> (held at its centre).
+    <strong>keyframe</strong> → an entry in that section's <code>cameraKeyframes</code>
+    (the camera pans through several as you scroll the section). Anchored to where
+    you are now: <code>{{ hereLabel }}</code>.
   </p>
 </template>

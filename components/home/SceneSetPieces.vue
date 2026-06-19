@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, onBeforeUnmount } from "vue";
+import { computed, shallowRef, onBeforeUnmount, watchEffect } from "vue";
 import type { Component } from "vue";
 import { useLoop, useTresContext } from "@tresjs/core";
 import { MeshBasicMaterial } from "three";
@@ -40,6 +40,10 @@ import SignalField from "./setpieces/SignalField.vue";
 const store = useSectionsStore();
 useSections();
 const { milestones } = useBiographyMilestones();
+
+// Keep the store's milestone count current so milestone-anchored keyframes
+// (camera + spotlights) resolve against the live biography cards.
+watchEffect(() => store.setMilestoneCount(milestones.value.length));
 
 const SET_PIECES: Partial<Record<string, Component>> = {
   lattice: Lattice,

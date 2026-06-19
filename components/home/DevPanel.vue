@@ -9,6 +9,7 @@ import CameraSection from "./devpanel/CameraSection.vue";
 import SceneSection from "./devpanel/SceneSection.vue";
 import AsciiSection from "./devpanel/AsciiSection.vue";
 import LightsSection from "./devpanel/LightsSection.vue";
+import SpotlightsSection from "./devpanel/SpotlightsSection.vue";
 import TuningGroups from "./devpanel/TuningGroups.vue";
 import ScenesTab from "./devpanel/ScenesTab.vue";
 import { computed, ref } from "vue";
@@ -82,6 +83,10 @@ const saveLabel = computed(() => {
 
                 <DevPanelSection title="Lights">
                     <LightsSection />
+                </DevPanelSection>
+
+                <DevPanelSection title="Spotlights">
+                    <SpotlightsSection />
                 </DevPanelSection>
 
                 <!-- Global tuning groups (not tied to a scene). -->

@@ -14,6 +14,7 @@
 import { computed, ref, watch } from "vue";
 import { bioMilestoneCenter } from "~/stores/sections";
 import TuningGroupBlock from "./TuningGroupBlock.vue";
+import SceneKeyframes from "./SceneKeyframes.vue";
 
 const sections = useSectionsStore();
 const { milestones } = useBiographyMilestones();
@@ -61,8 +62,6 @@ watch(
 );
 const toggleMilestone = (id: string) =>
   (openMilestoneId.value = openMilestoneId.value === id ? undefined : id);
-
-const fmt = (n: number) => n.toFixed(2);
 </script>
 
 <template>
@@ -105,23 +104,8 @@ const fmt = (n: number) => n.toFixed(2);
         </span>
       </div>
 
-      <!-- camera pose (static, from registry.ts) -->
-      <div class="dvp-field dvp-readout">
-        <div class="dvp-row">
-          <span class="dvp-label">cam pos</span>
-          <span class="dvp-val">
-            {{ fmt(s.camera.position.x) }}, {{ fmt(s.camera.position.y) }},
-            {{ fmt(s.camera.position.z) }}
-          </span>
-        </div>
-        <div class="dvp-row">
-          <span class="dvp-label">cam rot</span>
-          <span class="dvp-val">
-            {{ fmt(s.camera.rotation.x) }}, {{ fmt(s.camera.rotation.y) }},
-            {{ fmt(s.camera.rotation.z) }}
-          </span>
-        </div>
-      </div>
+      <!-- Editable camera + spotlight keyframes anchored to this scene. -->
+      <SceneKeyframes :section-id="s.id" />
 
       <!-- the biography section expands into its individual milestones -->
       <template v-if="isBiography(s.type)">

@@ -52,6 +52,7 @@ export function useScrollTimeline() {
   let ctx: ReturnType<typeof gsap.context> | null = null;
   let stopAscii: (() => void) | null = null;
   let stopRefresh: (() => void) | null = null;
+  let stopOrbitLock: (() => void) | null = null;
 
   onMounted(() => {
     if (!import.meta.client) return;
@@ -82,11 +83,25 @@ export function useScrollTimeline() {
       () => requestAnimationFrame(() => ScrollTrigger.refresh()),
       { immediate: true }
     );
+
+    // In orbit (free-camera) dev mode, lock the page scroll so the wheel/touch
+    // only drives OrbitControls (zoom/rotate) instead of also scrolling the page.
+    // lenis.stop() is Lenis's scroll-lock (as used for modals); the canvas's own
+    // wheel listener still reaches OrbitControls. Resume on return to scroll mode.
+    stopOrbitLock = watch(
+      () => sceneControl.cameraControlMode,
+      (mode) => {
+        if (mode === "orbit") lenis?.stop();
+        else lenis?.start();
+      },
+      { immediate: true }
+    );
   });
 
   onBeforeUnmount(() => {
     stopAscii?.();
     stopRefresh?.();
+    stopOrbitLock?.();
     ctx?.revert(); // kills the ScrollTrigger created in this context
     ctx = null;
     stopSmoothScroll();

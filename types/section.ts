@@ -19,6 +19,35 @@ export interface CameraPose {
 }
 
 /**
+ * How a keyframe (camera or spotlight) is pinned to the scroll: to a SECTION at a
+ * local position `t` (0..1), and — for the biography section — optionally to a
+ * specific `milestone`. The absolute scroll progress is *derived* from the live
+ * section layout (weights → boundaries), so inserting / reordering / reweighting
+ * sections (or adding biography cards) keeps the keyframe on its beat. See
+ * `useSectionsStore().resolveAt`.
+ */
+export interface Anchor {
+  /** Section id from the registry. */
+  section: string;
+  /** Local position within the section (or milestone window), 0..1. Default 0.5. */
+  t?: number;
+  /** Biography only: pin to this milestone index instead of the whole section. */
+  milestone?: number;
+}
+
+/** A camera pose anchored to a section (so a section can have several). */
+export interface CameraKeyframe {
+  t?: number;
+  milestone?: number;
+  position: Vec3;
+  rotation: Vec3;
+}
+
+/** A head pose (position offset + rotation) anchored to a section — same shape
+ *  as a camera keyframe, so the head can fly/turn per scene like the camera. */
+export type HeadKeyframe = CameraKeyframe;
+
+/**
  * Keys for the thin line/wireframe set-pieces. The whole scene is quantized by
  * the ASCII post-process, so only silhouettes/lines/points read well.
  */
@@ -60,8 +89,16 @@ export interface Section {
   setPiece: SetPieceName[];
   setPieceVariant: string;
   accent?: string;
-  /** Camera pose the camera arrives at while this section is centered. */
+  /** Camera pose the camera arrives at while this section is centered. Treated as
+   *  a single keyframe at the section centre (t:0.5) when `cameraKeyframes` is
+   *  absent — so single-pose sections behave exactly as before. */
   camera: CameraPose;
+  /** Optional multiple camera poses anchored within this section (a section can
+   *  pan through several positions as you scroll it). Overrides `camera` when set. */
+  cameraKeyframes?: CameraKeyframe[];
+  /** Optional head poses (position offset + rotation) anchored within this section
+   *  — lets the head fly/turn per scene. Defaults to a resting pose when absent. */
+  headKeyframes?: HeadKeyframe[];
 }
 
 /** A biographical milestone rendered inside the biography section's cluster. */
