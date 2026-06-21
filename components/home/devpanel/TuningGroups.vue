@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The dynamically-registered tuning groups that are NOT tied to a scene (global
-// params, e.g. head addressing). Scene/set-piece groups are shown beside their
-// scene in ScenesTab instead (see useDevPanelGroups for the routing). Each
+// params, e.g. head addressing). Scene/set-piece groups are shown under their
+// scene in SceneEditor instead (see useDevPanelGroups for the routing). Each
 // global group is its own collapsible section with copy/reset actions.
 import DevPanelSection from "./DevPanelSection.vue";
 import TuningGroupFields from "./TuningGroupFields.vue";
