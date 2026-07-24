@@ -271,10 +271,191 @@ two never clobber and neither allocates per frame).
 | `stores/sections.ts` | **Shared state only** (issue #4): `progress`, the `sections` spine, `milestoneCount`, the editable per-section `cameraKeyframes` + `headKeyframes` maps (seeded from the registry; `cameraAt`/`headAt` read them, so scenes-tab edits move camera/head live), and the derived getters — `boundaries`, `anchors`, `activeIndex`, `localProgress`, `heroProgress`, `cameraAt`, `headAt`, `revealFor`, `subReveal`, `asciiCellSize/FontSize`, `addressing`. Owns **no** rAF loop. Hosts the shared **anchor resolver** `resolveAt` / `anchorAt` + the biography `bioFrac`/`bioAnchorFromFrac`/`localFracAt` position transforms, plus the keyframe interpolator (`buildPoseTrack`/`samplePose`) shared by camera + head. |
 | `composables/useSections.ts` | Sources the section sequence from `registry.ts` into the store (`useSections`); loads + normalizes the `content/biography` collection (`useBiographyMilestones`). |
 | `composables/useScrollTimeline.ts` | Owns the Lenis singleton (driven by `gsap.ticker`), the single `ScrollTrigger`, and their teardown. |
-| `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [tuning.md](./tuning.md). |
+| `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [Dev Panel and tuning](#dev-panel-and-tuning). |
 | `stores/spotlights.ts` | The live, editable spotlight rig: global knobs + the keyframe `tracks` (seeded from `SPOTLIGHT_TRACKS`). Read by `ScrollSpotlights` + Scene3D's base lights, edited by the dev panel's Spotlights section. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `stores/BootState.ts` | Boot sequence phases. |
 | `composables/usePreferences.ts` | Visitor preferences (reduced-motion, skip boot intro), set on `/setup`, persisted to `localStorage`. Theme is owned by `useColorMode`. |
+
+---
+
+## Dev Panel and tuning
+
+A single, dev-only panel (the **⚙**, top-right of the homepage) that merges two
+things:
+
+1. The **generic tuning layer** — **live-tuning hard-to-eyeball values** (3D
+   anchor points, angles, radii, timings) that any component registers with one
+   line via `useTuning`. You drag sliders, watch the scene update, then **save them
+   to the config file** — and they ship to everyone.
+2. The **scene controls** — camera mode + live pose readout (the positioning
+   workflow), scene-debug toggles, the ASCII post-process params, the colored
+   lights, and the per-scene camera / head / spotlight **keyframe editors**. These
+   are real runtime config held in `stores/SceneControl.ts` (plus `stores/sections.ts`
+   for the camera/head keyframes and `stores/spotlights.ts` for the rig); the panel
+   is just their editing surface.
+
+The subsections below describe the generic tuning layer (#1). The scene-control
+editors (#2) are covered under [Components](#components), [Scroll-driven
+spotlights](#scroll-driven-spotlights), and [Head keyframes](#head-keyframes) —
+note that unlike tuned values, keyframe edits are **not** persisted to the config
+file; you **copy** them to code (`registry.ts` / `spotlights.ts`) to ship.
+
+> **`tuning.config.json` is the deployed source of truth.** Tuned values live in a
+> committed JSON file that ships in the build, so **every visitor sees the same
+> values — no per-user calibration.** Precedence when a component reads a value:
+>
+> ```
+> localStorage (dev scratchpad)  →  tuning.config.json (committed)  →  inline default (fallback)
+> ```
+>
+> - **inline default** — the value passed to `useTuning(...)` in the component;
+>   the factory fallback if the config file has nothing for that key.
+> - **`tuning.config.json`** — what you've *saved* from the panel; what production
+>   reads. Commit it to deploy.
+> - **`localStorage` (`fab:tuning`)** — dev-only scratch: your in-progress drags,
+>   not yet saved. Cleared on save. **This layer is why a tuned value can look
+>   different in dev vs the deployed site** — until you hit *save to config file*.
+>
+> In production there is no store, panel, or `localStorage` — components read the
+> config file (or the inline default), at zero runtime cost.
+
+### Files
+
+| File | Role |
+| --- | --- |
+| `tuning.config.json` | **The committed source of truth.** `group → key → value`, written by the panel's *save*, read by `useTuning` (dev + prod). Commit it to ship. |
+| `server/api/_tuning.post.ts` | Dev-only Nitro route that the panel POSTs to; merges + writes `tuning.config.json` on disk. Absent in the static prod build. |
+| `composables/useTuning.ts` | The API components call. Dev → store-backed; prod → plain refs reading the config file, else the inline default. |
+| `stores/tuning.ts` | The dev store: registered groups/fields/values, config-file + `localStorage` precedence, `saveToFile()`. |
+| `components/home/DevPanel.vue` | The DOM panel shell (⚙, top-right) + the **global / scenes** tabs + shared `.dvp-*` styles + the *save to config file* button. Mounted dev-only in `pages/index.vue` as `<HomeDevPanel>`. |
+| `components/home/devpanel/*.vue` | The panel content: scene-control sections (`CameraSection`, `SceneSection`, `AsciiSection`, `LightsSection`, `SpotlightsSection`), the global `TuningGroups` list, the per-scene keyframe editors (`SceneEditor`, `SceneKeyframes` + `PoseKeyframeFields` / `SpotKeyframeFields`, `KeyframeOverview` / `OverviewGroup`), and shared renderers `TuningGroupFields` / `TuningGroupBlock`, all in a collapsible `DevPanelSection`. |
+| `composables/useDevPanelGroups.ts` | Routes each tuning group to the global tab or to a scene/milestone (by set-piece name or explicit `section` tag). |
+| `components/home/TuningGizmos.vue` | 3D markers for `vec3` points flagged `gizmo`. Mounted dev-only inside the canvas (`Scene3D`). |
+
+### Using it in a component
+
+```ts
+const t = useTuning("signalField", "Signal Field"); // group id, panel label
+
+// a number → returns Ref<number>; read p.value
+const period = t.num("period", 2.6, { min: 0.5, max: 8, step: 0.1, label: "Stream period (s)" });
+
+// a 3D point → returns a reactive { x, y, z }; read pt.x / pt.y / pt.z
+const forehead = t.vec3("forehead", { x: 0, y: 0.33, z: 0.22 }, {
+  min: -1, max: 1, step: 0.01,
+  label: "Forehead (head-local)",
+  gizmo: true,      // show a 3D marker at this point
+  anchor: "head",   // doc hint: this is an offset from the head, not world space
+});
+
+// also: t.color("c", "#00ff9c"), t.bool("on", true)
+```
+
+Read the handles wherever you need them — including inside a `useLoop`
+render callback (reading a reactive value per frame is fine; it's just a number).
+The first arg of every method is a **stable key** (used for persistence + the
+config-file lookup); the value you pass is the inline fallback default.
+
+### The panel
+
+- Toggle with the **⚙** button (top-right). Closed by default so it never covers
+  the scene.
+- Each registered group is a section with sliders / x-y-z controls / colour /
+  checkbox, plus:
+  - **copy** — puts the group's current values on the clipboard as JSON (handy for
+    diffs / pasting elsewhere).
+  - **reset** — restores the committed baseline (config-file value, else the inline
+    default).
+- **save to config file** (panel footer) — writes *all* current values to
+  `tuning.config.json` via the dev server, then clears the `localStorage` scratch.
+  This is the step that makes dev == deployed.
+- Edits persist to `localStorage` (`fab:tuning`) as you drag, so reloads keep your
+  in-progress tweaks until you save, reset, or clear storage.
+
+### Tabs: global vs. scenes
+
+The panel body has two tabs:
+
+- **global** — the scene-wide tools: camera, ASCII, scene-debug, lights, spotlight
+  globals, and any tuning group that isn't tied to a scene (e.g. *Head addressing*).
+- **scenes** — one row per scroll section, **sourced live from `SECTION_DEFS`
+  (`registry.ts`)** — so adding/removing a section there updates this list
+  automatically; there is **nothing to maintain in the panel by hand.** It's a
+  single-open accordion that *follows the scroll*: the section you're scrolled to
+  auto-opens (and you can click any other open). Each row shows the section's
+  camera pose, accent, set-pieces, its camera / head / spotlight keyframes, and the
+  tuning groups that belong to it.
+  - **The biography section ("the path so far") expands into its individual
+    milestones** (`content/biography/*.md`), each a sub-beat with its own
+    set-piece; scrolling through the section follows down to the active milestone.
+
+#### How a tuning group lands under a scene
+
+You don't tag scenes by hand. Routing (see `composables/useDevPanelGroups.ts`):
+
+1. **Set-pieces — name the group after the set-piece.** A group whose **id equals
+   a set-piece name** (`useTuning("lattice", "Lattice")` ↔ `setPiece: ["lattice"]`)
+   shows up beside **every** section/milestone that renders that set-piece. This is
+   the normal case — the section↔set-piece mapping already lives in `registry.ts` /
+   the milestone frontmatter, so the panel reuses it.
+2. **Non-set-piece groups — pass a section id** as the third arg of `useTuning`
+   (`useTuning("headAddress", "Head addressing", "contact")`) to pin the group to
+   that scene's id (`registry.ts`).
+3. **Everything else is global** (no section id, not a set-piece used anywhere).
+
+> So to make a set-piece tunable, add `useTuning` calls inside its component and
+> name the group after the set-piece — its controls appear under the right
+> milestone(s) with no extra wiring. Currently only `SignalField` is wired up; the
+> other set-pieces (`Lattice`, `RouteArc`, `ThreadBoard`, `DocumentGrid`,
+> `StaffLines`) still carry hard-coded constants ripe for this treatment.
+
+### Workflow
+
+1. Run the dev server, scroll to the beat you're tuning.
+2. Open **⚙**, drag the relevant sliders, watch it update live (3D `gizmo` points
+   show a marker; many values also self-visualize — e.g. the finale rings).
+3. Hit **save to config file** — `tuning.config.json` updates on disk.
+4. **Commit `tuning.config.json`.** That's what production reads, so the deployed
+   site now matches what you tuned (no per-visitor calibration).
+
+### Anchoring patterns (don't tune absolute world coords)
+
+Static world coordinates fight anything that moves. Prefer **relative** anchors;
+the finale (`SignalField`) uses both:
+
+- **Model-relative** — store an offset and transform it by an object's live world
+  matrix each frame, so it follows that object's rotation/float:
+
+  ```ts
+  const head = scene.value?.getObjectByName("headGroup"); // tag the group's name
+  head?.updateWorldMatrix(true, false);
+  worldPoint.set(offset.x, offset.y, offset.z).applyMatrix4(head.matrixWorld);
+  ```
+
+- **Screen-relative** — publish a DOM element's on-screen position as NDC and
+  project it into the scene through the camera, so it tracks the element across
+  viewport/scroll:
+
+  ```ts
+  // publisher (DOM component): useElementBounding -> NDC -> store
+  store.setContactAnchor({ x: (px / vw) * 2 - 1, y: -((py / vh) * 2 - 1) });
+
+  // consumer (in-canvas): NDC -> ray -> plane intersection
+  raycaster.setFromCamera(ndc, camera);
+  raycaster.ray.intersectPlane(plane, outWorldPoint);
+  ```
+
+In both cases the **tunable value is the small relative offset/nudge**, not the
+absolute position — so a good value stays good as the scene moves. This is the same
+anchor discipline the spotlight rig and `SignalField` follow at runtime (see
+[The finale (contact)](#the-finale-contact)).
+
+### Zero production cost
+
+`useTuning` checks `import.meta.dev`. In production it returns plain refs of the
+config-file value (or the inline default) and never imports the store, so
+`DevPanel`/`TuningGizmos` (mounted behind `v-if="isDev"`) never instantiate it.
+Nothing to strip manually.
 
 ---
 
@@ -349,7 +530,7 @@ The last section is the payoff — a transmission from the visitor to the head:
   from that keyframed pose toward the terminal card, with a gentle cursor parallax
   on top. Reduced-motion drops the parallax but still turns. The finale-overlay
   angles (`addressYaw`/`addressPitch`/cursor ranges) are live-tunable (see
-  [tuning.md](./tuning.md)); the resting pose itself is now a head keyframe.
+  [Dev Panel and tuning](#dev-panel-and-tuning)); the resting pose itself is now a head keyframe.
 - **An interactive terminal.** `ContactSection` is a CLI/terminal card that types
   itself in (CSS-only, reduced-motion aware, with an ambient inner-glow breathe).
   Beyond the static, crawlable session + GitHub/Respeak `<a>` CTAs, it's a **real
@@ -372,7 +553,7 @@ The last section is the payoff — a transmission from the visitor to the head:
   receives.
 
 The finale's positions are art-directed, so the values above are wired through the
-dev tuning layer — see **[tuning.md](./tuning.md)**.
+dev tuning layer — see **[Dev Panel and tuning](#dev-panel-and-tuning)**.
 
 ---
 
