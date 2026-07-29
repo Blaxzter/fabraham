@@ -1,7 +1,19 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { gsap } from "gsap";
-import type { CameraKeyframe, CameraPose, Section, Vec3 } from "~/types/section";
+import type {
+  CameraKeyframe,
+  CameraPose,
+  HeadKeyframe,
+  Section,
+  Vec3,
+} from "~/types/section";
+
+/** A sampled pose: the interpolated camera/head transform, plus the head's fade
+ *  (always 1 for the camera, which has no such concept). */
+export interface SampledPose extends CameraPose {
+  opacity: number;
+}
 
 // Hero ASCII ramp — the cell/font size sweep that happens while the very first
 // (identity) section is on screen. Matches the original hero feel.
@@ -40,10 +52,11 @@ const FALLBACK_POSE: CameraPose = {
 // translation, looking into its own data (the shipped resting yaw). Seeds the
 // editable head keyframes so the head reads exactly as before until tuned.
 const DEFAULT_HEAD_YAW = -0.44;
-const HEAD_REST_POSE = {
+const HEAD_REST_POSE: HeadKeyframe = {
   t: 0.5,
   position: { x: 0, y: 0, z: 0 },
   rotation: { x: 0, y: DEFAULT_HEAD_YAW, z: 0 },
+  opacity: 1,
 };
 
 /**
@@ -88,10 +101,12 @@ export const useSectionsStore = defineStore("sections", () => {
   // source of truth on `sections` (so "reset" can return to them); cameraTrack
   // reads THIS map, so edits in the scenes tab move the camera live. Like the
   // spotlights, edits aren't persisted — they reset on reload.
-  const cloneKfs = (kfs: CameraKeyframe[]): CameraKeyframe[] =>
+  // Spread first so keyframe-kind extras (the head's `opacity`) survive the
+  // clone, then deep-copy the vectors so panel edits never touch the registry.
+  const cloneKfs = <T extends CameraKeyframe>(kfs: T[]): T[] =>
     kfs.map((k) => ({
+      ...k,
       t: k.t ?? 0.5,
-      milestone: k.milestone,
       position: { x: k.position.x, y: k.position.y, z: k.position.z },
       rotation: { x: k.rotation.x, y: k.rotation.y, z: k.rotation.z },
     }));
@@ -107,9 +122,11 @@ export const useSectionsStore = defineStore("sections", () => {
   // Editable head keyframes (position offset + rotation), same model as the
   // camera. Default: a single resting pose (no translation, resting yaw), so the
   // head reads exactly as before until a scene's keyframes are tuned.
-  const headKeyframes = ref<Record<string, CameraKeyframe[]>>({});
-  const seedHeadKf = (s: Section): CameraKeyframe[] =>
-    cloneKfs(s.headKeyframes && s.headKeyframes.length ? s.headKeyframes : [HEAD_REST_POSE]);
+  const headKeyframes = ref<Record<string, HeadKeyframe[]>>({});
+  const seedHeadKf = (s: Section): HeadKeyframe[] =>
+    cloneKfs<HeadKeyframe>(
+      s.headKeyframes && s.headKeyframes.length ? s.headKeyframes : [HEAD_REST_POSE]
+    );
 
   const setSections = (next: Section[]) => {
     sections.value = next;
@@ -280,15 +297,19 @@ export const useSectionsStore = defineStore("sections", () => {
   // ---- Anchored pose track (shared by camera + head) ----
   // Reused scratch poses so the per-frame reads in the render loop allocate
   // nothing (issue #4); camera + head get separate scratch so they don't clobber.
-  const scratchPose: CameraPose = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } };
-  const scratchHeadPose: CameraPose = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } };
-  const copyPoseInto = (from: { position: Vec3; rotation: Vec3 }, scratch: CameraPose): CameraPose => {
+  const scratchPose: SampledPose = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, opacity: 1 };
+  const scratchHeadPose: SampledPose = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, opacity: 1 };
+  const copyPoseInto = (
+    from: { position: Vec3; rotation: Vec3; opacity?: number },
+    scratch: SampledPose
+  ): SampledPose => {
     scratch.position.x = from.position.x;
     scratch.position.y = from.position.y;
     scratch.position.z = from.position.z;
     scratch.rotation.x = from.rotation.x;
     scratch.rotation.y = from.rotation.y;
     scratch.rotation.z = from.rotation.z;
+    scratch.opacity = from.opacity ?? 1;
     return scratch;
   };
 
@@ -301,17 +322,23 @@ export const useSectionsStore = defineStore("sections", () => {
   // computed only reads k.t/k.milestone (for `at`), so a position/rotation slider
   // edit does NOT recompute it — but the per-frame sampler reads these refs every
   // frame, so the camera/head still update live (zero per-frame allocation).
-  type PoseEntry = { at: number; position: Vec3; rotation: Vec3 };
+  type PoseEntry = { at: number; position: Vec3; rotation: Vec3; opacity: number };
   const buildPoseTrack = (
-    map: Record<string, CameraKeyframe[]>,
-    fallback: (s: Section) => CameraKeyframe
+    map: Record<string, HeadKeyframe[]>,
+    fallback: (s: Section) => HeadKeyframe
   ): PoseEntry[] => {
     const out: PoseEntry[] = [];
     sections.value.forEach((s, i) => {
       const edited = map[s.id];
       const kfs = edited && edited.length ? edited : [fallback(s)];
       for (const k of kfs) {
-        out.push({ at: resolveAtIndex(i, k.t, k.milestone), position: k.position, rotation: k.rotation });
+        out.push({
+          at: resolveAtIndex(i, k.t, k.milestone),
+          position: k.position,
+          rotation: k.rotation,
+          // Absent on camera keyframes, and on head keyframes that don't fade.
+          opacity: k.opacity ?? 1,
+        });
       }
     });
     out.sort((a, b) => a.at - b.at);
@@ -329,7 +356,7 @@ export const useSectionsStore = defineStore("sections", () => {
   );
 
   // Sample a pose track at progress p into `scratch` (eased, allocation-free).
-  const samplePose = (tr: PoseEntry[], p: number, scratch: CameraPose): CameraPose => {
+  const samplePose = (tr: PoseEntry[], p: number, scratch: SampledPose): SampledPose => {
     if (!tr.length) return copyPoseInto(FALLBACK_POSE, scratch);
     if (p <= tr[0]!.at) return copyPoseInto(tr[0]!, scratch);
     if (p >= tr[tr.length - 1]!.at) return copyPoseInto(tr[tr.length - 1]!, scratch);
@@ -347,29 +374,33 @@ export const useSectionsStore = defineStore("sections", () => {
     scratch.rotation.x = lerp(a.rotation.x, b.rotation.x, t);
     scratch.rotation.y = lerp(a.rotation.y, b.rotation.y, t);
     scratch.rotation.z = lerp(a.rotation.z, b.rotation.z, t);
+    // Linear, NOT eased: a fade wants a straight ramp, and easing it would make
+    // the head linger at the edges of its own cut.
+    scratch.opacity = lerp(a.opacity, b.opacity, raw);
     return scratch;
   };
 
-  const cameraAt = (p: number): CameraPose => samplePose(cameraTrack.value, p, scratchPose);
-  // Head base pose (position offset + rotation). Scene3D blends this rotation with
-  // the finale "addressing" turn + cursor parallax; the position drives the head.
-  const headAt = (p: number): CameraPose => samplePose(headTrack.value, p, scratchHeadPose);
+  const cameraAt = (p: number): SampledPose => samplePose(cameraTrack.value, p, scratchPose);
+  // Head base pose (position offset + rotation + fade). Scene3D blends this
+  // rotation with the finale "addressing" turn + cursor parallax, applies the
+  // position, and drives the head's material opacity from `opacity`.
+  const headAt = (p: number): SampledPose => samplePose(headTrack.value, p, scratchHeadPose);
 
   // Camera + head keyframe editing (dev panel, scenes tab). Mutate the editable
   // map; the track computed (hence camera/headAt) reacts, so the scene updates live.
   const addPoseKeyframe = (
-    map: Record<string, CameraKeyframe[]>,
+    map: Record<string, HeadKeyframe[]>,
     sectionId: string,
-    kf: CameraKeyframe
+    kf: HeadKeyframe
   ) => {
     (map[sectionId] ??= []).push({
+      ...kf,
       t: kf.t ?? 0.5,
-      milestone: kf.milestone,
       position: { x: kf.position.x, y: kf.position.y, z: kf.position.z },
       rotation: { x: kf.rotation.x, y: kf.rotation.y, z: kf.rotation.z },
     });
   };
-  const removePoseKeyframe = (map: Record<string, CameraKeyframe[]>, sectionId: string, index: number) => {
+  const removePoseKeyframe = (map: Record<string, HeadKeyframe[]>, sectionId: string, index: number) => {
     const arr = map[sectionId];
     if (arr && arr.length > 1) arr.splice(index, 1);
   };
@@ -385,7 +416,7 @@ export const useSectionsStore = defineStore("sections", () => {
   const exportCameraKeyframes = (sectionId: string) =>
     JSON.stringify(cameraKeyframes.value[sectionId] ?? [], null, 2);
 
-  const addHeadKeyframe = (sectionId: string, kf: CameraKeyframe) =>
+  const addHeadKeyframe = (sectionId: string, kf: HeadKeyframe) =>
     addPoseKeyframe(headKeyframes.value, sectionId, kf);
   const removeHeadKeyframe = (sectionId: string, index: number) =>
     removePoseKeyframe(headKeyframes.value, sectionId, index);

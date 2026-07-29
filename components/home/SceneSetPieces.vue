@@ -11,6 +11,7 @@ import ThreadBoard from "./setpieces/ThreadBoard.vue";
 import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
 import SignalField from "./setpieces/SignalField.vue";
+import StackLogos from "./setpieces/StackLogos.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -53,13 +54,15 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   documentGrid: DocumentGrid,
   staffLines: StaffLines,
   signalField: SignalField,
+  stackLogos: StackLogos,
 };
 
 // Pieces that should be DEPTH-OCCLUDED by the head (the head hides their back
 // half, so the face sits inside them). The lattice is a 3D cloud that wraps the
-// head; the rest are flat backdrops that read best drawn fully on top (otherwise
-// the close-up beats would hide them behind the head).
-const OCCLUDED_PIECES = new Set(["lattice"]);
+// head and the stack logos ride a conveyor behind it; the rest are flat
+// backdrops that read best drawn fully on top (otherwise the close-up beats
+// would hide them behind the head).
+const OCCLUDED_PIECES = new Set(["lattice", "stackLogos"]);
 
 // Keep the primary piece centered on the head; push stacked pieces aside/back so
 // two set-pieces in one beat read as distinct motifs, not one tangled mass.

@@ -262,6 +262,147 @@ the head to the terminal. The default keyframe (no translation, resting yaw
 shares the camera's `buildPoseTrack`/`samplePose` (separate scratch poses, so the
 two never clobber and neither allocates per frame).
 
+### The head can fade (`HeadKeyframe.opacity`)
+
+A head keyframe carries an **`opacity`** (default 1) alongside its pose. It rides
+the same track, interpolated by the same sampler — but **linearly, not eased**: a
+fade wants a straight ramp, and easing makes the head linger at the edges of its
+own cut.
+
+This exists because a pose track can only ever *interpolate*. To get the head
+from the left of the frame back to the right, it has to visibly fly across.
+Fading to 0 at the end of a pass and back in at the start of the next lets it
+leave and reappear instead — the travel still happens, just unseen. The skills
+chapter uses this to give each card its own entrance.
+
+`Scene3D` applies it by collecting the model's materials **once per load** (the
+loop only writes numbers — issue #4) and, at 0, hiding the head group outright.
+Hiding matters: it also drops the head from the depth-occluder pass, so
+set-pieces aren't masked by an invisible head. `depthWrite` is deliberately left
+alone — turning it off mid-fade makes the back of the head show through the
+front. Editable per keyframe in the dev panel (scenes → Head → opacity).
+
+**A fade at a section's first keyframe bleeds backwards.** The track spans the
+whole page, so an `opacity: 0` at the start of a section interpolates from the
+*previous* section's keyframe — starting the skills chapter faded made the head
+dissolve through the last stretch of the biography. Hold opacity 1 at the
+boundary and do the fading inside the section.
+
+### Generated keyframes: the skills chapter's gaze
+
+The `skills` scene shows what the anchored model buys you. Its four cluster cards
+stream across a pinned stage from right to left, and their horizontal position is
+a pure function of `store.progress`. So the head's gaze is one too — "the head
+looks at the cards" needs no tracking code, no DOM measurement and nothing
+per-frame. `components/home/sections/skills.ts` owns the card layout formula
+(`skillCenter` / `skillHalfWindow` / `skillTravel`) and **generates** three tracks
+from it:
+
+| Generator | Consumed by | Effect |
+| --- | --- | --- |
+| `skillsHeadKeyframes()` | `registry.ts` → `headKeyframes` | `GAZE_SAMPLES` poses per card, each read off the card's real position, resting yaw either end |
+| `skillsSpotKeyframes()` | `spotlights.ts` → the **key** track | the light swings across on the *same* beats, so the head is lit from the card's side |
+| `skillsCameraKeyframes()` | `registry.ts` → `cameraKeyframes` | a slow dolly, pulled back so the head sits small and low and the cards clear it |
+
+`samplePose`'s `power2.inOut` turns the gap between one card's exit and the next
+card's entry into a smooth flick back to the right — watching traffic, not a
+snap. Because all three read one formula, adding or removing a cluster re-derives
+the cards, the gaze and the light together. This is the same
+one-formula-two-consumers trick the biography uses with `bioMilestoneCenter`.
+
+**Two poses per card is not enough.** `samplePose` eases *every* adjacent pair
+with `power2.inOut`, so a two-pose sweep races through the middle of its arc
+while the card crosses at a constant rate — the head lurches rather than tracks.
+Sampling the card's actual position several times across the tracked stretch
+makes the eased track follow it closely. This applies to any keyframed motion
+that has to stay in step with something moving linearly.
+
+**Both sign conventions matter, and they are not symmetrical.**
+
+- `rotation.y > 0` → looking screen-**right** (the finale's `addressYaw: 0.45`
+  turns the head toward the CLI card on the right).
+- `rotation.x > 0` → looking **down**. `Scene3D` adds
+  `mousePosition.y * maxPitch`, and `mousePosition.y` is
+  `clientY / innerHeight * 2 - 1` — *screen* space, positive at the bottom. So
+  tracking anything above the head needs a **negative** pitch.
+
+### The DOM beam: soft alpha, never `clip-path` + `filter`
+
+`SkillsSection`'s light shaft is a `conic-gradient` (angular falloff) multiplied
+by a `radial-gradient` mask (distance falloff), with no blend mode. An earlier
+version clipped a rectangle with `clip-path` and softened it with
+`filter: blur()`, which visibly **boxed** the beam for two compounding reasons:
+filters apply *before* clipping, so the clip puts perfectly hard edges back onto
+the blurred result; and `filter` + `mix-blend-mode` promote the element to its
+own composited layer whose rectangle shows as a seam against the ASCII grid
+behind it. Build glows out of soft alpha instead — there is then no edge to box.
+
+Use `color-mix(in srgb, var(--accent) N%, transparent)` rather than bare
+`transparent` in colour gradients: the `transparent` keyword is *transparent
+black*, which fringes dark when interpolated. Mask gradients are exempt — they
+read alpha only.
+
+### The backdrop: real brand marks as line art (`StackLogos`)
+
+The chapter's set-piece draws the actual logos of the stack. The marks are
+official SVGs vendored into `public/setpieces/logos/` (provenance and trademark
+note in the README there), loaded with three's `SVGLoader` and stroked as
+**outlines** — the same pipeline `BerlinSkyline` uses, and mandatory for the same
+reason: the ASCII pass only resolves lines, so a filled glyph turns to mush.
+
+Each mark **draws itself in** via `geometry.setDrawRange(0, n)` — the 3D
+equivalent of animating `stroke-dashoffset`, and the reason the assembly reads as
+drawing rather than fading. A cluster's marks are staggered so they appear one
+after another as their card crosses. Which cluster is on stage, how far it has
+travelled, and where its card sits all come from `sections/skills.ts`, the same
+module the DOM cards and the head's gaze read.
+
+The backdrop reads on **two axes, carrying two different meanings**: horizontal
+is the stack conveyor (logos, dot belt, gate flares), vertical is *page descent*
+— a pair of guide rails near the frame edges with depth markers streaming upward
+and wrapping, plus each cluster's marks rising as their card crosses. Without the
+vertical axis the chapter moved sideways only and nothing signalled that you were
+still going down the page.
+
+**Pace is set by the section's `weight`, not by the individual animations.**
+Every beat here is a fraction of the section's scroll range, so `weight` is the
+one lever that slows all of them together. At `weight: 3` a logo drew itself in
+over ~150px — about one notch of a mouse wheel — and read as a flicker. At
+`weight: 5` the same beat takes ~435px. Reach for `weight` before retuning
+individual windows.
+
+The marks appear **twice, in different registers** — large drawn-in line art in
+the backdrop, small solid glyphs in the DOM chips (masked with `currentColor`, so
+they inherit the chip's tint for free). The backdrop's list is *derived* from the
+chips via `clusterLogos()`, so the two can never drift apart.
+
+The head **rides the conveyor** here rather than watching from the middle: it
+sweeps right→left with each card, out past the frame edge, then swooshes back for
+the next one (`HEAD_TRAVEL_X`, position keyframes on the head track). Two things
+follow from that and will break if you move the head without them:
+
+- the **key light travels with it** (`skillsSpotKeyframes` adds `skillHeadX(u)`),
+  or the head drifts out of its own light and gets raked from behind;
+- the **DOM beam's apex follows it** (`left: calc(50% + …)` from `skillHeadX`),
+  since a cone still anchored at 50% would no longer start at the head.
+
+The gaze is derived from the **relative** offset between card and head, not the
+card's absolute position. That keeps it honest at any `HEAD_TRAVEL_X`: while the
+head is slower than the card, the card overtakes it and the head sweeps
+right→left; once the head outruns the card the sign flips on its own and it looks
+back over its shoulder.
+
+Two layout constraints worth keeping if you touch it:
+
+- **Compensate x for lane depth.** A mark on a deeper lane needs proportionally
+  more world x to land at the same screen position. Without `laneSpread()` the
+  row fans out — near marks shoot off the edge while far ones bunch up centre.
+- **Leave the centre column empty** (`HEAD_CLEAR`). The head fills it and the
+  cards fly just above it, so a mark placed at `x = 0` is invisible at exactly
+  the moment its card is centred. The row flanks the head instead; the parallax
+  drift still carries each mark behind it at some point, which is what sells the
+  depth.
+
 ---
 
 ## State & composables
@@ -566,7 +707,17 @@ dev tuning layer — see **[Dev Panel and tuning](#dev-panel-and-tuning)**.
 - Camera anchors are derived from section **weights**, while the DOM cards sit at
   pixel positions; because progress is a fraction of *max scroll* (document minus
   one viewport) the two align closely but not exactly — good enough that the
-  camera "settles" as each card centers.
+  camera "settles" as each card centers. Where a section needs its beats to land
+  inside the window where its stage is actually *pinned*, absorb the offset in the
+  section's own layout constants (`BIO_TOP_PAD`/`BIO_RANGE`,
+  `SKILLS_TOP_PAD`/`SKILLS_RANGE`) rather than in each keyframe.
+- **Never bind `usePreferences().reducedMotion` straight into a template.** It
+  reads localStorage, so it is `false` during SSR and can be `true` on the
+  client's first render — and Vue only *warns* about class/style hydration
+  mismatches, it does not repair them, so the DOM silently keeps the server's
+  version. Gate it behind an `onMounted` flag (see `SkillsSection.vue`'s `still`)
+  so the first client render matches the server and the swap lands as a normal
+  update. Reading it inside the render loop (as `Scene3D` does) is fine.
 - In dev, the TresJS devtools performance panel logs a one-off
   `Cannot read properties of undefined (reading 'count')` while traversing the
   non-indexed line geometries. It is a devtools-only path (disabled in

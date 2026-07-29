@@ -4,7 +4,9 @@ import type { Section } from "~/types/section";
 import HeroSection from "./HeroSection.vue";
 import InterludeSection from "./InterludeSection.vue";
 import BiographySection from "./BiographySection.vue";
+import SkillsSection from "./SkillsSection.vue";
 import ContactSection from "./ContactSection.vue";
+import { skillsCameraKeyframes, skillsHeadKeyframes } from "./skills";
 
 // How a section's HTML is laid out over the canvas:
 //   flow   → the component fills the section height (the biography cluster).
@@ -87,6 +89,34 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, -0.03, 0.0) },
+  },
+  {
+    id: "skills",
+    order: 40,
+    type: "skills",
+    component: markRaw(SkillsSection),
+    // "bare": the component owns a sticky, full-viewport stage the cards stream
+    // across — it can't be a pinned card, and it isn't a flowing cluster.
+    mode: "bare",
+    title: "What I bring",
+    subtitle: "The toolbox",
+    // Every beat in this chapter — card travel, logo draw-on, gaze, light — is a
+    // fraction of this. At weight 3 a logo drew itself in over ~150px of scroll,
+    // roughly one notch of a mouse wheel; the whole thing read as a flicker
+    // rather than an animation. Widening the section is the single lever that
+    // slows all of it at once, since every anchor is relative.
+    weight: 5,
+    accent: "#ffb454",
+    setPiece: ["stackLogos"],
+    setPieceVariant: "",
+    layout: { align: "center" },
+    camera: { position: v3(0.0, 0.05, 1.5), rotation: v3(-0.04, 0.0, 0.0) },
+    // Both tracks are GENERATED from the card layout in ./skills.ts — the head's
+    // gaze is the same formula the cards' positions are, so it turns to follow
+    // each card as it crosses and flicks back for the next one. Add or remove a
+    // cluster and the gaze re-derives with it.
+    cameraKeyframes: skillsCameraKeyframes(),
+    headKeyframes: skillsHeadKeyframes(),
   },
   {
     id: "contact",

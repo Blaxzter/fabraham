@@ -9,6 +9,7 @@
 // scenes use a plain local-t slider. `grab` (capture the live orbit pose) is
 // camera-only.
 import { computed } from "vue";
+import type { HeadKeyframe } from "~/types/section";
 
 const props = defineProps<{ kind: "camera" | "head"; sectionId: string; index: number }>();
 const sections = useSectionsStore();
@@ -38,6 +39,15 @@ const bioPos = computed({
 const bioCard = computed(() => {
   const j = sections.bioAnchorFromFrac(bioPos.value).milestone;
   return { j, title: milestones.value[j]?.title ?? "" };
+});
+
+// Head-only: the fade. 0 lets a scene cut the head away rather than have it
+// interpolate visibly between two poses (see HeadKeyframe.opacity).
+const opacity = computed({
+  get: () => (kf() as HeadKeyframe).opacity ?? 1,
+  set: (v: number) => {
+    (kf() as HeadKeyframe).opacity = v;
+  },
 });
 
 // Capture the current (orbit-mode) camera pose into a CAMERA keyframe — the
@@ -87,6 +97,14 @@ const grabPose = () => {
     <input v-model.number="kf().rotation[axis]" type="range" min="-1.57" max="1.57" step="0.01" />
     <span class="dvp-axis-v">{{ kf().rotation[axis].toFixed(2) }}</span>
   </div>
+
+  <template v-if="kind === 'head'">
+    <div class="dvp-row">
+      <span class="dvp-label">opacity</span>
+      <span class="dvp-val">{{ opacity.toFixed(2) }}</span>
+    </div>
+    <input v-model.number="opacity" type="range" min="0" max="1" step="0.01" />
+  </template>
 
   <button v-if="kind === 'camera'" class="dvp-btn dvp-btn-block" @click="grabPose">
     grab current orbit pose

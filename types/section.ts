@@ -43,9 +43,23 @@ export interface CameraKeyframe {
   rotation: Vec3;
 }
 
-/** A head pose (position offset + rotation) anchored to a section — same shape
- *  as a camera keyframe, so the head can fly/turn per scene like the camera. */
-export type HeadKeyframe = CameraKeyframe;
+/**
+ * A head pose anchored to a section — a camera keyframe plus a fade, so the head
+ * can fly/turn per scene like the camera AND cut away.
+ */
+export interface HeadKeyframe extends CameraKeyframe {
+  /**
+   * 0 = fully faded out, 1 = solid. Defaults to 1.
+   *
+   * Without this the head must always *interpolate* between poses: to get from
+   * the left of the frame back to the right it has to visibly fly across.
+   * Fading to 0 at the end of a pass and back in at the start of the next lets
+   * it leave and reappear instead — the travel still happens, but unseen.
+   * At 0 the head group is hidden outright, so it also stops acting as the
+   * depth occluder for set-pieces (see SceneSetPieces).
+   */
+  opacity?: number;
+}
 
 /**
  * Keys for the thin line/wireframe set-pieces. The whole scene is quantized by
@@ -58,9 +72,10 @@ export type SetPieceName =
   | "threadBoard"
   | "documentGrid"
   | "staffLines"
-  | "signalField";
+  | "signalField"
+  | "stackLogos";
 
-export type SectionType = "hero" | "biography" | "contact" | "interlude";
+export type SectionType = "hero" | "biography" | "contact" | "interlude" | "skills";
 
 export type Align = "center" | "left" | "right" | "top" | "bottom" | "free";
 

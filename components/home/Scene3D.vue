@@ -3,7 +3,7 @@ import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
-import type { Group, Object3D, PerspectiveCamera } from "three";
+import type { Group, Material, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
 import SceneSetPieces from "./SceneSetPieces.vue";
 import ScrollSpotlights from "./ScrollSpotlights.vue";
@@ -74,6 +74,51 @@ const { state: gltfModel } = await useGLTF("/models/head.glb");
 // Extract the scene from the GLTF model
 const gltfScene = computed(() => gltfModel.value?.scene);
 
+// --- Head fade -----------------------------------------------------------------
+// The head keyframe track carries an `opacity` so a scene can cut the head away
+// and bring it back instead of always interpolating it across the frame (the
+// skills chapter uses this to give each card its own pass). Materials are
+// collected ONCE per model load, so the render loop only writes numbers — no
+// traversal per frame (issue #4).
+const headMaterials = shallowRef<Material[]>([]);
+watch(
+  gltfScene,
+  (scene) => {
+    const found: Material[] = [];
+    // Structural read rather than a `Mesh` cast: @types/three resolves Object3D
+    // through two module paths here, so the nominal cast doesn't typecheck (the
+    // same quirk SignalField hits).
+    scene?.traverse((o) => {
+      const m = (o as unknown as { material?: Material | Material[] }).material;
+      if (!m) return;
+      for (const mat of Array.isArray(m) ? m : [m]) {
+        if (!found.includes(mat)) found.push(mat);
+      }
+    });
+    headMaterials.value = found;
+  },
+  { immediate: true }
+);
+// Only touch the materials when the value actually moves — a fade is a handful
+// of frames, not every frame.
+let lastHeadOpacity = -1;
+const applyHeadOpacity = (opacity: number) => {
+  if (opacity === lastHeadOpacity) return;
+  lastHeadOpacity = opacity;
+  // Fully faded → hide the group outright. That also drops it from the
+  // depth-occluder pass, so set-pieces aren't masked by an invisible head.
+  const visible = opacity > 0.004;
+  if (headGroupRef.value) headGroupRef.value.visible = visible;
+  if (!visible) return;
+  const solid = opacity > 0.999;
+  for (const m of headMaterials.value) {
+    // depthWrite is left alone: turning it off mid-fade makes the back of the
+    // head show through the front.
+    m.transparent = !solid;
+    m.opacity = opacity;
+  }
+};
+
 // Mark scene as ready for boot screen
 if (import.meta.client) {
   bootState.markSceneReady();
@@ -128,6 +173,7 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // interpolated, smooth); the rotation is smoothed (frame-rate-independent) so
   // the cursor parallax doesn't jitter. No extra rAF or layout read (issue #4).
   const headPose = sectionsStore.headAt(sectionsStore.progress);
+  applyHeadOpacity(headPose.opacity);
   headGroupRef.value?.position.set(
     headPose.position.x,
     headPose.position.y,
