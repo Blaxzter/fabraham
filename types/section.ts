@@ -73,7 +73,7 @@ export type SetPieceName =
   | "documentGrid"
   | "staffLines"
   | "signalField"
-  | "stackLogos";
+  | "stackFlight";
 
 export type SectionType = "hero" | "biography" | "contact" | "interlude" | "skills";
 

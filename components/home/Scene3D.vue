@@ -30,10 +30,53 @@ const modelOffset = shallowRef<Vector3>(new Vector3());
 // The head's per-scene BASE pose (position + rotation) is now a keyframe track in
 // the sections store (edited in the dev panel scenes tab → Head; see headAt),
 // replacing the old constant resting yaw. These remaining angles are the finale
+// ---- Model-space face correction (the one place it is applied) --------------
+// `head.glb` is authored ALREADY TURNED — about 41 degrees to its own left — so
+// the yaw that points the face at the camera is ~-0.72, not 0. Rather than make
+// every author and every generator remember that offset (they will not; the
+// skills gaze was built around 0 and spent the chapter showing an ear), it is
+// corrected exactly once, here, on the way to the Object3D.
+//
+// So EVERYWHERE ELSE — head keyframes, generated gazes, the dev panel's scenes
+// tab, the addressing pose below — yaw 0 means FACE-ON and positive means
+// screen-right. Nothing downstream knows the model is crooked.
+//
+// It is tunable rather than a constant so a new head model can be corrected
+// without touching a single animation: dial "Face-on yaw" until the resting head
+// looks straight down the lens and export. To re-measure it for a new model, see
+// the note in docs/scroll-3d-architecture.md ("Yaw 0 is face-on").
+const tuneModel = useTuning("headModel", "Head model");
+const faceYaw = tuneModel.num("faceYaw", -0.72, {
+  min: -3.2,
+  max: 3.2,
+  step: 0.01,
+  label: "Face-on yaw (model correction)",
+});
+/**
+ * How hard the head chases its target rotation each frame, at 60fps.
+ *
+ * This is RESPONSIVENESS, not amplitude — the two are easy to confuse when the
+ * turn feels wrong. The keyframe tracks decide how FAR the head turns; this
+ * decides how long it takes to get there once the scroll has moved the target.
+ * At 0.12 the head lagged the scroll by ~90ms and read as sluggish, as though it
+ * noticed each card late; 0.28 was still behind. At 0.45 it is ~15ms — the turn
+ * lands with the card instead of trailing it, without the swing itself getting any
+ * wider.
+ *
+ * Still damped rather than instant: the contact beat rides the cursor on top of
+ * this, and un-damped pointer input jitters.
+ */
+const turnSpeed = tuneModel.num("turnSpeed", 0.45, {
+  min: 0.04,
+  max: 1,
+  step: 0.01,
+  label: "Turn response (per frame @60fps)",
+});
+
 // "addressing" OVERLAY: at the contact beat the head turns from its keyframed
 // rotation toward the CLI, with a cursor parallax. Live-tunable, tagged to contact.
 const tuneHead = useTuning("headAddress", "Head addressing", "contact");
-const addressYaw = tuneHead.num("addressYaw", 0.45, { min: -1.5, max: 1.5, step: 0.01, label: "Address yaw (toward CLI)" });
+const addressYaw = tuneHead.num("addressYaw", 1.17, { min: -2.5, max: 2.5, step: 0.01, label: "Address yaw (toward CLI)" });
 const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
 const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
 const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
@@ -43,18 +86,20 @@ const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, la
 // rig knobs); lower the base fill to deepen the dark so the "tada" reveal pops.
 const spotlights = useSpotlightsStore();
 
-const headRotationY = shallowRef(-0.44); // seeded to the resting yaw to avoid a first-frame swing
+const headRotationY = shallowRef(0.28); // seeded to the resting yaw to avoid a first-frame swing
 const headRotationX = shallowRef(0);
 const headRotationZ = shallowRef(0);
 const wireFrameRotationY = shallowRef(0);
 const headGroupRef = shallowRef<Group | null>(null);
 const wireframeGroupRef = shallowRef<Group | null>(null);
 
-// Cursor position (normalised -1..1), always recorded; only *applied* to the head
-// while the contact beat is centered (store.addressing). Honour reduced-motion by
-// dropping the cursor-follow — the head still turns to face front. The preference
-// resolves OS prefers-reduced-motion + the manual override from /setup.
-const mousePosition = shallowRef({ x: 0, y: 0 });
+// Cursor position (normalised -1..1) from the shared `usePointer` singleton —
+// one listener for the whole app, since the set-pieces react to the cursor too
+// (the Berlin skyline parallaxes against it). Always recorded; only *applied* to
+// the head while the contact beat is centered (store.addressing). Honour
+// reduced-motion by dropping the cursor-follow — the head still turns to face
+// front. The preference resolves OS prefers-reduced-motion + the /setup override.
+const { pointer } = usePointer();
 const { reducedMotion } = usePreferences();
 
 // ASCII and rendering configuration
@@ -124,23 +169,6 @@ if (import.meta.client) {
   bootState.markSceneReady();
 }
 
-// Track the cursor (always). The head only acts on it at the finale; recording
-// it is just two numbers, event-driven.
-if (import.meta.client) {
-  const handleMouseMove = (event: MouseEvent) => {
-    // Normalize mouse position to -1..1.
-    mousePosition.value = {
-      x: (event.clientX / window.innerWidth) * 2 - 1,
-      y: (event.clientY / window.innerHeight) * 2 - 1,
-    };
-  };
-
-  window.addEventListener("mousemove", handleMouseMove);
-  onBeforeUnmount(() => {
-    window.removeEventListener("mousemove", handleMouseMove);
-  });
-}
-
 // Setup render loop to track camera changes
 const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // Camera ownership depends on the mode.
@@ -186,14 +214,22 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   const cursorScale = reducedMotion.value ? 0 : addressing;
   const baseYaw = headPose.rotation.y * (1 - addressing) + addressYaw.value * addressing;
   const basePitch = headPose.rotation.x * (1 - addressing) + addressPitch.value * addressing;
-  const targetY = baseYaw + mousePosition.value.x * maxYaw.value * cursorScale;
-  const targetX = basePitch + mousePosition.value.y * maxPitch.value * cursorScale;
-  const ease = 1 - Math.pow(1 - 0.12, delta * 60);
+  const targetY = baseYaw + pointer.value.x * maxYaw.value * cursorScale;
+  const targetX = basePitch + pointer.value.y * maxPitch.value * cursorScale;
+  // Frame-rate independent: the per-frame factor is re-based onto this frame's
+  // actual delta, so the feel is identical at 30, 60 or 144fps.
+  const ease = 1 - Math.pow(1 - turnSpeed.value, delta * 60);
   headRotationY.value += (targetY - headRotationY.value) * ease;
   headRotationX.value += (targetX - headRotationX.value) * ease;
   headRotationZ.value += (headPose.rotation.z - headRotationZ.value) * ease;
   // Apply imperatively to the Three group — no reactive prop patching (issue #4).
-  headGroupRef.value?.rotation.set(headRotationX.value, headRotationY.value, headRotationZ.value);
+  // `faceYaw` is added HERE and nowhere else: everything above works in face-on
+  // space, and this is the only line that knows the model is authored crooked.
+  headGroupRef.value?.rotation.set(
+    headRotationX.value,
+    headRotationY.value + faceYaw.value,
+    headRotationZ.value
+  );
 
   wireFrameRotationY.value = elapsed * 0.5;
   wireframeGroupRef.value?.rotation.set(0, wireFrameRotationY.value, 0);

@@ -1,5 +1,5 @@
 import type { SpotTrack } from "~/types/spotlights";
-import { skillsSpotKeyframes } from "./skills";
+import { skillAccent, skillsRimKeyframes, skillsSpotKeyframes } from "./skills";
 
 // The scroll-driven spotlight spine — the lighting analogue of the camera poses.
 // Edited here in code (art-direction) or live in the dev panel; driven imperatively
@@ -12,9 +12,15 @@ import { skillsSpotKeyframes } from "./skills";
 // cards — keeps every beat on its mark. Section ids (registry.ts): identity (hero),
 // pause (interlude), biography, skills, contact.
 //
-// The skills chapter's key keyframes are GENERATED (see ./skills.ts) from the
-// same layout the cards and the head's gaze use, so the light swings with the
-// head onto whichever card is centre stage.
+// Two chapters' keyframes are GENERATED from the same layout their cards and the
+// head's gaze use, so the light swings with the head onto whichever card is
+// centre stage:
+//   • skills    — spread into the key track below at module-eval time (./skills.ts),
+//                 since the cluster list is a compile-time constant;
+//   • biography — written into the key + fill tracks at RUNTIME by
+//                 `useBiographyChoreography` (./biography.ts), since the cards
+//                 come from the @nuxt/content collection. Nothing is authored for
+//                 that section here; see the note in the key track.
 //
 // Targets are head-LOCAL by default (`targetAnchor` omitted → "head"), so each
 // cone tracks the floating/turning head and keeps the face lit. Positions are
@@ -50,26 +56,23 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
       },
       // Settle, full and clean, at the end of the interlude.
       { section: "pause", t: 1, position: v3(0.3, 0.5, 0.85), target: FACE, intensity: 13, color: "#ffffff", angle: 0.5, penumbra: 0.45 },
-      // Biography — fly to the cards (anchored to milestones, so it tracks them
-      // even as cards are added/removed), picking up the chapter's blue accent.
-      {
-        section: "biography",
-        milestone: 0,
-        t: 0.5,
-        position: v3(-0.75, 0.45, 0.7),
-        target: FACE,
-        intensity: 12,
-        color: "#9ad1ff",
-        effect: { type: "sweep", amount: 0.18, speed: 0.9 },
-      },
-      { section: "biography", milestone: 2, t: 0.5, position: v3(0.78, 0.45, 0.7), target: FACE, intensity: 12, color: "#9ad1ff", effect: { type: "sweep", amount: 0.18, speed: 0.9 } },
-      { section: "biography", milestone: 4, t: 0.5, position: v3(-0.6, 0.5, 0.72), target: FACE, intensity: 12, color: "#9ad1ff" },
-      // Skills — hand the chapter's blue off to amber INSIDE the section (without
-      // this the biography→contact pair would just cross-fade blue to green
-      // straight through it), then swing with the gaze, card by card.
+      // Biography — the key visits every card, from the card's side, on the same
+      // beats the head's gaze uses. GENERATED at runtime (see ./biography.ts and
+      // `useBiographyChoreography`) and spliced in here, because the cards come
+      // from the @nuxt/content collection and aren't known at module-eval time.
+      // Nothing is authored for this section on purpose: if the content never
+      // loads the key simply crossfades from the interlude to the skills hand-off
+      // below, which is a graceful nothing rather than a wrong pose.
+      //
+      // Skills — hand the chapter's blue off INSIDE the section (without this the
+      // biography→contact pair would just cross-fade blue to green straight
+      // through it), then swing with the gaze, card by card. Every keyframe
+      // between these two is GENERATED, and each cluster is lit in its own hue;
+      // the bookends borrow the first and last cluster's colour so the joins do
+      // not cross the wheel either.
       { section: "skills", t: 0.02, position: v3(-0.5, 0.5, 0.78), target: FACE, intensity: 11, color: "#9ad1ff", angle: 0.48, penumbra: 0.45 },
       ...skillsSpotKeyframes(),
-      { section: "skills", t: 0.99, position: v3(-0.2, 0.45, 0.82), target: FACE, intensity: 14, color: "#ffb454", angle: 0.48, penumbra: 0.45 },
+      { section: "skills", t: 0.99, position: v3(-0.2, 0.45, 0.82), target: FACE, intensity: 14, color: skillAccent(-1), angle: 0.48, penumbra: 0.45 },
       // Finale — the head sits on the left (camera panned right) addressing the
       // terminal; light it warm-green from the front, breathing gently.
       {
@@ -95,12 +98,15 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
       { section: "identity", t: 0, position: v3(-0.6, 0.3, 0.8), target: FACE, intensity: 0, color: "#bcd6ff" },
       // Comes up just after the key for a layered reveal.
       { section: "pause", t: 0.6, position: v3(-0.55, 0.28, 0.8), target: FACE, intensity: 6, color: "#bcd6ff", angle: 0.6, penumbra: 0.7 },
-      { section: "biography", t: 0.3, position: v3(0.55, 0.3, 0.78), target: FACE, intensity: 6, color: "#cfe6ff", angle: 0.6, penumbra: 0.7 },
-      { section: "biography", t: 0.8, position: v3(-0.55, 0.3, 0.78), target: FACE, intensity: 6, color: "#cfe6ff", angle: 0.6, penumbra: 0.7 },
-      // Skills: counter-side to the swinging key, warm, so the shadow side never
-      // goes fully black while the key is off across the stage.
-      { section: "skills", t: 0.15, position: v3(-0.6, 0.3, 0.78), target: FACE, intensity: 6, color: "#ffe0b0", angle: 0.6, penumbra: 0.7 },
-      { section: "skills", t: 0.85, position: v3(0.6, 0.3, 0.78), target: FACE, intensity: 6, color: "#ffe0b0", angle: 0.6, penumbra: 0.7 },
+      // Biography — counter-side to the swinging key (i.e. the side the head has
+      // swerved to), so the shadow side never goes black as the key crosses over.
+      // GENERATED with the key; see the note in the key track above.
+      // Skills: counter-side to the swinging key, so the shadow side never goes
+      // fully black while the key is off across the stage. NEUTRAL on purpose —
+      // the key now cycles through four hues, and the old warm fill fought three
+      // of them. A near-white fill sits under any of them.
+      { section: "skills", t: 0.15, position: v3(-0.6, 0.3, 0.78), target: FACE, intensity: 6, color: "#dfe6ef", angle: 0.6, penumbra: 0.7 },
+      { section: "skills", t: 0.85, position: v3(0.6, 0.3, 0.78), target: FACE, intensity: 6, color: "#dfe6ef", angle: 0.6, penumbra: 0.7 },
       { section: "contact", t: 0.6, position: v3(-0.55, 0.25, 0.8), target: FACE, intensity: 7, color: "#aef7da", angle: 0.6, penumbra: 0.7 },
       { section: "contact", t: 1, position: v3(-0.55, 0.25, 0.8), target: FACE, intensity: 7, color: "#aef7da", angle: 0.6, penumbra: 0.7 },
     ],
@@ -124,8 +130,10 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
         effect: { type: "colorCycle", amount: 0.12, speed: 0.25 },
       },
       { section: "biography", t: 0.5, position: v3(-0.3, 0.95, -0.7), target: FACE, intensity: 9, color: "#9ad1ff", angle: 0.55, penumbra: 0.6, effect: { type: "colorCycle", amount: 0.12, speed: 0.25 } },
-      { section: "skills", t: 0.5, position: v3(0.1, 0.95, -0.7), target: FACE, intensity: 10, color: "#ffb454", angle: 0.55, penumbra: 0.6, effect: { type: "colorCycle", amount: 0.1, speed: 0.3 } },
-      { section: "skills", t: 0.99, position: v3(-0.1, 0.9, -0.65), target: FACE, intensity: 10, color: "#ffb454", angle: 0.55, penumbra: 0.6 },
+      // Skills — GENERATED with the key, one beat per cluster in the cluster's
+      // own hue (see ./skills.ts).
+      ...skillsRimKeyframes(),
+      { section: "skills", t: 0.99, position: v3(-0.1, 0.9, -0.65), target: FACE, intensity: 10, color: skillAccent(-1), angle: 0.55, penumbra: 0.6 },
       { section: "contact", t: 0.6, position: v3(-0.4, 0.85, -0.6), target: FACE, intensity: 10, color: "#00ff9c", angle: 0.55, penumbra: 0.6 },
       { section: "contact", t: 1, position: v3(-0.4, 0.85, -0.6), target: FACE, intensity: 10, color: "#00ff9c", angle: 0.55, penumbra: 0.6 },
     ],

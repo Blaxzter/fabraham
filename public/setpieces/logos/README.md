@@ -1,7 +1,7 @@
 # Stack logos
 
 Official brand marks, used as **line art** in the `skills` chapter's 3D
-backdrop (`components/home/setpieces/StackLogos.vue`, via three's `SVGLoader`).
+backdrop (`components/home/setpieces/StackFlight.vue`, via three's `SVGLoader`).
 
 - **Source:** [Simple Icons](https://simpleicons.org), vendored from
   `cdn.jsdelivr.net/npm/simple-icons/icons/<slug>.svg`. Copied in rather than
@@ -12,14 +12,16 @@ backdrop (`components/home/setpieces/StackLogos.vue`, via three's `SVGLoader`).
   They appear here only to identify the tools actually used — nominative use on
   a personal portfolio. No affiliation or endorsement is implied.
 
-Each file is a single-path 24×24 glyph. `StackLogos` strokes the path outline
-rather than filling it, because the ASCII post-process only resolves lines (see
-`docs/scroll-3d-architecture.md` → set-piece contract).
+Each file is a single-path 24×24 glyph. `StackFlight` resolves it with
+`SVGLoader.createShapes` (which gives proper shapes **with their holes**),
+EXTRUDES it into a solid, and draws the result as edges — so the mark has real
+depth as it flies, while still reading as line art like the rest of the scene.
 
 They are used **twice**, in deliberately different registers, so the two read as
 the same mark rather than a duplicate:
 
-- large, drawn-in **line art** in the 3D backdrop (`StackLogos`);
+- large **extruded solids**, drawn in as they launch, flying past the head in 3D
+  (`StackFlight`);
 - small, solid **glyphs** inside the DOM chips (`SkillsSection`), masked with
   `currentColor` so they inherit the chip's tint — including the warm-up as the
   card catches the beam — without a second rule.

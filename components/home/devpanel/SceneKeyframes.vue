@@ -152,7 +152,7 @@ const addCam = () =>
 const addHead = () =>
   addPose(headKfs.value, sections.addHeadKeyframe, {
     position: { x: 0, y: 0, z: 0 },
-    rotation: { x: 0, y: -0.44, z: 0 },
+    rotation: { x: 0, y: 0.28, z: 0 },
   });
 const addSpot = (ti: number) => {
   const tr = spots.tracks[ti];

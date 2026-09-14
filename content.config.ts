@@ -8,7 +8,7 @@ const setPieceEnum = z.enum([
     'documentGrid',
     'staffLines',
     'signalField',
-    'stackLogos',
+    'stackFlight',
 ]);
 
 export default defineContentConfig({

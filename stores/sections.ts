@@ -51,7 +51,11 @@ const FALLBACK_POSE: CameraPose = {
 // The head's default resting pose when a section has no head keyframes: no
 // translation, looking into its own data (the shipped resting yaw). Seeds the
 // editable head keyframes so the head reads exactly as before until tuned.
-const DEFAULT_HEAD_YAW = -0.44;
+// The head's resting yaw, in FACE-ON SPACE: 0 is looking straight down the lens,
+// positive is screen-right. So this is a slight turn to the right — the
+// three-quarter resting profile. The model's own crookedness is corrected once in
+// Scene3D (`faceYaw`) and is not this file's problem.
+const DEFAULT_HEAD_YAW = 0.28;
 const HEAD_REST_POSE: HeadKeyframe = {
   t: 0.5,
   position: { x: 0, y: 0, z: 0 },
@@ -123,10 +127,19 @@ export const useSectionsStore = defineStore("sections", () => {
   // camera. Default: a single resting pose (no translation, resting yaw), so the
   // head reads exactly as before until a scene's keyframes are tuned.
   const headKeyframes = ref<Record<string, HeadKeyframe[]>>({});
-  const seedHeadKf = (s: Section): HeadKeyframe[] =>
-    cloneKfs<HeadKeyframe>(
+  // Tracks GENERATED at runtime (the biography gaze — see
+  // components/home/sections/biography.ts, written via `setHeadKeyframes`). They
+  // can't live on the registry spine because they derive from content that only
+  // exists at runtime, so they act as that section's baseline instead: "reset" in
+  // the dev panel restores the generated track, not the bare resting pose.
+  const generatedHeadKeyframes = ref<Record<string, HeadKeyframe[]>>({});
+  const seedHeadKf = (s: Section): HeadKeyframe[] => {
+    const gen = generatedHeadKeyframes.value[s.id];
+    if (gen && gen.length) return cloneKfs<HeadKeyframe>(gen);
+    return cloneKfs<HeadKeyframe>(
       s.headKeyframes && s.headKeyframes.length ? s.headKeyframes : [HEAD_REST_POSE]
     );
+  };
 
   const setSections = (next: Section[]) => {
     sections.value = next;
@@ -416,6 +429,17 @@ export const useSectionsStore = defineStore("sections", () => {
   const exportCameraKeyframes = (sectionId: string) =>
     JSON.stringify(cameraKeyframes.value[sectionId] ?? [], null, 2);
 
+  // Replace a section's whole head track. Used by the runtime GENERATORS (the
+  // biography gaze, derived from the loaded milestones — see
+  // `useBiographyChoreography`), which is why it also records the track as that
+  // section's reset baseline. The caller is responsible for calling this only when
+  // its inputs actually changed: it overwrites, so calling it every tick would
+  // wipe live dev-panel edits.
+  const setHeadKeyframes = (sectionId: string, kfs: HeadKeyframe[]) => {
+    generatedHeadKeyframes.value[sectionId] = cloneKfs<HeadKeyframe>(kfs);
+    headKeyframes.value[sectionId] = cloneKfs<HeadKeyframe>(kfs);
+  };
+
   const addHeadKeyframe = (sectionId: string, kf: HeadKeyframe) =>
     addPoseKeyframe(headKeyframes.value, sectionId, kf);
   const removeHeadKeyframe = (sectionId: string, index: number) =>
@@ -511,6 +535,7 @@ export const useSectionsStore = defineStore("sections", () => {
     removeCameraKeyframe,
     resetCameraKeyframes,
     exportCameraKeyframes,
+    setHeadKeyframes,
     addHeadKeyframe,
     removeHeadKeyframe,
     resetHeadKeyframes,
