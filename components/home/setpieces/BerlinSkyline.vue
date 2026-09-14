@@ -137,7 +137,6 @@ const horizon = tune.vec3(
     max: 3,
     step: 0.01,
     label: "Horizon anchor (bottom centre, world)",
-    gizmo: true,
   }
 );
 const stageScale = tune.num("scale", 1, { min: 0.3, max: 2.5, step: 0.05, label: "Scale" });

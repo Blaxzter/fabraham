@@ -123,11 +123,11 @@ const tune = useTuning("routeArc", "The move — map");
 // Default: low and pushed back, so the map lies out UNDER the head rather than
 // across its face. This piece draws on top of the ASCII pass (it is not in
 // `OCCLUDED_PIECES`), so where it sits is the only thing keeping a whole country
-// outline off the face — hence the gizmo.
+// outline off the face.
 const anchor = tune.vec3(
   "anchor",
   { x: 0, y: -0.34, z: -0.5 },
-  { min: -2, max: 2, step: 0.01, label: "Map centre (world)", gizmo: true }
+  { min: -2, max: 2, step: 0.01, label: "Map centre (world)" }
 );
 const mapScale = tune.num("scale", 0.85, { min: 0.3, max: 2.5, step: 0.05, label: "Scale" });
 const tilt = tune.num("tilt", 0.6, { min: 0, max: 1.4, step: 0.01, label: "Table tilt (radians)" });
