@@ -10,6 +10,6 @@ setPiece: ["routeArc"]
 
 ## The move
 
-In 2020 I left Berlin for **Maastricht** and an M.Sc. in Artificial Intelligence —
-a deliberate bet to stop skimming machine learning and go all the way under. The
-first leg of the loop.
+In 2020 I left Berlin for **Maastricht** and an M.Sc. in Artificial Intelligence.
+I had been using machine learning without properly understanding it, and wanted
+two years to fix that rather than keep reading about it on the side.

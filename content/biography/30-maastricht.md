@@ -1,6 +1,6 @@
 ---
 title: "Maastricht — M.Sc. Artificial Intelligence"
-subtitle: "2020–2022 · the bet on generative AI"
+subtitle: "2020–2022 · Maastricht"
 order: 30
 location: "Maastricht"
 accent: "#c4a0ff"
@@ -11,7 +11,7 @@ setPieceVariant: "gan"
 
 ## Maastricht — M.Sc. AI
 
-A master's in Artificial Intelligence (GPA 8.25), all-in on generative models. My
-**thesis trained GANs to generate procedural game content** — teaching a network
-to invent playable levels. This is where the through-line starts: a lattice of
-weights learning to *generate*.
+M.Sc. Artificial Intelligence, GPA 8.25, specialising in generative models. My
+**thesis trained GANs to generate procedural game content** — a network that
+invents game levels, scored on whether the levels are actually playable. At the
+time that was a research curiosity. It stopped being one about a year later.

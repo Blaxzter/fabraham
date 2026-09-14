@@ -82,9 +82,21 @@ export const SECTION_DEFS: SectionDef[] = [
     type: "biography",
     component: markRaw(BiographySection),
     mode: "flow",
-    title: "The path so far",
-    subtitle: "Berlin → Maastricht → Berlin",
-    weight: 4,
+    title: "How I got here",
+    subtitle: "Berlin → Maastricht → Berlin · 2016–now",
+    // THE pace lever for this chapter (see the skills note below for the same
+    // idea): every beat here — a card's window, its set-piece's assembly, the
+    // head's swerve and the light on it — is a fraction of this, so it is the one
+    // number that spaces them all out together.
+    //
+    // Raised 4 → 7. At 4 the six cards sat ~0.54 viewports apart, which on a
+    // 900px screen is ~480px: shorter than a card is tall, so there were always
+    // TWO cards on screen and the milestone's artwork was squeezed into the gap
+    // between them. At 7 the spacing is just under one full viewport, so a card
+    // arrives, holds the frame with its own backdrop, and leaves before the next
+    // one comes up — which is the whole point of giving each milestone a set
+    // piece. Reach for this before retuning any individual window.
+    weight: 7,
     accent: "#9ad1ff",
     setPiece: [],
     setPieceVariant: "",

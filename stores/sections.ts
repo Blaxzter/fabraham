@@ -38,12 +38,52 @@ const HANDOFF_FADE = 0.12;
 // milestone's set-piece blooms). Sharing one formula keeps the 3D backdrop
 // aligned with its card even after the headline spacing was added. Values are
 // fractions of the (tall) biography section.
-export const BIO_TOP_PAD = 0.13; // clear space under the sticky headline
-export const BIO_RANGE = 0.83; // vertical span the cluster occupies
+// Where the cluster sits inside its (tall) section. Both are fractions of the
+// section, so they hold their shape at any `weight` — but the LEAD-IN is real
+// scroll: at weight 7 the old 0.13 pad meant a full viewport of headline and
+// bare connector before the first card arrived. Trimmed to 0.08 and the range
+// widened to match, so the extra height the reweight bought goes into the gaps
+// BETWEEN cards rather than into dead air at either end.
+export const BIO_TOP_PAD = 0.08; // clear space under the sticky headline
+export const BIO_RANGE = 0.88; // vertical span the cluster occupies
 export const bioMilestoneCenter = (j: number, n: number) =>
   BIO_TOP_PAD + ((j + 0.6) / (n + 0.2)) * BIO_RANGE;
+/**
+ * Half a milestone's ANCHOR window: the span a milestone-pinned keyframe's local
+ * `t` (0..1) is resolved across. Exactly half the spacing, so consecutive
+ * windows tile without overlapping — which they must not do, because the head's
+ * generated gaze track samples the middle `GAZE_TRACK` of each one and the
+ * combined track has to stay sorted in `t` (see sections/biography.ts).
+ */
 export const bioMilestoneHalfWindow = (n: number) =>
   (BIO_RANGE / (n + 0.2)) * 0.5;
+
+/**
+ * How much wider a milestone's SET-PIECE window is than its anchor window.
+ *
+ * These were the same number until the chapter was stretched (weight 4 → 7).
+ * Tiling exactly means a backdrop's bloom reaches zero at precisely the point
+ * the next one starts from zero, so there is an instant where NEITHER is drawn.
+ * At the old spacing that instant was ~480px of scroll and passed unnoticed; at
+ * the new one it is a near-empty viewport, which is the opposite of the reason
+ * the chapter was stretched in the first place.
+ *
+ * 1.35 overlaps the windows by about a third of a spacing: between two cards
+ * both neighbours sit around half lit, so the frame is never empty and neither
+ * piece dominates. Pushing it higher hands the gap over to a full double
+ * exposure — and the two busiest milestones carry TWO set-pieces each, so 1.5
+ * already put four motifs on screen at once. It also hands each piece a third
+ * more scroll to assemble across, so the draw-on finishes just after its card
+ * passes centre and then HOLDS while the card drifts away, which is when there
+ * is finally room to look at it.
+ *
+ * Kept separate from the anchor window on purpose: widening that one would
+ * squeeze the gap the head swings across between cards from 40% of a spacing to
+ * 10%, and the swerve would snap instead of swing.
+ */
+export const BIO_PIECE_SPAN = 1.35;
+export const bioMilestonePieceHalfWindow = (n: number) =>
+  bioMilestoneHalfWindow(n) * BIO_PIECE_SPAN;
 
 const lerp = (a: number, b: number, t: number) => gsap.utils.interpolate(a, b, t);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -514,7 +554,8 @@ export const useSectionsStore = defineStore("sections", () => {
     // Bloom centered on the milestone card's position (same layout the cards
     // use) so the set-piece tracks its card, not an evenly-divided sub-beat.
     const center = start + bioMilestoneCenter(subIndex, subCount) * range;
-    const half = (bioMilestoneHalfWindow(subCount) || 0.0001) * range;
+    // The PIECE window, which is wider than the anchor window — see BIO_PIECE_SPAN.
+    const half = (bioMilestonePieceHalfWindow(subCount) || 0.0001) * range;
     const local = (progress.value - (center - half)) / (2 * half);
     const fadeIn = clamp01(local / REVEAL_FADE);
     const fadeOut = clamp01((1 - local) / REVEAL_FADE);
