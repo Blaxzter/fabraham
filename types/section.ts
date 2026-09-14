@@ -75,7 +75,13 @@ export type SetPieceName =
   | "signalField"
   | "stackFlight";
 
-export type SectionType = "hero" | "biography" | "contact" | "interlude" | "skills";
+export type SectionType =
+  | "hero"
+  | "biography"
+  | "contact"
+  | "interlude"
+  | "skills"
+  | "outro";
 
 export type Align = "center" | "left" | "right" | "top" | "bottom" | "free";
 

@@ -4,8 +4,13 @@ import { BlendFunction } from "postprocessing";
 import type { LightConfig } from "~/types/lights";
 
 export const useSceneControlStore = defineStore("sceneControl", () => {
-  // Scene Controls
-  const showWireframe = ref(true);
+  // Scene Controls. Both of these are DEBUG geometry (a rotating green
+  // wireframe of the model's bounding box, and a red Y-axis rod) and both
+  // default OFF. The wireframe used to default ON, which put a green box
+  // spinning around the head in every chapter — and since Scene3D did not
+  // gate it on `import.meta.dev` the way it gates TuningGizmos, it shipped to
+  // production too. It is now dev-only at the render site as well.
+  const showWireframe = ref(false);
   const showRotationAxis = ref(false);
   const enableASCII = ref(true);
 
@@ -15,6 +20,14 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
 
   // Camera control mode
   const cameraControlMode = ref<"scroll" | "orbit">("scroll");
+  /**
+   * Orbit mode has two callers with different needs, and only this flag tells
+   * them apart. The dev panel flips `cameraControlMode` on its own to inspect
+   * a pose; a VISITOR enters through the finale's `orbit` command, which also
+   * wants the camera pulled back to a wide establishing pose and the explore
+   * overlay (scrubber + exit) on screen. Same camera mode, different framing.
+   */
+  const exploreMode = ref(false);
 
   // Light system controls. The scroll-driven spotlight rig (ScrollSpotlights.vue)
   // now owns face lighting — it needs the head DARK through the hero so the
@@ -207,6 +220,7 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
     cameraPosition,
     cameraRotation,
     cameraControlMode,
+    exploreMode,
 
     // Light system controls
     enableColoredLights,

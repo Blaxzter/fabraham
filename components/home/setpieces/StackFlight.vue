@@ -224,6 +224,51 @@ const shardTint = tune.num("shardTint", 0.4, { min: 0, max: 1, step: 0.02, label
  */
 const markFill = tune.num("markFill", 0.35, { min: 0, max: 1, step: 0.02, label: "Logo fill" });
 /**
+ * The same face fill, on the DEBRIS.
+ *
+ * Kept much weaker than the marks' and, unlike theirs, it does NOT write depth
+ * — so you still see a shard's far side through it. That is the point: the fill
+ * is there to stop the field reading as pure line-art and give each piece a
+ * face to catch the hue, not to turn the debris into solids. A shard that hid
+ * its own back edges would read as a mark, which is the one distinction this
+ * set-piece depends on.
+ */
+const shardFill = tune.num("shardFill", 0.12, { min: 0, max: 1, step: 0.01, label: "Shard fill" });
+/**
+ * How much the shards DIFFER in speed.
+ *
+ * Everything here rides one scroll signal, so with no variation every piece
+ * covers the same depth ramp at the same rate: the field moves like one rigid
+ * sheet sliding past, which is what makes it read as a backdrop being pulled
+ * rather than objects you are flying through.
+ *
+ * This gives each shard its own CYCLE RATE. The first attempt bent each
+ * piece's u → depth curve by a per-shard exponent instead, which looked right
+ * on paper and was worthless: the exponent changes WHEN a piece is at a given
+ * depth, but the geometric ramp sets how fast it is moving once there, so two
+ * shards side by side still crossed the frame at within 12% of each other.
+ * Scaling the rate scales dd/dflow directly — at 0.55 the field spans roughly
+ * 1.8x between its slowest and fastest pieces, which is the thing the eye
+ * actually reads.
+ *
+ * The cycle still runs 0→1, so nothing pops when a piece wraps; the pieces just
+ * stop keeping formation, which is the point.
+ *
+ * 0 is the old uniform field.
+ */
+const paceSpread = tune.num("paceSpread", 0.55, { min: 0, max: 1, step: 0.02, label: "Speed variation" });
+/**
+ * The share of shards that DRAW THEMSELVES IN rather than simply fading up.
+ *
+ * The wipe is a nice touch on a mark — a logo being plotted — but applying it to
+ * every shard synchronised the whole field: `u` maps straight to depth, so
+ * "draws in at u 0.02-0.20" means "draws in at THAT DEPTH", and every piece
+ * performed the same trace at the same distance, over and over. Most of the
+ * debris should just be there. The ones that do trace get a staggered start
+ * (`drawVar`) so they no longer do it in unison.
+ */
+const shardTrace = tune.num("trace", 0.3, { min: 0, max: 1, step: 0.02, label: "Shards that draw in" });
+/**
  * How much of a MARK's run is spent approaching, rather than receding.
  *
  * The depth ramp is geometric over the whole run, but launch-to-head is only
@@ -333,6 +378,11 @@ const MARK_SIZE = 0.34;
  *  the icons visibly trailing the debris they arrive with. */
 const DRAW_START = 0.02;
 const DRAW_WINDOW = 0.18;
+/** How far a tracing shard's wipe can be pushed back down its own run. The
+ *  marks keep the fixed early start — a logo has to be whole by the time it is
+ *  worth looking at — but debris drawing itself in at all the same instant is
+ *  what made the field look mechanical. */
+const DRAW_SPREAD = 0.34;
 /** How much later each successive mark of a cluster launches, as a share of the
  *  cluster's window — what strings a cluster out into a procession at a range of
  *  depths rather than a clump all at one distance. */
@@ -456,6 +506,9 @@ const extruded = (shapes: Shape[], depth: number) => {
 
 interface ShardKind {
   edges: BufferGeometry;
+  /** The face to wash `shardFill` across. Null for the circuit traces, which
+   *  are open paths — there is no inside of a line to fill. */
+  solid: BufferGeometry | null;
 }
 
 /**
@@ -470,22 +523,25 @@ interface ShardKind {
  */
 const SHARD_KINDS: ShardKind[] = [];
 {
-  const solids = [
+  for (const e of [
     extruded(chipShapes(), 0.05),
     extruded(bracketShapes(1), 0.05),
     extruded(bracketShapes(-1), 0.05),
     extruded(hexNutShapes(), 0.07),
-  ];
-  for (const e of solids) {
-    SHARD_KINDS.push({ edges: e.edges });
-    e.solid.dispose(); // outlines only; nothing here gets a body
+  ]) {
+    SHARD_KINDS.push({ edges: e.edges, solid: e.solid });
   }
+  // The primitives are solids already, so the fill is the same geometry the
+  // outline was taken from rather than anything new.
+  const octa = new OctahedronGeometry(0.17);
+  const icosa = new IcosahedronGeometry(0.15);
+  const box = new BoxGeometry(0.21, 0.21, 0.21);
   SHARD_KINDS.push(
-    { edges: sortEdgesUpward(new EdgesGeometry(new OctahedronGeometry(0.17), 1)) },
-    { edges: sortEdgesUpward(new EdgesGeometry(new IcosahedronGeometry(0.15), 1)) },
-    { edges: sortEdgesUpward(new EdgesGeometry(new BoxGeometry(0.21, 0.21, 0.21), 1)) },
-    { edges: sortEdgesUpward(traceGeometry(1)) },
-    { edges: sortEdgesUpward(traceGeometry(2)) }
+    { edges: sortEdgesUpward(new EdgesGeometry(octa, 1)), solid: octa },
+    { edges: sortEdgesUpward(new EdgesGeometry(icosa, 1)), solid: icosa },
+    { edges: sortEdgesUpward(new EdgesGeometry(box, 1)), solid: box },
+    { edges: sortEdgesUpward(traceGeometry(1)), solid: null },
+    { edges: sortEdgesUpward(traceGeometry(2)), solid: null }
   );
 }
 
@@ -555,6 +611,16 @@ interface Flyer {
   slot: number;
   vertexCount: number;
   isMark: boolean;
+  /** Signed -1..1 deviation on this shard's cycle rate, scaled by `paceSpread`
+   *  at draw time so the slider works live. 0 for marks, which are paced by
+   *  their cluster's beat and `markApproach`, not by a free-running cycle. */
+  rateVar: number;
+  /** Golden-ratio ranked 0..1, compared against `trace` each frame — so the
+   *  set that draws itself in is an evenly spread subset at any threshold,
+   *  the same trick `hitRank` uses. */
+  traceRank: number;
+  /** Where down its run a tracing shard starts its wipe, 0..1 of DRAW_SPREAD. */
+  drawVar: number;
 }
 
 // ---- dev-only helper overlay ------------------------------------------------
@@ -655,6 +721,10 @@ const makeFlyer = (
     /** Marks only: the SVG y-flip inverts the winding, so the depth body has to
      *  fill from both sides or half the silhouette writes no depth. */
     doubleSide?: boolean;
+    /** Whether this flyer's fill writes depth. Marks: yes — the fill is what
+     *  hides their own back edges and makes them read as solids. Shards: no —
+     *  they stay see-through, and the fill is only a wash across the face. */
+    fillDepth?: boolean;
   }
 ): Flyer => {
   const material = new LineBasicMaterial({
@@ -686,7 +756,7 @@ const makeFlyer = (
         // does not z-fight the face it belongs to.
         transparent: true,
         opacity: 0,
-        depthWrite: true,
+        depthWrite: opts.fillDepth !== false,
         side: opts.doubleSide ? DoubleSide : undefined,
         polygonOffset: true,
         polygonOffsetFactor: 1,
@@ -753,6 +823,12 @@ const makeFlyer = (
     slot: opts.slot,
     vertexCount: edges.getAttribute("position").count,
     isMark: opts.isMark,
+    rateVar: opts.isMark ? 0 : (rand() - 0.5) * 2,
+    // Offset from `hitRank` so a shard's chance of tracing is independent of
+    // its chance of being aimed at the head; sharing the sequence would have
+    // made the colliding debris exactly the debris that draws itself in.
+    traceRank: ((opts.slot + 0.5) * 0.7548776662466927) % 1,
+    drawVar: rand(),
   };
 };
 
@@ -763,13 +839,18 @@ const makeFlyer = (
   for (let i = 0; i < SHARD_POOL; i++) {
     const kind = SHARD_KINDS[i % SHARD_KINDS.length]!;
     built.push(
-      makeFlyer(kind.edges, undefined, rand, {
+      makeFlyer(kind.edges, kind.solid ?? undefined, rand, {
         isMark: false,
         cluster: -1,
         slot: i,
         slotCount: 1,
         // Around 1: the absolute size is `shardSize`, this is only the spread.
         scale: 0.6 + rand() * 0.8,
+        // See-through: the wash must not hide the far side of the frame.
+        fillDepth: false,
+        // The extrusions are centred, not wound consistently for a one-sided
+        // fill, and a shard tumbles through every orientation anyway.
+        doubleSide: true,
       })
     );
   }
@@ -856,6 +937,9 @@ let fHitShare = 0;
 let fShardSize = 1;
 let fShardTint = 0;
 let fMarkFill = 0;
+let fShardFill = 0;
+let fPaceSpread = 0;
+let fTrace = 0;
 let fApproach = 1;
 let fSpin = 0;
 let fKick = 0;
@@ -932,7 +1016,11 @@ const grazeFor = (f: Flyer) => {
  * piece goes without ever changing how fast it recedes.
  */
 const place = (f: Flyer, u: number, fade: number, tint: number, hue: Color) => {
-  // Marks dwell on the approach; shards keep an even pace (see `markApproach`).
+  // Marks dwell on the approach (see `markApproach`); shards keep an even pace
+  // along their own curve. Their SPEED difference is applied to u upstream, by
+  // running each shard's cycle at its own rate (see `paceSpread`) — doing it
+  // here, as a curve exponent, moved where a piece was without changing how
+  // fast it was going once it got there.
   const paced = f.isMark ? Math.pow(u, fApproach) : u;
   // Solved launch radius: inside this flyer's own graze radius if it is aimed,
   // safely outside it if not. Exact, so the share that collides is the share that
@@ -1098,6 +1186,9 @@ onBeforeRender(({ elapsed }) => {
   fShardSize = shardSize.value;
   fShardTint = shardTint.value;
   fMarkFill = markFill.value;
+  fShardFill = shardFill.value;
+  fPaceSpread = paceSpread.value;
+  fTrace = shardTrace.value;
   fApproach = markApproach.value;
   fSpin = spinRate.value;
   fKick = bounce.value;
@@ -1146,7 +1237,12 @@ onBeforeRender(({ elapsed }) => {
     // Phase spread across the LIVE count, not the pool, so the ring stays evenly
     // spaced however many are flying. Split out the scroll-driven part: it is what
     // says HOW LONG AGO this piece launched, which the ambient drift does not.
-    const uFlow = (flow * SHARD_CYCLES + i / flying) % 1;
+    // Each piece runs the cycle at its OWN rate, so the field stops moving in
+    // formation. `% 1` after a positive multiply keeps it in range; the phase
+    // offset still spreads the pool evenly at flow 0 and the pieces separate
+    // from there, which is exactly the drift we want.
+    const rate = 1 + f.rateVar * fPaceSpread * 0.5;
+    const uFlow = (((flow * SHARD_CYCLES * rate + i / flying) % 1) + 1) % 1;
     const u = (uFlow + elapsed * SHARD_DRIFT) % 1;
     // Lit for almost the whole run. Fading flyers out early made the old field
     // look like it evaporated in mid-air rather than going anywhere: by the time
@@ -1158,9 +1254,17 @@ onBeforeRender(({ elapsed }) => {
       reveal;
     f.group.visible = fade > 0.004;
     if (!f.group.visible) continue;
-    const drawn = smoothstep(DRAW_START, DRAW_START + DRAW_WINDOW, u);
-    f.line.geometry.setDrawRange(0, Math.floor((f.vertexCount / 2) * drawn) * 2);
-    if (f.body) f.body.visible = drawn > 0.985;
+    // Only a share of the debris performs the wipe, and those that do start it
+    // at their own point of the run. Everything else is simply there, fully
+    // formed, and arrives on the fade alone.
+    let drawn = 1;
+    if (f.traceRank < fTrace) {
+      const start = DRAW_START + f.drawVar * DRAW_SPREAD;
+      drawn = smoothstep(start, start + DRAW_WINDOW, u);
+      f.line.geometry.setDrawRange(0, Math.floor((f.vertexCount / 2) * drawn) * 2);
+    } else {
+      f.line.geometry.setDrawRange(0, f.vertexCount);
+    }
     // Coloured by the hue that was current WHEN IT LAUNCHED, not the hue now.
     // Repainting the whole field every frame meant a cluster change swept the new
     // colour onto pieces already deep in the background, which reads as the scene
@@ -1168,10 +1272,22 @@ onBeforeRender(({ elapsed }) => {
     // colour makes the change arrive with the new arrivals and leaves the far field
     // on the old one — the field becomes a record of the chapter in depth.
     //
-    // `u / SHARD_CYCLES` is how much scroll ago that was; exact, because `uFlow`
-    // excludes the time-based drift.
-    hueAt(flow - uFlow / SHARD_CYCLES, HUE_AT);
+    // `uFlow / (SHARD_CYCLES * rate)` is how much scroll ago that was — this
+    // piece's own rate, or a slow shard would be given the hue of a fast one's
+    // launch. Exact, because `uFlow` excludes the time-based drift.
+    hueAt(flow - uFlow / (SHARD_CYCLES * rate || 1), HUE_AT);
     HUE_SHARD.copy(HUE_AT).lerp(SLATE, fShardTint);
+    // The face wash, on the same hue as the outline and only once the piece is
+    // whole (a fill creeping in behind a half-drawn wireframe reads as a bug).
+    if (f.body) {
+      const on = fShardFill > 0.001 && drawn > 0.985;
+      f.body.visible = on;
+      if (on) {
+        const fill = f.body.material as MeshBasicMaterial;
+        fill.color.copy(HUE_SHARD);
+        fill.opacity = fade * fShardFill;
+      }
+    }
     place(f, u, fade, 0, HUE_SHARD);
   }
 

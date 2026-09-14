@@ -634,8 +634,33 @@ Two populations share that path, and the mix is the point:
 | **Marks** | the real brand SVGs of the cluster on the mark, **extruded** into solids | full section hue, and a depth body hides their own back edges — objects you could pick up |
 | **Shards** | tech debris — ICs with pin legs, angle brackets, hex nuts, crystals, cube frames, flat circuit traces | **open frames** (no body, you see the far side) pulled toward cold slate by `shardTint` — weather, not content |
 
-Both travel identically; only the register differs. That split is deliberate and
-is what stops the debris competing with the thing it is supposed to frame.
+Both travel the same path; only the register differs. That split is deliberate and
+is what stops the debris competing with the thing it is supposed to frame. The
+shards do carry a small face wash (`shardFill`, default 0.12) so the field is not
+pure line-art — but unlike the marks' fill it does **not write depth**, so you
+still see a shard's far side through it and the distinction survives.
+
+**Nothing in the field keeps formation.** Three things were uniform and all three
+read as mechanical:
+
+- *Same speed.* Everything rides one scroll signal, so with a shared cycle rate
+  the whole field slid past like one rigid sheet. Each shard now runs its cycle at
+  its own rate (`paceSpread`), which scales `dd/dflow` directly — about 1.8×
+  between the slowest and fastest pieces at the default. The first attempt bent
+  each piece's `u → depth` curve by a per-shard exponent instead; that changes
+  *when* a piece is at a depth but not how fast it is moving once there, and
+  measured out at 1.12× — invisible. The lever has to be on the rate, not the
+  curve.
+- *Same moment.* `u` maps straight to depth, so "draws itself in over u 0.02→0.20"
+  means "draws itself in at **that distance**" — every piece performing the same
+  wipe at the same place, forever. Only `trace` of them draw in at all now (0.3),
+  and those start at their own point of the run (`drawVar` over `DRAW_SPREAD`).
+  The rest are simply there, fully formed, arriving on the fade.
+- *Same colour history.* Already handled — each piece wears the hue current when
+  **it** launched, so a cluster change arrives with the new arrivals. The
+  look-back is per piece (`uFlow / (SHARD_CYCLES * rate)`), which is why the rate
+  has to be threaded through it: a slow shard given a fast one's look-back gets
+  the wrong chapter's colour.
 
 **The paths are nearly PARALLEL to the view axis** — they are not aimed at the
 head. An earlier version gave each flyer its own target scattered around the face;

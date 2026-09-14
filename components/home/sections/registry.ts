@@ -6,6 +6,7 @@ import InterludeSection from "./InterludeSection.vue";
 import BiographySection from "./BiographySection.vue";
 import SkillsSection from "./SkillsSection.vue";
 import ContactSection from "./ContactSection.vue";
+import OutroSection from "./OutroSection.vue";
 import { skillsCameraKeyframes, skillsHeadKeyframes } from "./skills";
 
 // How a section's HTML is laid out over the canvas:
@@ -150,6 +151,30 @@ export const SECTION_DEFS: SectionDef[] = [
     // SignalField (receive variant) + ContactSection (right-aligned card).
     setPieceVariant: "receive",
     layout: { align: "right", maxWidth: "32rem", offset: { x: -1 } },
+    camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
+  },
+  {
+    id: "outro",
+    order: 80,
+    type: "outro",
+    component: markRaw(OutroSection),
+    mode: "pinned",
+    title: "Now take the camera",
+    subtitle: "One more thing",
+    // Short: it is a single call to action, not a chapter. Long enough that it
+    // arrives on its own screen rather than crowding the terminal.
+    weight: 1,
+    accent: "#00ff9c",
+    setPiece: [],
+    setPieceVariant: "",
+    // Same side as the terminal it follows, so the card lands where the card
+    // before it just left — and stays clear of the head, which is still over on
+    // the left addressing the visitor.
+    layout: { align: "right", maxWidth: "32rem", offset: { x: -1 } },
+    // The SAME pose as contact on purpose. Camera, head and spotlight tracks all
+    // clamp to their last keyframe past the end of their own section, so nothing
+    // is authored for this beat and nothing moves: the scene simply holds its
+    // finale while the coda scrolls in over it.
     camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
   },
 ];

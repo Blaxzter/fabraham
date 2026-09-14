@@ -271,6 +271,32 @@ watch(
   { immediate: true }
 );
 
+/**
+ * Entering EXPLORE mode: pull the camera back to a wide three-quarter pose.
+ *
+ * Without this, orbit starts from wherever the scroll left the camera — which is
+ * a close-up of the face at z≈0.5 with the head filling the frame. OrbitControls
+ * would then take that tiny radius as its orbit distance and you would swing
+ * around the inside of the model, which reads as broken rather than as a free
+ * camera. This puts you back and to the side, where the head reads as an object
+ * and the stack field can be seen streaming past it.
+ *
+ * `flush: "pre"` matters: it runs BEFORE the render that mounts OrbitControls, so
+ * the controls read this pose as their starting radius instead of snapping the
+ * camera on their first frame. The dev panel's own orbit toggle deliberately does
+ * not come through here — inspecting a pose means keeping the pose you are on.
+ */
+watch(
+  () => store.exploreMode,
+  (on) => {
+    const cam = cameraRef.value;
+    if (!on || !cam) return;
+    cam.position.set(2.5, 1.15, 3.6);
+    cam.lookAt(0, 0, 0);
+  },
+  { flush: "pre" }
+);
+
 // Keep the camera aspect matched to the (window-size) canvas so the scene isn't
 // stretched. The hard-coded aspect=1 distorted everything on wide viewports.
 const { width: windowWidth, height: windowHeight } = useWindowSize();
@@ -295,9 +321,18 @@ watch(
     window-size
     @loop="onLoop"
   >
+    <!-- Free camera. `minDistance` keeps you out of the inside of the head;
+         `maxDistance` is generous because the stack field runs a long way back
+         and pulling out to see all of it is half the point of explore mode.
+         Damping because this is something a visitor drags, not a dev nudges. -->
     <OrbitControls
       v-if="store.cameraControlMode === 'orbit'"
       ref="orbitControlsRef"
+      make-default
+      :enable-damping="true"
+      :damping-factor="0.08"
+      :min-distance="0.8"
+      :max-distance="45"
     />
     <!-- Camera pose is driven imperatively in onLoop (scroll) or by OrbitControls
          (dev), so no reactive position/rotation props here (issue #4). -->
@@ -334,9 +369,10 @@ watch(
     <!-- Dev-only: markers for tunable vec3 anchors (forehead, emitter, …). -->
     <TuningGizmos v-if="isDev" />
 
-    <!-- Wireframe bounding box centered at origin (now toggleable) -->
+    <!-- Dev-only: wireframe of the model bounding box, spinning slowly so its
+         depth reads. Debug geometry — `isDev` so it can never reach a build. -->
     <TresGroup
-      v-if="boundingBox && store.showWireframe"
+      v-if="isDev && boundingBox && store.showWireframe"
       ref="wireframeGroupRef"
     >
       <TresMesh :position="[0, 0, 0]">
@@ -345,8 +381,8 @@ watch(
       </TresMesh>
     </TresGroup>
 
-    <!-- Y-Axis visualization (rotation axis) - now toggleable -->
-    <TresGroup v-if="store.showRotationAxis">
+    <!-- Dev-only: the Y rotation axis. Same reasoning as the wireframe. -->
+    <TresGroup v-if="isDev && store.showRotationAxis">
       <TresMesh :position="[0, 0, 0]">
         <TresCylinderGeometry :args="[0.02, 0.02, 6, 8]" />
         <TresMeshBasicMaterial color="#ff0000" />

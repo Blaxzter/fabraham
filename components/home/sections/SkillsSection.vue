@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useWindowSize } from "@vueuse/core";
 import type { Section } from "~/types/section";
 import {
   SKILL_CLUSTERS,
@@ -211,11 +212,44 @@ const cards = computed(() => {
 // vertical on its own as the card converges. Tunable live in the dev panel (the
 // third arg files the group under this scene) and shipped via tuning.config.json.
 const tune = useTuning("skillsBeam", "Skills beam", "skills");
-const spread = tune.num("spread", 46, { min: 8, max: 120, step: 1, label: "Spread (vw)" });
+/**
+ * The cone's ACTUAL opening angle.
+ *
+ * This used to be a width in vw, which was a dud control: the wedge's shape
+ * comes from the conic-gradient, whose stops are TRUE angles measured from the
+ * apex and do not care how wide the box is. The box only CLIPPED. At the
+ * shipped 46vw the cone was already fully contained, so the entire 35→120 half
+ * of the slider did nothing at all, and the half below it cut the cone off with
+ * square shoulders rather than narrowing it. Now the angle drives the gradient
+ * and the box is solved to contain it (below), so the slider means what it says.
+ */
+const spreadDeg = tune.num("spread", 44, { min: 6, max: 120, step: 1, label: "Spread (deg)" });
 const reach = tune.num("reach", 90, { min: 20, max: 150, step: 1, label: "Reach (vh)" });
 const degPerVw = tune.num("degPerVw", 1.1, { min: 0, max: 3, step: 0.05, label: "Swing (deg per vw)" });
 const maxDeg = tune.num("maxDeg", 42, { min: 0, max: 80, step: 1, label: "Max swing (deg)" });
 const beamOpacity = tune.num("opacity", 0.5, { min: 0, max: 1, step: 0.01, label: "Opacity" });
+/**
+ * Dev-only overlay for the beam. Unlike the cards, the cone is only on screen
+ * while a card is ON THE MARK (its opacity is `lit × opacity`), so for most of
+ * the chapter there is nothing to aim these sliders at. This draws the geometry
+ * whether it happens to be lit or not:
+ *
+ *   faint wedge    the opening angle (`spread`) and how far it carries (`reach`).
+ *   solid line     the axis right now — where the beam is actually pointing.
+ *   dashed lines   the swing limits (`maxDeg`). If the beam never reaches the
+ *                  card, this is the number clamping it.
+ */
+const showBeamHelpers = tune.bool("helpers", false, { label: "Show helpers" });
+
+// The box has to be wide enough to hold the wedge at full reach or the gradient
+// clips into square shoulders. vw and vh are different pixel sizes, so this is
+// solved against the live aspect rather than assumed.
+const { width: winW, height: winH } = useWindowSize();
+const beamWidthVw = computed(() => {
+  const hPx = (reach.value / 100) * (winH.value || 1);
+  const halfPx = hPx * Math.tan(((spreadDeg.value / 2) * Math.PI) / 180);
+  return (200 * halfPx) / (winW.value || 1);
+});
 
 /** The card the light is currently on — the most-lit one. */
 const front = computed(() =>
@@ -233,12 +267,39 @@ const beamStyle = computed(() => {
   // offset from it: wide while the card is out there and large, closing to
   // straight up as it lands on the face.
   const angle = Math.max(-maxDeg.value, Math.min(maxDeg.value, f.offX * degPerVw.value));
+  // The gradient stops are handed down as angles off the axis. The bright core
+  // keeps the proportion of the cone it always had (7deg of 22), so opening the
+  // spread opens the whole cone instead of only its faint outer skirt.
+  const outer = spreadDeg.value / 2;
+  const inner = outer * (7 / 22);
   return {
     bottom: `${100 - faceY.value}vh`,
-    width: `${spread.value}vw`,
+    width: `${beamWidthVw.value.toFixed(2)}vw`,
     height: `${reach.value}vh`,
     transform: `translateX(-50%) rotate(${angle.toFixed(2)}deg)`,
     opacity: (f.lit * beamOpacity.value).toFixed(3),
+    "--beam-out-a": `${(180 - outer).toFixed(2)}deg`,
+    "--beam-in-a": `${(180 - inner).toFixed(2)}deg`,
+    "--beam-in-b": `${(180 + inner).toFixed(2)}deg`,
+    "--beam-out-b": `${(180 + outer).toFixed(2)}deg`,
+  };
+});
+
+/** The beam helper's geometry, in the same terms the sliders are written in. */
+const beamHelper = computed(() => {
+  const f = front.value;
+  const angle = Math.max(-maxDeg.value, Math.min(maxDeg.value, f.offX * degPerVw.value));
+  const outer = spreadDeg.value / 2;
+  return {
+    angle,
+    max: maxDeg.value,
+    reach: reach.value,
+    width: beamWidthVw.value,
+    spread: spreadDeg.value,
+    lit: f.lit,
+    label: f.label,
+    outA: `${(180 - outer).toFixed(2)}deg`,
+    outB: `${(180 + outer).toFixed(2)}deg`,
   };
 });
 </script>
@@ -253,6 +314,43 @@ const beamStyle = computed(() => {
 
       <!-- The gaze cone: apex on the face, swinging out to the card on the mark. -->
       <div v-if="!still" class="skills-beam" :style="beamStyle" aria-hidden="true" />
+
+      <!-- Dev-only: the beam's axis, swing limits and opening angle, drawn
+           whether or not a card is currently lighting it. -->
+      <div
+        v-if="isDev && showBeamHelpers && !still"
+        class="beam-helpers"
+        :style="{
+          bottom: `${100 - faceY}vh`,
+          height: `${beamHelper.reach}vh`,
+          width: `${beamHelper.width.toFixed(2)}vw`,
+          '--beam-out-a': beamHelper.outA,
+          '--beam-out-b': beamHelper.outB,
+        }"
+        aria-hidden="true"
+      >
+        <div
+          class="bhlp-wedge"
+          :style="{ transform: `rotate(${beamHelper.angle.toFixed(2)}deg)` }"
+        />
+        <div
+          class="bhlp-limit"
+          :style="{ transform: `rotate(${(-beamHelper.max).toFixed(2)}deg)` }"
+        />
+        <div
+          class="bhlp-limit"
+          :style="{ transform: `rotate(${beamHelper.max.toFixed(2)}deg)` }"
+        />
+        <div
+          class="bhlp-axis"
+          :style="{ transform: `rotate(${beamHelper.angle.toFixed(2)}deg)` }"
+        />
+        <span class="bhlp-read">
+          {{ beamHelper.spread }}° cone &middot; aim {{ beamHelper.angle.toFixed(1) }}°
+          of ±{{ beamHelper.max }}° &middot; lit {{ beamHelper.lit.toFixed(2) }}
+          &middot; {{ beamHelper.label }}
+        </span>
+      </div>
 
       <!-- Dev-only: the vanishing point and each card's life-size position. -->
       <div v-if="isDev && showHelpers && !still" class="skills-helpers" aria-hidden="true">
@@ -382,11 +480,11 @@ const beamStyle = computed(() => {
      cone's axis) sits at 180deg — safely mid-range instead of wrapping 0/360. */
   background: conic-gradient(
     from 180deg at 50% 100%,
-    color-mix(in srgb, var(--accent) 1%, transparent) 158deg,
-    color-mix(in srgb, var(--accent) 34%, transparent) 173deg,
+    color-mix(in srgb, var(--accent) 1%, transparent) var(--beam-out-a, 158deg),
+    color-mix(in srgb, var(--accent) 34%, transparent) var(--beam-in-a, 173deg),
     color-mix(in srgb, var(--accent) 80%, transparent) 180deg,
-    color-mix(in srgb, var(--accent) 34%, transparent) 187deg,
-    color-mix(in srgb, var(--accent) 1%, transparent) 202deg
+    color-mix(in srgb, var(--accent) 34%, transparent) var(--beam-in-b, 187deg),
+    color-mix(in srgb, var(--accent) 1%, transparent) var(--beam-out-b, 202deg)
   );
   /* Brightest at the source, thinning along its length but still carrying as far
      as the card it is pointed at. Masks read alpha, so the `transparent` stop
@@ -407,6 +505,59 @@ const beamStyle = computed(() => {
   );
   pointer-events: none;
   z-index: 5;
+}
+
+/* The beam's dev overlay. Same box as the beam itself (apex on the face,
+   `reach` tall, wide enough to hold the wedge), so every line reads directly
+   against the cone it describes. */
+.beam-helpers {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 41;
+  pointer-events: none;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 190, 90, 0.9);
+}
+.beam-helpers > div {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+/* The opening angle, as a wedge of the same true angles the gradient uses. */
+.bhlp-wedge {
+  background: conic-gradient(
+    from 180deg at 50% 100%,
+    transparent var(--beam-out-a, 158deg),
+    rgba(255, 190, 90, 0.14) var(--beam-out-a, 158deg),
+    rgba(255, 190, 90, 0.14) var(--beam-out-b, 202deg),
+    transparent var(--beam-out-b, 202deg)
+  );
+}
+/* The axis (solid) and the swing limits (dashed): hairline rules standing on
+   the apex and rotated. A border rather than a width so they stay 1px. */
+.bhlp-axis,
+.bhlp-limit {
+  left: 50%;
+  right: auto;
+  width: 0;
+  border-left: 1px solid rgba(255, 190, 90, 0.85);
+}
+.bhlp-limit {
+  border-left-style: dashed;
+  border-left-color: rgba(255, 190, 90, 0.4);
+}
+.bhlp-read {
+  position: absolute;
+  left: 50%;
+  bottom: -1.15rem;
+  translate: -50% 0;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 /* Dev helpers: flat, above everything, never interactive. */
