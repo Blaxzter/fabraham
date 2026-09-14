@@ -4,7 +4,7 @@ import type { Component } from "vue";
 import { useLoop, useTresContext } from "@tresjs/core";
 import { MeshBasicMaterial } from "three";
 import type { Group } from "three";
-import { bioMilestoneCenter, bioMilestoneHalfWindow } from "~/stores/sections";
+import { bioMilestoneCenter, bioMilestonePieceHalfWindow } from "~/stores/sections";
 import Lattice from "./setpieces/Lattice.vue";
 import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
 import RouteArc from "./setpieces/RouteArc.vue";
@@ -76,12 +76,22 @@ const SET_PIECES: Partial<Record<string, Component>> = {
 // back (see BerlinSkyline's HORIZON default).
 const OCCLUDED_PIECES = new Set(["lattice", "stackFlight", "berlinSkyline"]);
 
-// Keep the primary piece centered on the head; push stacked pieces aside/back so
-// two set-pieces in one beat read as distinct motifs, not one tangled mass.
+// Keep the primary piece centered on the head; push stacked pieces aside and
+// BACK so two set-pieces in one beat read as distinct motifs, not one tangled
+// mass.
+//
+// Mind the frame these numbers live in. At the biography camera (z ≈ 1.3) the
+// visible world is only about 1.9 x 1.1 units across, so the old sideways shove
+// of 1.4 put a stacked piece's CENTRE past the right edge — fine when the
+// stacked pieces were sparse dot fields reading as "a field continuing offscreen",
+// wrong now that they are legible objects (a pinboard, a document shelf) you are
+// meant to be able to look at. Most of the offset is now depth: pushing a piece
+// back widens the frame it is composed into, which buys more room than sliding
+// it sideways ever did, and it sits behind the head where a backdrop belongs.
 const SLOT_OFFSETS: [number, number, number][] = [
   [0, 0, 0],
-  [1.4, 0.1, -0.4],
-  [-1.4, 0.1, -0.4],
+  [0.45, 0.06, -0.55],
+  [-0.45, 0.06, -0.55],
 ];
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
@@ -90,7 +100,20 @@ const offsetFor = (slot: number): [number, number, number] =>
 // (see `cardProgressOf` below). Opt-in by name so every other set-piece keeps
 // exactly the props it had — nothing extra is bound to a component that hasn't
 // declared it.
-const PROGRESS_DRIVEN = new Set(["berlinSkyline"]);
+//
+// Every milestone backdrop is now in here: each one ASSEMBLES over its card's
+// scroll (draws its own lines on, in an order chosen at build time) rather than
+// blooming in fully formed, which also means scrolling back up un-draws it. The
+// skills chapter's `stackFlight` is the exception — it already rides the skills
+// chapter's own travel formula (sections/skills.ts), so it needs nothing here.
+const PROGRESS_DRIVEN = new Set([
+  "berlinSkyline",
+  "routeArc",
+  "lattice",
+  "threadBoard",
+  "documentGrid",
+  "staffLines",
+]);
 
 const bioIndex = computed(() =>
   store.sections.findIndex((s) => s.type === "biography")
@@ -170,12 +193,14 @@ const cardProgressOf = (p: Piece) => {
     return store.localFracAt(p.sectionId, store.progress);
   }
   // Same window `subReveal` uses, so the two can never drift: centred on the
-  // milestone card's own position, ± its half-window (see stores/sections.ts).
+  // milestone card's own position, ± its half-window. That is the PIECE window
+  // (BIO_PIECE_SPAN), which is deliberately wider than the one milestone-pinned
+  // keyframes are anchored across — see stores/sections.ts.
   const bs = store.boundaries;
   const start = bs[p.index] ?? 0;
   const range = (bs[p.index + 1] ?? 1) - start || 1;
   const center = start + bioMilestoneCenter(p.subIndex, p.subCount) * range;
-  const half = (bioMilestoneHalfWindow(p.subCount) || 0.0001) * range;
+  const half = (bioMilestonePieceHalfWindow(p.subCount) || 0.0001) * range;
   return clamp01((store.progress - (center - half)) / (2 * half));
 };
 

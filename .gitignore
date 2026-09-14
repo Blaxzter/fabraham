@@ -28,3 +28,4 @@ logs
 .env.*
 !.env.example
 .claude/scheduled_tasks.lock
+scripts/.cache-*

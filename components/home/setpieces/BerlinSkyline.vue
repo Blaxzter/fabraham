@@ -11,6 +11,14 @@ import {
   LineSegments,
 } from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
+import {
+  clamp01,
+  drawFraction,
+  hash01,
+  smoothstep,
+  wrapDist,
+  type SetPieceProps,
+} from "./lineArt";
 
 /**
  * Berlin skyline as **SVG line-art**, rendered into the 3D scene as lines,
@@ -22,7 +30,7 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
  * LineSegments per group**. Swap the SVG (keep the ids) and the skyline updates —
  * no code change.
  *
- * Three things about this piece are deliberate and easy to undo by accident:
+ * Four things about this piece are deliberate and easy to undo by accident:
  *
  * **1. It DRAWS itself in, it does not fade in.** Each part reveals itself
  * through `geometry.setDrawRange(0, n)` — the 3D equivalent of animating
@@ -49,6 +57,16 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
  * assumes the head is at x=0 — it swerves sideways across the biography cards,
  * and a wide, centred, depth-occluded horizon works wherever it goes.
  *
+ * **4. The buildings have DEPTH.** The art is a flat drawing, so each building
+ * carries a second copy of its own outline set back in z with rungs tying the
+ * two together, and the buildings sit at slightly different ranks front to back
+ * (see the extrusion block below). Depth you cannot see is depth you did not
+ * add, so the stage also YAWS — with the cursor, and slowly across the card's
+ * own travel — which walks the back copies out from behind the front ones. Turn
+ * `yaw` down to zero and the whole thing collapses back into a flat drawing
+ * wearing a faint echo; that is the number to check first if it ever looks
+ * doubled rather than solid.
+ *
  * Roles (matched loosely on the id, so SVG typos/casing don't matter):
  *  - building → draws bottom-up, staggered left→right; perpetual "dawn light"
  *    sweep warms each one as it passes, and the cursor lights the ones near it;
@@ -62,16 +80,7 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
  * Only lines (no fills) so it reads through the ASCII post-process; additive,
  * `depthWrite:false`, everything disposed on unmount (set-piece contract).
  */
-interface Props {
-  reveal?: number;
-  variant?: string;
-  position?: [number, number, number];
-  /** 0..1 across this beat's WHOLE scroll window, unshaped — see
-   *  `SceneSetPieces.cardProgressOf`. Optional: without it we fall back to
-   *  `reveal` and the piece still works, just in the fast lane. */
-  cardProgress?: number;
-}
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<SetPieceProps>(), {
   reveal: 0,
   variant: "",
   position: () => [0, 0, 0],
@@ -86,7 +95,33 @@ const { reducedMotion } = usePreferences();
 // pushed back to HORIZON.z it covers ~3/4 of a 16:9 frame.
 const SVG_URL = "/setpieces/berlin-skyline.svg";
 const TARGET_SIZE = 2.4;
-const CURVE_DIVISIONS = 24; // samples per curve when flattening paths to lines
+// Samples per curve when flattening paths to lines. The drawing is ~6,600 curve
+// commands of mostly hairline slivers, so this is the piece's whole vertex
+// budget: 24 spent ~160k segments on curvature nobody can see at this scale.
+// Dropping it to 10 pays for the extrusion below and still leaves the city
+// sharper than the ASCII grid behind it.
+const CURVE_DIVISIONS = 10;
+
+// --- Extrusion ----------------------------------------------------------------
+// The art is a flat drawing; the city it depicts is not. Each building carries a
+// second copy of its own outline set back in z, with rungs tying the two
+// together at intervals — the way an extruded line drawing is built, and
+// cheaper than extruding the geometry for real (every "line" in this SVG is a
+// filled hairline sliver, so `ExtrudeGeometry` would thicken 974 ribbons rather
+// than raise 20 buildings).
+//
+// It only pays off if something MOVES: a flat-on view of an extruded drawing is
+// the drawing. The stage yaws with the cursor and drifts as the card scrolls
+// past, which is what turns the back copy from a ghost into a far wall.
+const EXTRUDE_MIN = 0.05;
+const EXTRUDE_VAR = 0.085; // + seed * this, so the skyline has real massing
+const CONNECT_EVERY = 14; // one rung per N outline segments
+/** How much dimmer the back copy and the rungs are than the front outline.
+ *  Carried as a vertex colour so one material still tints the whole part. */
+const BACK_DIM = 0.3;
+const RUNG_DIM = 0.2;
+/** Depth jitter per building (world z), so the city has ranks front to back. */
+const RANK_DEPTH = 0.16;
 
 // Placement is art direction, so it's live-tunable (dev panel → the Berlin
 // milestone, since the group id matches the set-piece name). The anchor is the
@@ -107,6 +142,10 @@ const horizon = tune.vec3(
 );
 const stageScale = tune.num("scale", 1, { min: 0.3, max: 2.5, step: 0.05, label: "Scale" });
 const parallaxAmount = tune.num("parallax", 0.13, { min: 0, max: 0.6, step: 0.01, label: "Cursor parallax (world units)" });
+// The two levers on the extrusion. Yaw is what makes the depth visible at all,
+// so this is the one number to reach for if the city ever reads flat again.
+const yawAmount = tune.num("yaw", 0.24, { min: 0, max: 1, step: 0.01, label: "Cursor yaw (radians)" });
+const yawDrift = tune.num("yawDrift", 0.14, { min: 0, max: 1, step: 0.01, label: "Scroll yaw drift (radians)" });
 
 // Palette: cool base line, warm "dawn light" the sweep and the cursor tint toward.
 const BASE_COLOR = new Color("#7ec7e6");
@@ -188,25 +227,6 @@ let disposed = false;
 let curX = 0;
 let curY = 0;
 
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
-const smoothstep = (a: number, b: number, x: number) => {
-  const t = clamp01((x - a) / (b - a || 1));
-  return t * t * (3 - 2 * t);
-};
-// Shortest distance on a wrapped [0,1] axis, so the dawn sweep loops seamlessly.
-const wrapDist = (a: number, b: number) => {
-  const d = Math.abs(a - b);
-  return d < 0.5 ? d : 1 - d;
-};
-// Stable per-id hash → 0..1, so phases/jitter are deterministic across reloads.
-const hash01 = (s: string) => {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967296;
-};
 
 // Nearest ancestor id: a path may carry the id itself (Cloud1, airplane, …) or
 // sit inside a `<g id="…">` (the buildings). The outer wrapper `<g>` has no id,
@@ -332,19 +352,41 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
 
     const gx = (gMinX + gMaxX) / 2;
     const gy = (gMinY + gMaxY) / 2;
-    const pos = new Float32Array(segCount * 6);
-    let o = 0;
+    const seed = hash01(id);
+
+    // 4) EXTRUDE, for the things that have volume. Buildings get a back copy of
+    //    their outline and rungs between the two; the ground line and the sky
+    //    extras stay flat, because a cloud with a back wall is a box.
+    //    Everything is emitted in the pen's order, front → back → rung, so the
+    //    draw-on raises a solid rather than drawing a flat city and then
+    //    thickening it afterwards.
+    const depth =
+      role === "building" || role === "beacon" ? EXTRUDE_MIN + seed * EXTRUDE_VAR : 0;
+    const pos: number[] = [];
+    const tone: number[] = []; // vertex colour: a per-vertex dimmer, see BACK_DIM
+    const pushSeg = (
+      ax: number, ay: number, az: number,
+      bx: number, by: number, bz: number,
+      dim: number
+    ) => {
+      pos.push(ax, ay, az, bx, by, bz);
+      tone.push(dim, dim, dim, dim, dim, dim);
+    };
+    let drawn = 0;
     for (const s of order) {
       const i = s * 4;
-      pos[o++] = segs[i]! - gx;
-      pos[o++] = segs[i + 1]! - gy;
-      pos[o++] = 0;
-      pos[o++] = segs[i + 2]! - gx;
-      pos[o++] = segs[i + 3]! - gy;
-      pos[o++] = 0;
+      const ax = segs[i]! - gx;
+      const ay = segs[i + 1]! - gy;
+      const bx = segs[i + 2]! - gx;
+      const by = segs[i + 3]! - gy;
+      pushSeg(ax, ay, 0, bx, by, 0, 1);
+      if (depth > 0) {
+        pushSeg(ax, ay, -depth, bx, by, -depth, BACK_DIM);
+        if (drawn % CONNECT_EVERY === 0) pushSeg(ax, ay, 0, ax, ay, -depth, RUNG_DIM);
+      }
+      drawn++;
     }
 
-    const seed = hash01(id);
     const sweepKey = clamp01((gx + halfW) / worldWidth);
 
     // Entrance schedule per role (left→right stagger for buildings).
@@ -363,10 +405,15 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
     }
 
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new BufferAttribute(pos, 3));
+    geometry.setAttribute("position", new BufferAttribute(new Float32Array(pos), 3));
+    // The extrusion's depth cue. `LineBasicMaterial` multiplies its colour by the
+    // vertex colour, so one animated `material.color` still tints the whole part
+    // while the back copy and the rungs stay set back behind the front outline.
+    geometry.setAttribute("color", new BufferAttribute(new Float32Array(tone), 3));
     geometry.setDrawRange(0, 0); // nothing drawn until the card starts moving
     const material = new LineBasicMaterial({
       color: BASE_COLOR.clone(), // per-part clone: the sweep/cursor tint each individually
+      vertexColors: true,
       transparent: true,
       opacity: 0,
       blending: AdditiveBlending,
@@ -375,9 +422,13 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
     const line = new LineSegments(geometry, material);
     line.frustumCulled = false; // drawn in the overlay pass; don't cull on the main cam
 
-    const depth = ROLE_DEPTH[role];
+    // Ranks: buildings sit at slightly different depths rather than all on one
+    // plane, so the yaw parallaxes them past each other instead of sliding one
+    // flat card. Deterministic per id, like every other jitter here.
+    const layer = ROLE_DEPTH[role];
+    const rank = depth > 0 ? (seed - 0.5) * RANK_DEPTH : 0;
     const g = new Group();
-    g.position.set(gx, gy + baseLift, depth.z);
+    g.position.set(gx, gy + baseLift, layer.z + rank);
     g.add(line);
 
     built.push({
@@ -387,9 +438,9 @@ const buildFromSvg = (paths: ReturnType<SVGLoader["parse"]>["paths"]) => {
       geometry,
       material,
       home: { x: gx, y: gy + baseLift },
-      z: depth.z,
-      par: depth.par,
-      vertexCount: segCount * 2,
+      z: layer.z + rank,
+      par: layer.par,
+      vertexCount: pos.length / 3,
       sweepKey,
       drawAt,
       drawWindow,
@@ -444,16 +495,22 @@ onBeforeRender(({ delta, elapsed }) => {
   curX += ((still ? 0 : pointer.value.x) - curX) * ease;
   curY += ((still ? 0 : pointer.value.y) - curY) * ease;
   const cursorAmt = still ? 0 : 1;
+  // THE extrusion's payoff: the city TURNS. A few degrees of yaw with the
+  // cursor, plus a slow drift across the card's own travel, walks each back copy
+  // out from behind its front outline — and that is the only way a viewer ever
+  // finds out the drawing has depth. Set on the stage, so the per-part parallax
+  // below still slides the layers within it. The drift is scroll-driven, so it
+  // holds its angle when you stop rather than wandering on its own.
+  stage.rotation.y = curX * yawAmount.value + (drive - 0.5) * yawDrift.value;
   // Where the cursor falls along the skyline's own 0..1 axis (see CURSOR_SPAN).
   const cursorKey = clamp01(0.5 + curX / (2 * CURSOR_SPAN));
   const par = parallaxAmount.value;
 
   const TAU = Math.PI * 2;
   for (const p of parts.value) {
-    // Draw-on: this part's slice of the card's travel. drawRange counts
-    // VERTICES and a LineSegments eats them in pairs, so keep it even.
+    // Draw-on: this part's slice of the card's travel.
     const draw = smoothstep(p.drawAt, p.drawAt + p.drawWindow, drive);
-    p.geometry.setDrawRange(0, Math.floor((p.vertexCount / 2) * draw) * 2);
+    drawFraction(p.geometry, p.vertexCount, draw);
 
     // Ink follows the pen closely, then `reveal` fades the whole piece in/out.
     const ink = smoothstep(p.drawAt, p.drawAt + INK_WINDOW, drive) * reveal;

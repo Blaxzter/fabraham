@@ -140,7 +140,9 @@ that belongs to the biography *section* in the registry.
 | `components/home/sections/registry.ts` | `SECTION_DEFS` — the typed section sequence + scene spine. |
 | `components/home/sections/*.vue` | The section components: `HeroSection` (ASCII identity), `InterludeSection` (camera-only beat), `BiographySection` (+ `BiographyCard`), `ContactSection` (the terminal finale). |
 | `components/home/SceneSetPieces.vue` | Maps each section's + each milestone's `setPiece[]` to its 3D component, passing `:reveal`, `:variant`, `:position` — plus `:cardProgress` for pieces that opt in. Owns the selective-render overlay (see below). |
-| `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (GAN→embeddings→RAG), `BerlinSkyline`, `RouteArc`, `ThreadBoard`, `DocumentGrid`, `StaffLines`, `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
+| `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `StaffLines` (a page of the hymnal, playing), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
+| `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
+| `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
 | `components/home/ScrollSpotlights.vue` | The scroll-driven **spotlight rig**: keyframed `THREE.SpotLight`s that light the ASCII'd head, driven imperatively in `onBeforeRender`. Dark through the hero, then "tada" on at the interlude, then follow the scroll. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `components/home/AsciiTextAnimation.vue` | The hero: the name assembles character-by-character across the hero section's scroll range. |
 
@@ -184,12 +186,54 @@ scrolling back up un-draws it.
 
 Every set-piece follows the same shape (see `Lattice.vue` / `SignalField.vue`):
 
-- props `{ reveal?: number; variant?: string; position?: [number,number,number] }`
+- props `SetPieceProps` from `setpieces/lineArt.ts`
+  (`{ reveal?, variant?, position?, cardProgress? }`)
 - geometry built once (seeded PRNG where random; deterministic otherwise)
 - only line/point primitives; additive, `transparent`, `depthWrite:false`, `opacity:0`
 - a `useLoop().onBeforeRender` that gates on `reveal` (visibility/scale/opacity)
   and adds ambient motion via `delta`/`elapsed`
 - `onBeforeUnmount` disposes every geometry and material it created
+
+### The line-art vocabulary (`setpieces/lineArt.ts`)
+
+The milestone backdrops were, for a while, five variations on *scatter some
+points, wire the near ones together, spin it*. That shape is quick to write and
+it reads as filler, for reasons worth naming because they recur:
+
+1. **Uniform noise has no silhouette.** Points spread evenly over a shell look
+   the same in every direction, so there is nothing for the eye to hold. Give a
+   field *structure* — clusters, a grid, a shelf, a staff — and the negative
+   space does half the work.
+2. **Proximity wiring makes a hairball.** "Connect everything within r" is dense
+   in the middle and stray at the edges. **k-nearest-neighbour** wiring draws
+   filaments you can follow, and it is what a vector index actually does.
+3. **`PointsMaterial` draws squares.** Untextured points are hard-edged squares
+   at one fixed size for the whole field. `createDots` is the smallest shader
+   that fixes it: a radial falloff, a per-point `size` attribute (so a graph can
+   have hubs and leaves) and a per-point `glow` the piece drives to light
+   individual nodes.
+4. **A turntable is not an animation.** A constant spin plus a global sine says
+   nothing. Every piece now runs a recurring **event** instead — a query probing
+   a latent space, a lead travelling a thread, a retrieval composing a cited
+   answer, a playhead reading a page — with a beginning, an arrival and a decay.
+5. **Nothing answered the cursor.** Only the skyline did. Every piece now turns
+   with the pointer, which is also what makes depth (the extrusion, the ranks,
+   the tilt of a board) visible at all.
+
+The module carries the shared moves: `mulberry32` / `hash01` (deterministic
+layout), `drawFraction` + `orderSegments` (the draw-on — the order segments are
+written in *is* the animation), `createLines` / `createLinkPool` (static
+structure vs. the live wires a piece flashes over it), and `createDots` /
+`setDotScale`.
+
+**Size the piece to the frame it plays in.** At the biography camera (z ≈ 1.3,
+fov 45) the visible world is only about **1.9 × 1.1 units**. Several pieces were
+authored at 2.4–2.8 units wide and ran off both edges — tolerable when they were
+sparse dot fields, wrong once they carry legible content (notes, pages,
+notation). Each now has a `STAGE_SCALE` at the top of the file, and
+`SLOT_OFFSETS` pushes a stacked piece **back** rather than far to the side,
+since depth widens the frame a piece is composed into and sideways travel does
+not.
 
 ---
 
@@ -422,6 +466,47 @@ that has to stay in step with something moving linearly.
   `pointer.y * maxPitch`, and `pointer.y` is
   `clientY / innerHeight * 2 - 1` — *screen* space, positive at the bottom. So
   tracking anything above the head needs a **negative** pitch.
+
+### Pacing the biography: one card at a time
+
+Three numbers set how much room a milestone gets, and they are easy to get
+wrong in opposite directions:
+
+| Number | Where | What it does |
+| --- | --- | --- |
+| `weight` | `registry.ts` | how tall the section is, so how far apart the cards are |
+| `BIO_TOP_PAD` / `BIO_RANGE` | `stores/sections.ts` | where the cluster sits inside it — the lead-in and the tail |
+| `BIO_PIECE_SPAN` | `stores/sections.ts` | how much wider a set-piece's window is than its card's anchor window |
+
+At `weight: 4` the six cards sat ~0.54 viewports apart. On a 900px screen that is
+~480px — **shorter than a card is tall**, so there were always two cards on
+screen and each milestone's artwork was squeezed into the gap between them.
+`weight: 7` puts them just under a viewport apart: a card arrives, holds the
+frame with its own backdrop, and leaves before the next comes up.
+
+Stretching a chapter exposes whatever was tiling exactly inside it. Two things
+were:
+
+- **The lead-in.** `BIO_TOP_PAD` is a fraction of the section, so at weight 7 the
+  old `0.13` became a full viewport of headline and bare connector before the
+  first card. Trimmed to `0.08`, with `BIO_RANGE` widened to match, so the height
+  the reweight bought goes into the gaps between cards and not into dead air at
+  the ends.
+- **The handover.** `subReveal`'s bloom used the same half-window that
+  milestone-pinned keyframes are anchored across — exactly half the spacing, so
+  one backdrop reached zero at the precise point the next started from zero.
+  There was always an instant with neither drawn; at the old spacing it passed
+  unnoticed, at the new one it is a near-empty viewport. `BIO_PIECE_SPAN` (1.35)
+  widens the **piece** window only, so the windows overlap by about a third of a
+  spacing and the outgoing milestone's art is still there as the next arrives.
+
+**Why that is a separate number and not just a wider half-window.** The anchor
+window also defines the span the head's generated gaze samples are laid out
+across (`GAZE_TRACK`, the middle 60% of it). Widening *that* would shrink the gap
+the head swings across between cards from 40% of a spacing to about 10% — the
+swerve would snap instead of swing, and past ~0.83 the combined pose track stops
+being sorted in `t` at all. The set-piece bloom has no such constraint, so it
+gets its own factor.
 
 ### Generated at runtime: the biography's swerve
 
@@ -870,7 +955,7 @@ Change the flight and the gaze follows without being touched.
 ### The horizon: the Berlin skyline
 
 `BerlinSkyline` uses the same SVG → lines → `setDrawRange` pipeline as
-`StackFlight`, plus three decisions that are easy to undo by accident:
+`StackFlight`, plus four decisions that are easy to undo by accident:
 
 - **The draw order *is* the animation.** `setDrawRange` walks the position buffer
   front to back, so the order segments are *written* in is the order the pen
@@ -893,12 +978,66 @@ Change the flight and the gaze follows without being touched.
   biography cards, and a wide, centred, depth-occluded horizon works wherever it
   goes.
 
+- **The buildings are extruded.** The art is a flat drawing, so each building
+  carries a second copy of its own outline set back in z, with rungs tying the
+  two together every `CONNECT_EVERY` segments, and the buildings sit at slightly
+  different ranks front to back. It is *not* `ExtrudeGeometry`: every "line" in
+  this SVG is a filled hairline sliver, so extruding for real would thicken 974
+  ribbons rather than raise 20 buildings. The back copy and the rungs are dimmed
+  through a **vertex colour**, which `LineBasicMaterial` multiplies by
+  `material.color` — so the dawn sweep and the cursor's warm pool still tint the
+  whole part with one animated colour. The cost is paid for by dropping
+  `CURVE_DIVISIONS` from 24 to 10, which the drawing never needed at this scale.
+  Depth you cannot see is depth you did not add, so the stage also **yaws** (with
+  the cursor, and slowly across the card's travel): that is what walks each back
+  copy out from behind its front one. Set `yaw` to 0 and the city collapses into
+  a flat drawing wearing a faint echo.
+
 Cursor response comes from giving the flat drawing **real stage-local z** per
 role (`ROLE_DEPTH`): the foreground water line swings furthest against the
 pointer, the sky barely moves. That is what makes it read as depth rather than a
 slide. The cursor also drags a warm light pool along the skyline — the same
 machinery as the perpetual dawn sweep, under the visitor's control — the beacon
 blinks harder near it, and the plane chases its height and banks into it.
+
+### The map: Berlin to Maastricht (`RouteArc`)
+
+The "move" card's backdrop is the same SVG → lines → `setDrawRange` pipeline
+pointed at a **real map**: `public/setpieces/germany.svg`, Germany and the
+Netherlands cut from Natural Earth 1:50m (public domain) by
+`scripts/make-germany-svg.py`. Run that script to re-cut the art (different
+resolution, more neighbours, a different window); the output is committed, so it
+is not part of the build.
+
+The one idea worth keeping: **the SVG's coordinate system IS the projection.**
+The generator writes the artwork as
+
+    x =  lon * LON_SCALE      (equirectangular, standard parallel 51 N)
+    y = -lat * LAT_SCALE
+
+so a city's real coordinates, pushed through the same normalisation the artwork
+gets, land exactly on the coastline — no lookup table, no hand-placed markers, no
+drift when the map is re-cut. Berlin and Maastricht are therefore placed by
+their actual lat/lon, and **the border crossing is solved, not authored**: the
+flight path is intersected with the real German outline (the same points that
+were just drawn) and the last crossing becomes the gate that flares as the
+traveller passes through it. Those two constants are repeated in a comment at
+the top of the SVG *and* in `RouteArc.vue`, and must move together.
+
+Two further decisions:
+
+- **The scroll flies it.** The route's draw fraction *is* the traveller's
+  position, so the dot and the line it is drawing are one event, and scrolling
+  back up flies it home. Only once it has landed does the route start looping on
+  its own clock. Coupling the one moving thing in a piece to the thing the
+  visitor is doing beats any amount of ambient animation.
+- **Altitude, not a curve on paper.** The map is tipped back and the arc bows out
+  of the map *plane*, with a ground track and altitude lines dropped to it — so
+  the flight has height over the country rather than being a line drawn on it.
+
+Placement is tunable with a gizmo, because this piece draws **on top** (it is not
+in `OCCLUDED_PIECES`) and the head swerves across this chapter: where the map
+sits is the only thing keeping a whole country outline off the face.
 
 ---
 

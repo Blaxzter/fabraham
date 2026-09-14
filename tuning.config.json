@@ -41,22 +41,43 @@
     "turnSpeed": 0.28
   },
   "stackFlight": {
-    "spreadRatio": 0.55,
+    "spreadRatio": 0.25,
     "fieldWidth": 1.65,
-    "hitShare": 0.15,
-    "headClear": 0.42,
-    "bounce": 2.15,
-    "shardSize": 0.38,
-    "shardTint": 0.4,
+    "hitShare": 0.16,
+    "headClear": 0.36,
+    "bounce": 1.55,
+    "shardSize": 0.36,
+    "shardTint": 0.14,
     "markFill": 0.46,
     "approach": 3,
     "spin": 11.25,
     "tumble": 2.1,
     "helpers": false,
     "depth": 23.9,
-    "count": 204,
-    "shardFill": 0.12,
-    "paceSpread": 0.55,
-    "trace": 0.3
+    "count": 190,
+    "shardFill": 0.27,
+    "paceSpread": 1,
+    "trace": 0.18
+  },
+  "berlinSkyline": {
+    "horizon": {
+      "x": 0,
+      "y": -0.62,
+      "z": -0.85
+    },
+    "scale": 1,
+    "parallax": 0.13,
+    "yaw": 0.24,
+    "yawDrift": 0.14
+  },
+  "routeArc": {
+    "anchor": {
+      "x": 0,
+      "y": -0.05,
+      "z": -0.26
+    },
+    "scale": 0.85,
+    "tilt": 0.72,
+    "parallax": 0.03
   }
 }
