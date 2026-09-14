@@ -1,6 +1,11 @@
-import { computed, watchEffect } from "vue";
+import { computed, watch, watchEffect } from "vue";
 import type { BiographyMilestone, SetPieceName } from "~/types/section";
 import { SECTION_DEFS, spineOf } from "~/components/home/sections/registry";
+import {
+  biographyHeadKeyframes,
+  biographySpotKeyframes,
+} from "~/components/home/sections/biography";
+import type { BioFraming } from "~/components/home/sections/biography";
 
 /**
  * The top-level section sequence + scene spine, sourced from the typed registry
@@ -56,4 +61,87 @@ export function useBiographyMilestones() {
   );
 
   return { docs, milestones, pending, error };
+}
+
+/**
+ * Generates the biography chapter's 3D choreography from the loaded milestones and
+ * writes it into the editable stores: the head's swerve + gaze
+ * (`sections.headKeyframes.biography`) and the key/fill beats that light it
+ * (`spotlights` tracks). The formulas — and the reasoning behind every number —
+ * live in `components/home/sections/biography.ts`, alongside the card layout the
+ * DOM reads, so the cards and the gaze can never drift apart.
+ *
+ * Why this runs at runtime at all: the skills chapter can generate its tracks at
+ * module-eval time because `SKILL_CLUSTERS.length` is a constant, but the
+ * biography's cards are a `@nuxt/content` collection — count, sides and accents
+ * only exist once the query resolves. So the generators are driven from here
+ * instead of from `registry.ts` / `spotlights.ts`.
+ *
+ * The watcher is keyed on a SIGNATURE of everything the generators read (the cards
+ * and the section layout that frames them), not on the milestone array itself, for
+ * two reasons: it must not re-run on every reactive tick, and it must not clobber
+ * live dev-panel keyframe edits — which it would, since both setters overwrite the
+ * whole section's track.
+ *
+ * Called once, from `BiographySection.vue` — the component that already owns the
+ * card layout and is mounted for the life of the page (SectionHost renders every
+ * section unconditionally). Deliberately NOT a `watchEffect`: that would track the
+ * stores it writes to.
+ */
+export function useBiographyChoreography() {
+  const store = useSectionsStore();
+  const spots = useSpotlightsStore();
+  const { milestones } = useBiographyMilestones();
+
+  const section = computed(() => {
+    const i = store.sections.findIndex((s) => s.type === "biography");
+    return i < 0 ? null : { id: store.sections[i]!.id, index: i };
+  });
+
+  // How the chapter is framed on the page — derived from the live section weights
+  // so the gaze re-times itself if a section is inserted or reweighted, exactly
+  // like every anchored keyframe does.
+  const framing = computed<BioFraming | null>(() => {
+    const s = section.value;
+    if (!s) return null;
+    const start = store.boundaries[s.index] ?? 0;
+    const end = store.boundaries[s.index + 1] ?? 1;
+    return {
+      start,
+      span: end - start || 1,
+      // SectionHost sizes each section at `weight * 100vh`, so the document is
+      // exactly the summed weights tall, measured in viewport heights.
+      pageVh: store.sections.reduce((a, x) => a + (x.weight || 1), 0) || 1,
+    };
+  });
+
+  const signature = computed(() => {
+    const s = section.value;
+    const f = framing.value;
+    const ms = milestones.value;
+    if (!s || !f || !ms.length) return "";
+    return [
+      s.id,
+      f.start.toFixed(5),
+      f.span.toFixed(5),
+      f.pageVh.toFixed(3),
+      ...ms.map(
+        (m) => `${m.side}/${m.accent ?? ""}/${m.offset?.x ?? 0}/${m.offset?.y ?? 0}`
+      ),
+    ].join("|");
+  });
+
+  watch(
+    signature,
+    (sig) => {
+      const s = section.value;
+      const f = framing.value;
+      if (!sig || !s || !f) return; // content not loaded / no biography section
+      store.setHeadKeyframes(s.id, biographyHeadKeyframes(milestones.value, f));
+      const lights = biographySpotKeyframes(milestones.value);
+      spots.setSectionKeyframes("key", s.id, lights.key);
+      spots.setSectionKeyframes("fill", s.id, lights.fill);
+    },
+    { immediate: true }
+  );
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Section } from "~/types/section";
-import { bioMilestoneCenter } from "~/stores/sections";
+import { bioCardAnchors } from "./biography";
 import BiographyCard from "./BiographyCard.vue";
 
 // The biography as ONE section: a loose, artistic cluster of milestone cards
@@ -18,6 +18,13 @@ const props = defineProps<{ section?: Section; visible?: boolean }>();
 const store = useSectionsStore();
 const { docs, milestones } = useBiographyMilestones();
 
+// Generate the chapter's 3D choreography (the head's swerve + gaze and the
+// key/fill beats that light it) from these same milestones, into the sections /
+// spotlights stores. Driven from here because this is the one component that is
+// both mounted for the life of the page and already reading the milestone list;
+// the formulas it shares with the layout below live in ./biography.ts.
+useBiographyChoreography();
+
 // Drive the headline + connector reveal off the scroll progress, not the
 // section's IntersectionObserver `visible`: the biography section is several
 // viewports tall, so its intersection ratio tops out around 0.25 and the 0.25
@@ -32,22 +39,17 @@ const entered = computed(() => {
   return store.progress >= start - 0.04 && store.progress <= end + 0.03;
 });
 
+// Anchors come from the SHARED formula in ./biography.ts — the same one the head's
+// gaze and the spotlight beats are generated from, so the 3D choreography can
+// never drift from the cards it is supposed to be looking at (and the milestone's
+// set-piece still blooms at the scroll position its card sits at).
 const layout = computed(() => {
   const ms = milestones.value;
-  const n = ms.length || 1;
-  return ms.map((m, i) => {
-    const sideSign =
-      m.side === "left" ? -1 : m.side === "right" ? 1 : i % 2 === 0 ? -1 : 1;
-    // Deterministic organic jitter so it reads hand-placed, not on a grid.
-    const jitterX = (((i * 37) % 11) - 5) / 5; // -1..1
-    const jitterY = (((i * 53) % 7) - 3) / 3; // -1..1
-    const ax = 50 + sideSign * 16 + jitterX * 4 + (m.offset?.x ?? 0);
-    // Vertical anchor comes from the SHARED layout helper so the milestone's 3D
-    // set-piece blooms at the same scroll position the card sits at.
-    const ay =
-      bioMilestoneCenter(i, n) * 100 + jitterY * 1.5 + (m.offset?.y ?? 0);
-    return { milestone: m, doc: docs.value[i], ax, ay, sideSign };
-  });
+  return bioCardAnchors(ms).map((a, i) => ({
+    milestone: ms[i]!,
+    doc: docs.value[i],
+    ...a,
+  }));
 });
 
 // Catmull-Rom spline → cubic beziers: a smooth curve that passes THROUGH every

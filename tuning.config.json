@@ -1,24 +1,62 @@
 {
   "signalField": {
     "forehead": {
-      "x": 0.2,
-      "y": 0.22,
-      "z": 0.07
+      "x": 0.22,
+      "y": 0.17,
+      "z": 0.2
     },
     "emitterPlaneZ": 0,
     "emitterNudge": {
       "x": 0.15,
-      "y": -0.02,
+      "y": 0.01,
       "z": 0
     },
-    "rStart": 0.47,
-    "rEnd": 0.04,
+    "rStart": 0.61,
+    "rEnd": 0.08,
     "period": 2
   },
   "headAddress": {
-    "addressYaw": 0.06,
+    "addressYaw": 0.45,
     "addressPitch": 0.02,
     "maxYaw": 0.22,
     "maxPitch": 0.14
+  },
+  "skillsFlight": {
+    "faceY": 64,
+    "perspective": 600,
+    "dof": 22,
+    "tilt": 45,
+    "helpers": false
+  },
+  "skillsBeam": {
+    "spread": 28,
+    "reach": 102,
+    "degPerVw": 3,
+    "maxDeg": 63,
+    "opacity": 0.34,
+    "helpers": false
+  },
+  "headModel": {
+    "faceYaw": -0.72,
+    "turnSpeed": 0.28
+  },
+  "stackFlight": {
+    "spreadRatio": 0.55,
+    "fieldWidth": 1.65,
+    "hitShare": 0.15,
+    "headClear": 0.42,
+    "bounce": 2.15,
+    "shardSize": 0.38,
+    "shardTint": 0.4,
+    "markFill": 0.46,
+    "approach": 3,
+    "spin": 11.25,
+    "tumble": 2.1,
+    "helpers": false,
+    "depth": 23.9,
+    "count": 204,
+    "shardFill": 0.12,
+    "paceSpread": 0.55,
+    "trace": 0.3
   }
 }

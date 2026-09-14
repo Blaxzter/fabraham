@@ -25,6 +25,13 @@ const ASCII_FONT_END = 44;
 // Set-piece reveal window: fraction of a section's scroll range used to fade a
 // set-piece in (and, symmetrically, out) so it blooms while the section is centered.
 const REVEAL_FADE = 0.25;
+// The hand-off a HOLDING set-piece gets instead of that trailing fade (see
+// `revealFor`): it runs at full strength to the very end of its own section and
+// then clears across the boundary, in this fraction of its OWN span. Short on
+// purpose — this is a piece leaving the stage for the next beat, not a slow
+// dissolve, and at REVEAL_FADE it was still visible a third of the way into the
+// section that follows.
+const HANDOFF_FADE = 0.12;
 
 // Vertical layout of the biography milestone cluster, shared by BiographySection
 // (where it places the cards/nodes/connector) and `subReveal` below (where each
@@ -51,7 +58,11 @@ const FALLBACK_POSE: CameraPose = {
 // The head's default resting pose when a section has no head keyframes: no
 // translation, looking into its own data (the shipped resting yaw). Seeds the
 // editable head keyframes so the head reads exactly as before until tuned.
-const DEFAULT_HEAD_YAW = -0.44;
+// The head's resting yaw, in FACE-ON SPACE: 0 is looking straight down the lens,
+// positive is screen-right. So this is a slight turn to the right — the
+// three-quarter resting profile. The model's own crookedness is corrected once in
+// Scene3D (`faceYaw`) and is not this file's problem.
+const DEFAULT_HEAD_YAW = 0.28;
 const HEAD_REST_POSE: HeadKeyframe = {
   t: 0.5,
   position: { x: 0, y: 0, z: 0 },
@@ -123,10 +134,19 @@ export const useSectionsStore = defineStore("sections", () => {
   // camera. Default: a single resting pose (no translation, resting yaw), so the
   // head reads exactly as before until a scene's keyframes are tuned.
   const headKeyframes = ref<Record<string, HeadKeyframe[]>>({});
-  const seedHeadKf = (s: Section): HeadKeyframe[] =>
-    cloneKfs<HeadKeyframe>(
+  // Tracks GENERATED at runtime (the biography gaze — see
+  // components/home/sections/biography.ts, written via `setHeadKeyframes`). They
+  // can't live on the registry spine because they derive from content that only
+  // exists at runtime, so they act as that section's baseline instead: "reset" in
+  // the dev panel restores the generated track, not the bare resting pose.
+  const generatedHeadKeyframes = ref<Record<string, HeadKeyframe[]>>({});
+  const seedHeadKf = (s: Section): HeadKeyframe[] => {
+    const gen = generatedHeadKeyframes.value[s.id];
+    if (gen && gen.length) return cloneKfs<HeadKeyframe>(gen);
+    return cloneKfs<HeadKeyframe>(
       s.headKeyframes && s.headKeyframes.length ? s.headKeyframes : [HEAD_REST_POSE]
     );
+  };
 
   const setSections = (next: Section[]) => {
     sections.value = next;
@@ -416,6 +436,17 @@ export const useSectionsStore = defineStore("sections", () => {
   const exportCameraKeyframes = (sectionId: string) =>
     JSON.stringify(cameraKeyframes.value[sectionId] ?? [], null, 2);
 
+  // Replace a section's whole head track. Used by the runtime GENERATORS (the
+  // biography gaze, derived from the loaded milestones — see
+  // `useBiographyChoreography`), which is why it also records the track as that
+  // section's reset baseline. The caller is responsible for calling this only when
+  // its inputs actually changed: it overwrites, so calling it every tick would
+  // wipe live dev-panel edits.
+  const setHeadKeyframes = (sectionId: string, kfs: HeadKeyframe[]) => {
+    generatedHeadKeyframes.value[sectionId] = cloneKfs<HeadKeyframe>(kfs);
+    headKeyframes.value[sectionId] = cloneKfs<HeadKeyframe>(kfs);
+  };
+
   const addHeadKeyframe = (sectionId: string, kf: HeadKeyframe) =>
     addPoseKeyframe(headKeyframes.value, sectionId, kf);
   const removeHeadKeyframe = (sectionId: string, index: number) =>
@@ -436,7 +467,8 @@ export const useSectionsStore = defineStore("sections", () => {
   );
 
   // Reveal (0..1) for the set-piece of section `index`: blooms in over the first
-  // REVEAL_FADE of the section, holds, fades out over the last REVEAL_FADE.
+  // REVEAL_FADE of the section, holds, then either fades out over the last
+  // REVEAL_FADE or (if it is holding) clears across the boundary instead.
   const revealFor = (index: number) => {
     const bs = boundaries.value;
     const start = bs[index] ?? 0;
@@ -444,11 +476,30 @@ export const useSectionsStore = defineStore("sections", () => {
     const span = end - start || 1;
     const local = (progress.value - start) / span;
     const fadeIn = clamp01(local / REVEAL_FADE);
-    // The final section has nothing after it — hold its set-piece once revealed
-    // (don't fade it back out as the page bottoms out, so the finale's signal
-    // keeps pulsing while the visitor reads/interacts with the contact card).
-    const isLast = index >= sections.value.length - 1;
-    const fadeOut = isLast ? 1 : clamp01((1 - local) / REVEAL_FADE);
+    // Two different endings, and which one a piece gets depends on whether
+    // anything is coming to replace it.
+    //
+    // NOTHING AFTER IT (the finale's signal rings): the ordinary trailing fade is
+    // wrong. Contact's card is PINNED — on screen for its whole section — so
+    // draining its backdrop over the last quarter of that section empties the
+    // frame while the visitor is still reading it. Such a piece runs at full
+    // strength to the end of its own section and then clears quickly across the
+    // boundary, so it stops for the coda instead of following it in.
+    //
+    // SOMETHING AFTER IT (the skills field, handing over to the finale): the
+    // trailing fade is exactly right — the stage has to be clear before the next
+    // piece arrives.
+    //
+    // Note `local` is deliberately unclamped: past its own section it exceeds 1,
+    // which is what lets the hand-off happen on the far side of the boundary. When
+    // the holding section really is last, progress stops at local === 1 and the
+    // piece is still at full — the page can bottom out without it draining away.
+    const hold = sections.value
+      .slice(index + 1)
+      .every((s) => !s.setPiece || s.setPiece.length === 0);
+    const fadeOut = hold
+      ? clamp01((1 + HANDOFF_FADE - local) / HANDOFF_FADE)
+      : clamp01((1 - local) / REVEAL_FADE);
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
 
@@ -470,18 +521,23 @@ export const useSectionsStore = defineStore("sections", () => {
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
 
-  // How strongly the head should "address" the visitor (0..1). Zero everywhere
-  // except the final section when it is the contact beat, where it ramps to 1
-  // over the first 60% of the section's scroll range. Scene3D reads this in its
-  // render loop to swing the head from its resting profile to facing — and then
-  // tracking — the cursor (the deliberate end-of-page beat), imperatively, with
-  // no extra rAF or layout read (issue #4).
+  // How strongly the head should "address" the visitor (0..1). Zero until the
+  // contact beat, where it ramps to 1 over the first 60% of that section's scroll
+  // range and then HOLDS for everything after it. Scene3D reads this in its render
+  // loop to swing the head from its resting profile to facing — and then tracking
+  // — the cursor (the deliberate end-of-page beat), imperatively, with no extra
+  // rAF or layout read (issue #4).
+  //
+  // Found by TYPE, not by position. This used to require contact to be the very
+  // last section, which silently switched the whole beat off the moment anything
+  // was appended after it (the outro coda). The head would simply stop turning,
+  // with nothing to point at as the cause.
   const addressing = computed(() => {
-    const n = sections.value.length;
-    if (!n || sections.value[n - 1]?.type !== "contact") return 0;
+    const i = sections.value.findIndex((s) => s.type === "contact");
+    if (i < 0) return 0;
     const bs = boundaries.value;
-    const start = bs[n - 1] ?? 0;
-    const end = bs[n] ?? 1;
+    const start = bs[i] ?? 0;
+    const end = bs[i + 1] ?? 1;
     const local = (progress.value - start) / (end - start || 1);
     return smoothstep(clamp01(local / 0.6));
   });
@@ -511,6 +567,7 @@ export const useSectionsStore = defineStore("sections", () => {
     removeCameraKeyframe,
     resetCameraKeyframes,
     exportCameraKeyframes,
+    setHeadKeyframes,
     addHeadKeyframe,
     removeHeadKeyframe,
     resetHeadKeyframes,

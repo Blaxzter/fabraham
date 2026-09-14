@@ -57,6 +57,8 @@ const activeTitle = computed(
     () => activeScene.value?.title || activeScene.value?.id || "—"
 );
 
+// Short enough to sit in the control bar next to "edit ▸"; the long form of
+// each state (and the diagnostic when it fails) lives in the tooltip below.
 const saveLabel = computed(() => {
     switch (tuning.saveState) {
         case "saving":
@@ -64,11 +66,16 @@ const saveLabel = computed(() => {
         case "saved":
             return "saved ✓";
         case "error":
-            return "save failed — dev server running?";
+            return "save failed";
         default:
-            return "save to config file";
+            return "save";
     }
 });
+const saveTitle = computed(() =>
+    tuning.saveState === "error"
+        ? "Could not write tuning.config.json — is the dev server running?"
+        : "Write tuning.config.json — the deployed source of truth. Commit it to ship these values to everyone. Until you do, your edits live only in this browser's localStorage."
+);
 </script>
 
 <template>
@@ -77,6 +84,22 @@ const saveLabel = computed(() => {
              overview collapse toggle next to the ×; when closed, just the ⚙. -->
         <div class="dvp-bar">
             <template v-if="tuning.panelOpen">
+                <!-- SAVE lives in the BAR, not in a popover. Almost everything
+                     worth saving is tuned in the editor popover, and the overview
+                     (which used to hold the only save button) collapses away with
+                     ▾ — so it was possible to tune for an hour with no visible way
+                     to write the file. The bar is the one surface present in every
+                     panel state. -->
+                <button
+                    type="button"
+                    class="dvp-btn dvp-save-trigger"
+                    :class="tuning.saveState"
+                    :disabled="tuning.saveState === 'saving'"
+                    :title="saveTitle"
+                    @click="tuning.saveToFile()"
+                >
+                    {{ saveLabel }}
+                </button>
                 <button
                     type="button"
                     class="dvp-btn dvp-pop-trigger"
@@ -121,20 +144,6 @@ const saveLabel = computed(() => {
                 <p class="dvp-head">overview · scenes &amp; keyframes</p>
 
                 <KeyframeOverview />
-
-                <div class="dvp-foot">
-                    <button
-                        class="dvp-btn dvp-btn-block"
-                        :disabled="tuning.saveState === 'saving'"
-                        @click="tuning.saveToFile()"
-                    >
-                        {{ saveLabel }}
-                    </button>
-                    <p class="dvp-hint">
-                        Writes <code>tuning.config.json</code> — commit it to ship
-                        these values to everyone (the deployed source of truth).
-                    </p>
-                </div>
             </div>
 
             <!-- Popover 2 — EDITOR: a native popover opened from the bar, floating
@@ -377,6 +386,33 @@ const saveLabel = computed(() => {
     background: rgba(4, 12, 9, 0.92);
     border-color: rgba(0, 255, 156, 0.6);
     color: #00ff9c;
+}
+
+/* The save button, same pill as the editor trigger so the bar reads as one row.
+   It carries the save STATE as its class, which is the only feedback the action
+   has — writing a file is otherwise silent. */
+.dvp-save-trigger {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 1.8rem;
+    padding: 0 0.55rem;
+    background: rgba(4, 10, 8, 0.8);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.dvp-save-trigger.saving {
+    opacity: 0.5;
+    cursor: default;
+}
+.dvp-save-trigger.saved {
+    border-color: rgba(0, 255, 156, 0.6);
+    color: #00ff9c;
+}
+.dvp-save-trigger.error {
+    border-color: rgba(255, 90, 90, 0.6);
+    color: #ff9a9a;
 }
 
 /* Popover 2 — the EDITOR: a native popover floating just left of the overview.
@@ -823,9 +859,6 @@ const saveLabel = computed(() => {
 }
 .dvp input[type="checkbox"] {
     accent-color: #00ff9c;
-}
-.dvp-foot {
-    flex: none;
 }
 .dvp-btn-block[disabled] {
     opacity: 0.5;

@@ -6,6 +6,7 @@ import InterludeSection from "./InterludeSection.vue";
 import BiographySection from "./BiographySection.vue";
 import SkillsSection from "./SkillsSection.vue";
 import ContactSection from "./ContactSection.vue";
+import OutroSection from "./OutroSection.vue";
 import { skillsCameraKeyframes, skillsHeadKeyframes } from "./skills";
 
 // How a section's HTML is laid out over the canvas:
@@ -89,32 +90,47 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, -0.03, 0.0) },
+    // No `headKeyframes` here on purpose — unlike skills (below), this chapter's
+    // head track is GENERATED at runtime, because its cards are a @nuxt/content
+    // collection whose count and sides only exist once the query resolves. See
+    // ./biography.ts for the formulas and `useBiographyChoreography` for the
+    // wiring; the generated track lands in the same store map the dev panel edits,
+    // and this section's `camera.position.z` is one of the inputs the gaze maths
+    // assumes (it sets the frame size the cards are measured against).
   },
   {
     id: "skills",
     order: 40,
     type: "skills",
     component: markRaw(SkillsSection),
-    // "bare": the component owns a sticky, full-viewport stage the cards stream
-    // across — it can't be a pinned card, and it isn't a flowing cluster.
+    // "bare": the component owns a sticky, full-viewport stage the cards fly
+    // through — it can't be a pinned card, and it isn't a flowing cluster.
     mode: "bare",
     title: "What I bring",
     subtitle: "The toolbox",
-    // Every beat in this chapter — card travel, logo draw-on, gaze, light — is a
-    // fraction of this. At weight 3 a logo drew itself in over ~150px of scroll,
-    // roughly one notch of a mouse wheel; the whole thing read as a flicker
-    // rather than an animation. Widening the section is the single lever that
-    // slows all of it at once, since every anchor is relative.
-    weight: 5,
+    // Every beat in this chapter — card flight, mark draw-on, gaze, light — is a
+    // fraction of this, so it is the single lever for the chapter's PACE. At
+    // weight 3 a mark drew itself in over ~150px of scroll, roughly one notch of
+    // a mouse wheel, and read as a flicker; at 5 the cards arrived so far apart
+    // that the chapter dragged between them. 4 keeps each flight legible while
+    // the cards follow each other closely (`HALF_FACTOR` in ./skills.ts widens
+    // their overlap to match).
+    //
+    // Raised to 6: a logo's approach — from first visible to striking the head —
+    // was 154px of scroll, about 1.5 notches of a wheel, which reads as a jump
+    // rather than a flight. This widens every beat in the chapter together; the
+    // rest of the gap is closed by `approach` in StackFlight, which spends more of
+    // a mark's own run on the near half.
+    weight: 6,
     accent: "#ffb454",
-    setPiece: ["stackLogos"],
+    setPiece: ["stackFlight"],
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(0.0, 0.05, 1.5), rotation: v3(-0.04, 0.0, 0.0) },
     // Both tracks are GENERATED from the card layout in ./skills.ts — the head's
-    // gaze is the same formula the cards' positions are, so it turns to follow
-    // each card as it crosses and flicks back for the next one. Add or remove a
-    // cluster and the gaze re-derives with it.
+    // gaze is the same formula the cards' positions are, so it turns out to meet
+    // each card coming in and settles square to camera as it lands. Add or remove
+    // a cluster and the gaze re-derives with it.
     cameraKeyframes: skillsCameraKeyframes(),
     headKeyframes: skillsHeadKeyframes(),
   },
@@ -135,6 +151,30 @@ export const SECTION_DEFS: SectionDef[] = [
     // SignalField (receive variant) + ContactSection (right-aligned card).
     setPieceVariant: "receive",
     layout: { align: "right", maxWidth: "32rem", offset: { x: -1 } },
+    camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
+  },
+  {
+    id: "outro",
+    order: 80,
+    type: "outro",
+    component: markRaw(OutroSection),
+    mode: "pinned",
+    title: "Now take the camera",
+    subtitle: "One more thing",
+    // Short: it is a single call to action, not a chapter. Long enough that it
+    // arrives on its own screen rather than crowding the terminal.
+    weight: 1,
+    accent: "#00ff9c",
+    setPiece: [],
+    setPieceVariant: "",
+    // Same side as the terminal it follows, so the card lands where the card
+    // before it just left — and stays clear of the head, which is still over on
+    // the left addressing the visitor.
+    layout: { align: "right", maxWidth: "32rem", offset: { x: -1 } },
+    // The SAME pose as contact on purpose. Camera, head and spotlight tracks all
+    // clamp to their last keyframe past the end of their own section, so nothing
+    // is authored for this beat and nothing moves: the scene simply holds its
+    // finale while the coda scrolls in over it.
     camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
   },
 ];

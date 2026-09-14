@@ -23,6 +23,27 @@ const startSmoothScroll = () => {
   gsap.ticker.lagSmoothing(0);
 };
 
+/**
+ * Put the DOCUMENT where a given progress value says it should be.
+ *
+ * Progress normally flows one way (scroll -> ScrollTrigger -> store), and
+ * nothing else may write it, or the two disagree. Explore mode is the one
+ * exception: page scroll is locked, so the scrubber drives the store directly
+ * and this puts the document back in sync on the way out. Without it, leaving
+ * explore mode snaps the scene back to wherever the page was actually parked.
+ *
+ * Must be called AFTER the mode is back to "scroll" (which restarts Lenis);
+ * `immediate` so there is no smooth run from the old position.
+ */
+export const scrollToProgress = (p: number) => {
+  if (!import.meta.client) return;
+  const max = ScrollTrigger.maxScroll(window);
+  const y = Math.max(0, Math.min(1, p)) * max;
+  if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
+  else window.scrollTo(0, y);
+  ScrollTrigger.update();
+};
+
 const stopSmoothScroll = () => {
   if (tickerFn) {
     gsap.ticker.remove(tickerFn);

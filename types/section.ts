@@ -73,9 +73,15 @@ export type SetPieceName =
   | "documentGrid"
   | "staffLines"
   | "signalField"
-  | "stackLogos";
+  | "stackFlight";
 
-export type SectionType = "hero" | "biography" | "contact" | "interlude" | "skills";
+export type SectionType =
+  | "hero"
+  | "biography"
+  | "contact"
+  | "interlude"
+  | "skills"
+  | "outro";
 
 export type Align = "center" | "left" | "right" | "top" | "bottom" | "free";
 

@@ -4,6 +4,7 @@ import type { Component } from "vue";
 import { useLoop, useTresContext } from "@tresjs/core";
 import { MeshBasicMaterial } from "three";
 import type { Group } from "three";
+import { bioMilestoneCenter, bioMilestoneHalfWindow } from "~/stores/sections";
 import Lattice from "./setpieces/Lattice.vue";
 import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
 import RouteArc from "./setpieces/RouteArc.vue";
@@ -11,7 +12,7 @@ import ThreadBoard from "./setpieces/ThreadBoard.vue";
 import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
 import SignalField from "./setpieces/SignalField.vue";
-import StackLogos from "./setpieces/StackLogos.vue";
+import StackFlight from "./setpieces/StackFlight.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -30,13 +31,18 @@ import StackLogos from "./setpieces/StackLogos.vue";
  * ASCII'd. Then, in the same TresJS render loop (`onRender` fires right after
  * the composer), we re-draw the set-pieces crisp on top:
  *
- *   1. on-top backdrops (skyline, route arc, …) draw over the ASCII'd head;
+ *   1. on-top backdrops (route arc, thread-board, …) draw over the ASCII'd head;
  *   2. the head is stamped into the depth buffer (depth only);
- *   3. the graph cloud (lattice) draws depth-tested against that, so the head
- *      occludes its back half — the face sits *inside* the graph.
+ *   3. depth-occluded pieces (the graph cloud, the stack flight, the Berlin
+ *      skyline) draw depth-tested against that, so the head hides whatever sits
+ *      behind it — the face reads *inside* the graph, *in front of* the horizon.
  *
  * Lines stay sharp and fully 3D/camera-coupled. No second rAF, no per-frame
  * layout reads, nothing allocated per frame (issue #4).
+ *
+ * Each piece gets `reveal` (the bloom) and, if it opts in by name, `cardProgress`
+ * — its beat's raw local travel, for entrances that need the whole window rather
+ * than the reveal ramp (see `cardProgressOf`).
  */
 const store = useSectionsStore();
 useSections();
@@ -54,15 +60,21 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   documentGrid: DocumentGrid,
   staffLines: StaffLines,
   signalField: SignalField,
-  stackLogos: StackLogos,
+  stackFlight: StackFlight,
 };
 
-// Pieces that should be DEPTH-OCCLUDED by the head (the head hides their back
-// half, so the face sits inside them). The lattice is a 3D cloud that wraps the
-// head and the stack logos ride a conveyor behind it; the rest are flat
-// backdrops that read best drawn fully on top (otherwise the close-up beats
-// would hide them behind the head).
-const OCCLUDED_PIECES = new Set(["lattice", "stackLogos"]);
+// Pieces that should be DEPTH-OCCLUDED by the head (the head hides whatever of
+// them sits behind it, so the face stays readable and the piece reads as being
+// *in the scene* rather than pasted over it). The lattice is a 3D cloud that
+// wraps the head, the stack flight streams past and behind it, and the Berlin
+// skyline is a horizon the head rises above.
+//
+// The remaining flat backdrops still draw fully on top, for the original reason:
+// they play during CLOSE-UP beats where the head fills the frame and would
+// simply hide them. That caveat does NOT apply to the skyline — the biography
+// camera sits back at z≈1.3, which leaves room for a piece placed low and pushed
+// back (see BerlinSkyline's HORIZON default).
+const OCCLUDED_PIECES = new Set(["lattice", "stackFlight", "berlinSkyline"]);
 
 // Keep the primary piece centered on the head; push stacked pieces aside/back so
 // two set-pieces in one beat read as distinct motifs, not one tangled mass.
@@ -73,6 +85,12 @@ const SLOT_OFFSETS: [number, number, number][] = [
 ];
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
+
+// Set-pieces that also want their beat's RAW LOCAL PROGRESS, not just `reveal`
+// (see `cardProgressOf` below). Opt-in by name so every other set-piece keeps
+// exactly the props it had — nothing extra is bound to a component that hasn't
+// declared it.
+const PROGRESS_DRIVEN = new Set(["berlinSkyline"]);
 
 const bioIndex = computed(() =>
   store.sections.findIndex((s) => s.type === "biography")
@@ -86,11 +104,13 @@ const pieces = computed(() => {
         key: `s${index}:${slot}:${name}`,
         kind: "section" as const,
         index,
+        sectionId: section.id,
         subIndex: 0,
         subCount: 1,
         variant: section.setPieceVariant,
         position: offsetFor(slot),
         occluded: OCCLUDED_PIECES.has(name),
+        progressDriven: PROGRESS_DRIVEN.has(name),
         component: SET_PIECES[name],
       }))
       .filter((p) => p.component)
@@ -108,11 +128,13 @@ const pieces = computed(() => {
               key: `m${j}:${slot}:${name}`,
               kind: "milestone" as const,
               index: bi,
+              sectionId: store.sections[bi]?.id ?? "",
               subIndex: j,
               subCount: count,
               variant: m.setPieceVariant,
               position: offsetFor(slot),
               occluded: OCCLUDED_PIECES.has(name),
+              progressDriven: PROGRESS_DRIVEN.has(name),
               component: SET_PIECES[name],
             }))
             .filter((p) => p.component)
@@ -121,15 +143,48 @@ const pieces = computed(() => {
   return [...sectionPieces, ...milestonePieces];
 });
 
-const revealOf = (p: {
-  kind: "section" | "milestone";
-  index: number;
-  subIndex: number;
-  subCount: number;
-}) =>
+type Piece = (typeof pieces.value)[number];
+
+const revealOf = (p: Piece) =>
   p.kind === "milestone"
     ? store.subReveal(p.index, p.subIndex, p.subCount)
     : store.revealFor(p.index);
+
+// --- Card-local progress (the slow lane) --------------------------------------
+// `reveal` is a BLOOM: `subReveal` ramps it over only REVEAL_FADE (0.25) of the
+// beat's window, holds, then ramps back out. A set-piece that drives an entrance
+// off it therefore assembles in a quarter of its card's scroll — one notch of a
+// mouse wheel — and reads as a flicker rather than an animation. (The skills
+// backdrop hit exactly this, and fixed it by driving its draw-on off the card's
+// real travel instead — see StackFlight.)
+//
+// So we also hand progress-driven pieces their beat's RAW local travel: 0 as the
+// beat's window opens → 1 as it closes, unshaped. It spans the same window
+// `reveal` fades over, so `reveal` still owns the fade in/out while the piece
+// spends the *whole* window assembling.
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const cardProgressOf = (p: Piece) => {
+  if (p.kind !== "milestone") {
+    // Section-level pieces: their beat IS the section (0.5 outside it, which is
+    // moot — `reveal` has them hidden there anyway).
+    return store.localFracAt(p.sectionId, store.progress);
+  }
+  // Same window `subReveal` uses, so the two can never drift: centred on the
+  // milestone card's own position, ± its half-window (see stores/sections.ts).
+  const bs = store.boundaries;
+  const start = bs[p.index] ?? 0;
+  const range = (bs[p.index + 1] ?? 1) - start || 1;
+  const center = start + bioMilestoneCenter(p.subIndex, p.subCount) * range;
+  const half = (bioMilestoneHalfWindow(p.subCount) || 0.0001) * range;
+  return clamp01((store.progress - (center - half)) / (2 * half));
+};
+
+// Bound with `v-bind` rather than as a plain attribute so the prop only ever
+// reaches components that declare it — a stray `card-progress` falling through
+// to a set-piece's root `<TresGroup>` would be patched onto the Object3D.
+const NO_EXTRA = Object.freeze({});
+const extraPropsOf = (p: Piece) =>
+  p.progressDriven ? { cardProgress: cardProgressOf(p) } : NO_EXTRA;
 
 // --- Selective render (issue #17) ---------------------------------------------
 // Render layers. The composer's ASCII RenderPass uses the camera on layer 0, so
@@ -219,6 +274,7 @@ onBeforeUnmount(() => {
       :reveal="revealOf(piece)"
       :variant="piece.variant"
       :position="piece.position"
+      v-bind="extraPropsOf(piece)"
     />
   </TresGroup>
 </template>

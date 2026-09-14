@@ -74,6 +74,54 @@ export const useSpotlightsStore = defineStore("spotlights", () => {
     tracks.value[ti]?.keyframes.push(normalizeKf(kf));
   };
 
+  // Swap out every keyframe a track holds for one section. This is how the
+  // runtime GENERATORS land in the rig: the biography's key/fill beats are derived
+  // from the loaded milestones (components/home/sections/biography.ts) and so
+  // can't be authored in the spine, but they are still *only* that section's — the
+  // hand-off keyframes on either side (anchored to `pause` / `skills`) must
+  // survive. The replacement takes the place of the old ones (appended if the
+  // section had none authored); either way only the raw `exportJson` order is
+  // affected — the rig sorts by RESOLVED scroll position and the panel groups by
+  // section, so neither depends on where in the array these land.
+  //
+  // Only call this when the generator's inputs actually changed: it overwrites,
+  // so calling it per tick would wipe live dev-panel edits. Note the rig
+  // (ScrollSpotlights) only deep-watches the tracks in dev — in production it
+  // re-caches off `milestoneCount`/`boundaries` instead, which is the very thing
+  // that changes when this is called, and both land in the same flush.
+  // Generated keyframes double as the reset BASELINE for the sections they cover
+  // (`trackId → sectionId → keyframes`). Without this, `resetTracks` — which
+  // reseeds from the committed spine — would silently drop every generated beat
+  // until the next reload, because the spine deliberately authors none for them.
+  // Same reasoning as the sections store's `generatedHeadKeyframes`.
+  const generated = ref<Record<string, Record<string, SpotKeyframe[]>>>({});
+
+  const applySectionKeyframes = (
+    trackId: string,
+    sectionId: string,
+    kfs: SpotKeyframe[]
+  ) => {
+    const tr = tracks.value.find((t) => t.id === trackId);
+    if (!tr) return;
+    const at = tr.keyframes.findIndex((k) => k.section === sectionId);
+    const kept = tr.keyframes.filter((k) => k.section !== sectionId);
+    const insert = at < 0 ? kept.length : at;
+    tr.keyframes = [
+      ...kept.slice(0, insert),
+      ...kfs.map(normalizeKf),
+      ...kept.slice(insert),
+    ];
+  };
+
+  const setSectionKeyframes = (
+    trackId: string,
+    sectionId: string,
+    kfs: SpotKeyframe[]
+  ) => {
+    (generated.value[trackId] ??= {})[sectionId] = kfs.map(normalizeKf);
+    applySectionKeyframes(trackId, sectionId, kfs);
+  };
+
   const removeKeyframe = (ti: number, ki: number) => {
     const tr = tracks.value[ti];
     if (tr && tr.keyframes.length > 1) tr.keyframes.splice(ki, 1);
@@ -114,6 +162,7 @@ export const useSpotlightsStore = defineStore("spotlights", () => {
     baseAmbient,
     tracks,
     addKeyframe,
+    setSectionKeyframes,
     removeKeyframe,
     addTrack,
     removeTrack,

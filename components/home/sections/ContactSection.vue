@@ -19,7 +19,23 @@ const accent = computed(() => props.section.accent ?? "#00ff9c");
 // briefly flashes the terminal's own glow so the CLI and the rings read as one
 // connected signal.
 const store = useSectionsStore();
+const sceneControl = useSceneControlStore();
 const sending = ref(false);
+
+/**
+ * Hand the camera to the visitor.
+ *
+ * The whole scene has been playing down one fixed lens the entire way down the
+ * page; this is the point where they get to walk around it. Lives here, at the
+ * finale, because it is the only place the run is over — offering it earlier
+ * would invite someone to leave the story halfway through it.
+ *
+ * ExploreMode owns everything that happens next (the scrubber, the way back).
+ */
+const enterExplore = () => {
+  sceneControl.exploreMode = true;
+  sceneControl.cameraControlMode = "orbit";
+};
 let sendingTimer: ReturnType<typeof setTimeout> | null = null;
 const flash = () => {
   sending.value = true;
@@ -91,6 +107,7 @@ const HELP = [
   "  stack           the toolbox",
   "  contact         ways to reach me",
   "  open <where>    open github | respeak in a new tab",
+  "  orbit           unclip the camera and fly the scene yourself",
   "  hire            the only command that matters",
   "  clear           wipe the screen",
   "  …and a few you'll have to discover. (try 'sudo' something)",
@@ -168,6 +185,16 @@ const run = () => {
       }
       break;
     }
+    case "orbit":
+    case "explore":
+    case "scene":
+      out(
+        "detaching camera from scroll rails…",
+        "drag to orbit, wheel to zoom. the bar at the bottom scrubs the whole run.",
+        "esc — or 'return to scroll' — brings you back where you left off."
+      );
+      enterExplore();
+      break;
     case "clear":
     case "cls":
       log.value = [];
