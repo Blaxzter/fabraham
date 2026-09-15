@@ -241,12 +241,21 @@ watch(
   async (newModel) => {
     if (newModel) {
       await nextTick();
-      boundingBox.value = new Box3().setFromObject(newModel);
-      boundingBox.value.getSize(boxSize.value);
-      boundingBox.value.getCenter(boxCenter.value);
+      // REPLACE these refs, never mutate them in place: they are `shallowRef`s,
+      // so `.copy()` on the vector inside one changes no reactive dependency and
+      // the `:position` binding below never re-renders. In dev that went unseen
+      // (the panel's reactivity re-renders this component often enough to pick
+      // the mutated vector up); in the built site nothing else invalidates it, so
+      // the head kept the initial (0,0,0) offset and sat ~2.4 units above frame —
+      // present, lit and pointed at, but never on screen. One assignment per
+      // model load, so the extra vectors cost nothing.
+      const box = new Box3().setFromObject(newModel);
+      boundingBox.value = box;
+      boxSize.value = box.getSize(new Vector3());
+      boxCenter.value = box.getCenter(new Vector3());
 
       // Calculate offset to center the model at origin
-      modelOffset.value.copy(boxCenter.value).negate();
+      modelOffset.value = boxCenter.value.clone().negate();
 
       // Also tag the head onto layer 2 (keeping the default layer 0). The
       // set-piece overlay (SceneSetPieces.vue) renders this layer depth-only as
