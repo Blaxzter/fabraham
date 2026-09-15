@@ -586,6 +586,17 @@ const focusInput = () => inputRef.value?.focus();
   color: color-mix(in srgb, var(--accent, #00ff9c) 55%, #889);
   opacity: 0.7;
 }
+/* Mobile Safari ZOOMS the whole page in when a focused input's text is smaller
+   than 16px, and there is no way back out of that zoom except pinching — which
+   here means the visitor's first act of typing throws the pinned finale off
+   frame and leaves the fixed canvas behind it scaled. 16px exactly: the rest of
+   the terminal stays at its authored size, and only the one field a phone can
+   focus is bumped. Desktop is untouched. */
+@media (max-width: 768px) {
+  .term-field {
+    font-size: 16px;
+  }
+}
 
 .cursor {
   display: inline-block;

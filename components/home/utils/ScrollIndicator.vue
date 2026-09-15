@@ -94,6 +94,12 @@ const isVisible = computed(() => opacity.value > 0);
 @media (max-width: 768px) {
   .scroll-indicator {
     bottom: 30px;
+    /* `left: 5%` minus half the indicator's own width is ~36px in from a
+       desktop edge but PAST the edge on a phone — 5% of 375px is 19px, and the
+       arrow is wider than that, so "SCROLL" was cut in half by the viewport.
+       Anchor it to the margin directly instead of to a percentage of it. */
+    left: 1.1rem;
+    transform: none;
   }
 
   .ascii-arrow {

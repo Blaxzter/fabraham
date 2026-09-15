@@ -762,6 +762,18 @@ const beamHelper = computed(() => {
   .skills-stage.is-static .skills-track {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* A card's flight is written in vw around a home offset of ±23vw (skills.ts),
+     which on a desktop is a small share of the frame and on a phone is most of
+     it. At 78vw the card was still ~25% off the edge at the very moment it is
+     most lit — the beat meant to be read. The flight itself is not the thing to
+     retune (the head's gaze and the key light are generated from that same
+     offset, and a mobile-only radius would put them on a card that is no longer
+     there), so pull in the only term that is purely presentational: the card's
+     own width. It still overruns at the near end, which is deliberate. */
+  .skill-card {
+    width: min(26rem, 66vw);
+    padding: 1.1rem 1.15rem 1.2rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .skills-heading {

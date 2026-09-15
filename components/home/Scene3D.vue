@@ -309,12 +309,55 @@ watch(
 // Keep the camera aspect matched to the (window-size) canvas so the scene isn't
 // stretched. The hard-coded aspect=1 distorted everything on wide viewports.
 const { width: windowWidth, height: windowHeight } = useWindowSize();
+
+/** The FOV every camera pose in the registry was framed against. */
+const BASE_FOV = 45;
+/**
+ * The aspect at or above which nothing below changes a thing.
+ *
+ * Square, NOT the 16:9 the poses were composed for — deliberately. Every
+ * LANDSCAPE viewport has to come out at exactly `BASE_FOV`, or a 16:10 laptop
+ * (1.6) and a 3:2 one (1.5) would quietly get a wider lens than the scene was
+ * tuned on. This is a rescue for viewports that are TALLER than they are wide,
+ * and 1 is the only threshold that says exactly that.
+ */
+const REF_ASPECT = 1;
+/**
+ * A perspective camera's `fov` is its VERTICAL one, so the horizontal frame is
+ * whatever the aspect makes of it — and on a phone held upright that is barely
+ * a third of the width the scene was composed for. Every pose in the registry
+ * parks the camera between z ≈ 0.5 and 1.7 on the assumption of a wide frame
+ * (the biography's gaze maths say so out loud: `FRAME_HALF_W = 0.96` "assumes a
+ * wide (≈16:9) viewport"), so in portrait the head stopped being a head and
+ * became a wall of ASCII with no silhouette.
+ *
+ * So once a viewport goes portrait, widen the VERTICAL fov by however much the
+ * aspect has narrowed past square — giving back the width the rotation took,
+ * rather than trying to reach a desktop frame a phone was never going to hold.
+ * Two things make this the right lever rather than moving the camera back: it
+ * touches no authored pose, and it moves the real frame TOWARD the wide one the
+ * choreography already assumes instead of further from it.
+ *
+ * Capped, because even that ask reaches ~84° on a tall phone — a fisheye, which
+ * would bend the set-pieces' straight lines into the corners. 70° recovers most
+ * of the silhouette while the projection still reads as the same lens.
+ */
+const MAX_FOV = 70;
+const DEG = Math.PI / 180;
+const fovForAspect = (aspect: number) => {
+  if (aspect >= REF_ASPECT) return BASE_FOV;
+  const halfH = Math.tan((BASE_FOV / 2) * DEG) * (REF_ASPECT / aspect);
+  return Math.min(MAX_FOV, 2 * Math.atan(halfH) / DEG);
+};
+
 watch(
   [cameraRef, windowWidth, windowHeight],
   () => {
     const cam = cameraRef.value;
     if (!cam) return;
-    cam.aspect = (windowWidth.value || 1) / (windowHeight.value || 1);
+    const aspect = (windowWidth.value || 1) / (windowHeight.value || 1);
+    cam.aspect = aspect;
+    cam.fov = fovForAspect(aspect);
     cam.updateProjectionMatrix();
   },
   { immediate: true }
@@ -345,7 +388,10 @@ watch(
     />
     <!-- Camera pose is driven imperatively in onLoop (scroll) or by OrbitControls
          (dev), so no reactive position/rotation props here (issue #4). -->
-    <!-- aspect is managed imperatively from the window size (see watch above). -->
+    <!-- aspect AND fov are managed imperatively from the window size (see the
+         watch above — narrow viewports widen the fov to keep the horizontal
+         frame). The literal here is only the initial value, and is the same
+         `BASE_FOV` that watch resolves to at any desktop aspect. -->
     <TresPerspectiveCamera
       ref="cameraRef"
       :fov="45"

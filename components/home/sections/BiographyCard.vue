@@ -94,7 +94,14 @@ const accentStyle = computed(() =>
      reduced motion drops the transform, so pin it explicitly instead of
      depending on which of the two happens to be in play. */
   isolation: isolate;
-  width: min(22rem, 38vw);
+  /* 26vw, not 38: a card hangs off a node ~30% (or ~69%) across the viewport
+     with 14px of clearance, so it only has `30% − 14px` to live in. At 38vw it
+     needed ~1250px of viewport before it stopped hanging off the edge — which
+     is why this looked right on a desktop and was clipped on every tablet and
+     small laptop. 26vw is the widest that clears the node at every width the
+     zigzag is used at. Nothing changes above ~1354px, where the 22rem cap has
+     been the binding term all along. */
+  width: min(22rem, 26vw);
   padding: 1rem 1.2rem;
   /* Width comes from the side rules below; the resting rim is a dimmed accent
      that burns up to full when the card is lit. `color-mix(… , transparent)`
@@ -290,9 +297,18 @@ const accentStyle = computed(() =>
   opacity: 1;
 }
 
-@media (max-width: 768px) {
+/* Matches the rail breakpoint in BiographySection — the two have to move
+   together, because this block styles the card FOR that layout (rim on the left
+   for every card, and the key that follows it). They were 768px while the
+   layout that needed them never arrived, which is how the cards ended up lit
+   from the wrong side AND off screen. */
+@media (max-width: 1024px) {
   .bio-card {
-    width: min(20rem, 80vw);
+    /* The rail column (BiographySection) already sets the width by pinning both
+       edges, so the card fills it rather than carrying a width of its own —
+       which is what keeps it inside the margin at every phone size instead of
+       at the two or three a fixed `min()` happens to suit. */
+    width: auto;
     text-align: left;
   }
   /* Narrow screens collapse the cluster to one left-aligned reading column and
@@ -304,6 +320,18 @@ const accentStyle = computed(() =>
     text-align: left;
     border-right-width: 0;
     border-left-width: 3px;
+  }
+  /* Both sides now enter from the SAME side — the rail's. The wide layout slides
+     each card in from its own edge, which is right when they alternate; in one
+     column the `right` card's +24px was reaching past the margin and adding real
+     horizontal page scroll while it was still at opacity 0. Toward the rail also
+     reads better here: the cards arrive along the line, not across it. */
+  .bio-card.left,
+  .bio-card.right {
+    transform: translateX(-18px);
+  }
+  .bio-card.is-visible {
+    transform: translateX(0);
   }
   /* Same pool, one card width wide — which is most of a phone screen. Take the
      top off it so it stays light on the scene rather than a colour wash over the

@@ -75,17 +75,20 @@ const connectorPath = computed(() => {
 
 const accent = computed(() => props.section?.accent ?? "#9ad1ff");
 
+// The anchors go out as CUSTOM PROPERTIES, not as `left`/`top`/`transform`.
+// Inline geometry would win over any stylesheet rule regardless of media query,
+// and the narrow-screen layout below has to re-read these same numbers into a
+// different arrangement (one column instead of a zigzag). Handing the anchor
+// down as data and leaving the geometry in CSS is what makes that override
+// possible — and keeps the wide layout byte-identical to what it was.
 const nodeStyle = (item: { ax: number; ay: number }) => ({
-  left: `${item.ax}%`,
-  top: `${item.ay}%`,
+  "--ax": `${item.ax}%`,
+  "--ay": `${item.ay}%`,
 });
 const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
-  left: `${item.ax}%`,
-  top: `${item.ay}%`,
-  transform:
-    item.sideSign < 0
-      ? "translate(calc(-100% - 14px), -50%)"
-      : "translate(14px, -50%)",
+  "--ax": `${item.ax}%`,
+  "--ay": `${item.ay}%`,
+  "--side": `${item.sideSign}`,
 });
 </script>
 
@@ -227,6 +230,8 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
 }
 .bio-node {
   position: absolute;
+  left: var(--ax);
+  top: var(--ay);
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -245,13 +250,110 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
     box-shadow: 0 0 16px 3px var(--accent, #9ad1ff);
   }
 }
+/* The card hangs OUTWARD from its node: `--side` is -1 (left of the line) or +1
+   (right of it), and both halves of the offset are mirrored through it —
+   -1 → `-100% - 14px`, +1 → `14px` — so the card and the dot it belongs to can
+   never drift onto different sides. Same one-sign-property discipline the card's
+   own lighting uses (see BiographyCard). */
 .bio-card-pos {
   position: absolute;
+  left: var(--ax);
+  top: var(--ay);
+  transform: translate(
+    calc((var(--side) - 1) * 50% + var(--side) * 14px),
+    -50%
+  );
 }
+
+/* ── Narrow screens: the zigzag becomes a rail ───────────────────────────────
+   The wide layout hangs cards off alternating sides of a spline that wanders
+   between ~30% and ~69% of the viewport. A phone has no room for that: a card
+   is most of the screen wide, so hung off a node at 30% it sits two-thirds off
+   the edge — and because it never reaches the 0.5 intersection ratio its own
+   entrance observer waits for, it never even fades IN. The whole chapter was
+   blank.
+
+   1024px, because that is where the geometry actually runs out, not where
+   "mobile" is conventionally drawn: the card has `30% − 14px` of room, so even
+   at the tightened 26vw (BiographyCard) it is under ~266px below this — a
+   column too narrow for the prose to read as prose.
+
+   Below it the cluster collapses to the shape a narrow screen actually has: one
+   column, every card on the same side of a straight rail down the left margin,
+   each with its own dot on it. The anchors are untouched — only how the DOM
+   arranges them changes — so the 3D half of the chapter (the head's swerve, its
+   gaze, the key light, the set-piece blooms) is generated from exactly the same
+   numbers as before and needs no mobile branch of its own.
+
+   The generated spline and its nodes go with the zigzag they described; the rail
+   and the dots below replace them. */
+@media (max-width: 1024px) {
+  .bio-connector,
+  .bio-node {
+    display: none;
+  }
+  /* The rail: the timeline itself, redrawn straight. Built from a repeating
+     gradient rather than a dashed border so it can MARCH like the connector it
+     stands in for — same 1.5s period, same direction, one dash per period — and
+     the chapter still reads as one live line the milestones hang off rather than
+     a static divider. (A border's dashes cannot be animated; a background's
+     position can.) */
+  .bio::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 1.35rem;
+    width: 1px;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--accent, #9ad1ff) 0 2px,
+      transparent 2px 8px
+    );
+    opacity: 0.7;
+    animation: bio-rail-march 1.5s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes bio-rail-march {
+    to {
+      background-position-y: 8px; /* one dash period → seamless loop */
+    }
+  }
+  .bio-card-pos {
+    /* Right of the rail, filling the margin — but capped, because this band runs
+       up to 1024px and a 900px-wide line of prose is not a card, it is a
+       paragraph. `left` + `right` + `max-width` leaves the column anchored to
+       the rail and lets the slack fall on the right. */
+    left: 2.6rem;
+    right: 1rem;
+    max-width: 32rem;
+    transform: translateY(-50%);
+  }
+  /* Each card's own dot, sitting on the rail at the card's vertical anchor —
+     the `.bio-node` it replaces, moved from the card's x to the rail's. */
+  .bio-card-pos::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: calc(-1.25rem - 5px);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: var(--accent, #9ad1ff);
+    box-shadow: 0 0 12px 1px var(--accent, #9ad1ff);
+    pointer-events: none;
+    animation: bio-node-pulse 2.8s ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bio-connector-base,
   .bio-connector-flow,
-  .bio-node {
+  .bio-node,
+  /* The narrow-screen rail and its dots — same motion, same exemption. */
+  .bio::before,
+  .bio-card-pos::before {
     animation: none;
   }
 }
