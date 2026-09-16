@@ -61,6 +61,45 @@ export const hash01 = (s: string) => {
   return (h >>> 0) / 4294967296;
 };
 
+/**
+ * `hash01` with an avalanche — what you want for `prefix + index` seeds.
+ *
+ * FNV-1a XORs each character in and multiplies once, and that is the whole of it:
+ * there is no final mixing step. For inputs that differ only in their last
+ * character — which is exactly what `\`fy1${seed}\`` produces — the difference
+ * reaches the output multiplied by the prime and nothing else scrambles it. The
+ * result is not noise, it is a RAMP:
+ *
+ *     hash01("sr0"..."sr7")  ->  0.001 0.005 0.009 0.013 0.017 0.020 0.024 0.028
+ *     hash01("fy1" + 0..14)  ->  spans 0.07 of the unit interval, total
+ *
+ * Read that second line again: fifteen "independent" seeded frequencies, all
+ * within 7% of each other. Anything built on those moves as one — fifteen glyphs
+ * bobbing at the same rate, a jitter that jitters everything the same way, a
+ * seeded shuffle that returns the order it was given. It looks like a bug in
+ * whatever is using the numbers, and every time it gets fixed in the wrong place.
+ *
+ * The finalizer is murmur3's `fmix32`, which is there for precisely this.
+ *
+ * `hash01` is deliberately left as it was. Every seeded layout in the set-pieces
+ * is built on it and has been art-directed against the arrangement it produces —
+ * fixing it in place would silently reshuffle all of them. New code, and anything
+ * that actually needs its seeds decorrelated, should use this.
+ */
+export const rand01 = (s: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+};
+
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export const smoothstep = (a: number, b: number, x: number) => {

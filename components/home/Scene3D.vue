@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, useGLTF } from "@tresjs/cientos";
-import { EffectComposerPmndrs, ASCIIPmndrs } from "@tresjs/post-processing";
+import { EffectComposerPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Group, Material, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
 import SceneSetPieces from "./SceneSetPieces.vue";
+import HeroGlyphs from "./HeroGlyphs.vue";
+import HeroAscii from "./HeroAscii.vue";
 import ScrollSpotlights from "./ScrollSpotlights.vue";
 import TuningGizmos from "./TuningGizmos.vue";
 
@@ -421,6 +423,11 @@ watch(
     <!-- Data-driven line set-pieces that bloom around the head per chapter. -->
     <SceneSetPieces />
 
+    <!-- The hero name, as geometry. Renders to its OWN buffer on layer 4 (so it
+         never lands on the face's coarse grid) which HeroAscii composites back
+         in at its own cell size. -->
+    <HeroGlyphs />
+
     <!-- Dev-only: markers for tunable vec3 anchors (forehead, emitter, …). -->
     <TuningGizmos v-if="isDev" />
 
@@ -475,10 +482,11 @@ watch(
 
     <HomeLights />
 
-    <!-- ASCII Post-processing Effect -->
+    <!-- ASCII Post-processing Effect. Two grids: the face on the scroll-driven
+         cell, the hero name on its own finer one. -->
     <Suspense>
       <EffectComposerPmndrs v-bind="glComposer">
-        <ASCIIPmndrs v-bind="store.effectProps" />
+        <HeroAscii />
       </EffectComposerPmndrs>
     </Suspense>
   </TresCanvas>

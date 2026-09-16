@@ -136,7 +136,7 @@ export const useSpotlightsStore = defineStore("spotlights", () => {
       id: `spot${n}`,
       keyframes: [
         normalizeKf({ section: "identity", t: 0, position: { x: 0, y: 0.7, z: 0.9 }, target: { x: 0, y: 0.06, z: 0.12 }, intensity: 0, color: "#ffffff" }),
-        normalizeKf({ section: "pause", t: 0.5, position: { x: 0, y: 0.6, z: 0.9 }, target: { x: 0, y: 0.06, z: 0.12 }, intensity: 10, color: "#ffffff" }),
+        normalizeKf({ section: "reveal", t: 0.5, position: { x: 0, y: 0.6, z: 0.9 }, target: { x: 0, y: 0.06, z: 0.12 }, intensity: 10, color: "#ffffff" }),
       ],
     });
   };

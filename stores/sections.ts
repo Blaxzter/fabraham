@@ -15,12 +15,44 @@ export interface SampledPose extends CameraPose {
   opacity: number;
 }
 
-// Hero ASCII ramp — the cell/font size sweep that happens while the very first
-// (identity) section is on screen. Matches the original hero feel.
+// The face's ASCII ramp — the cell/font size sweep that resolves the head from
+// abstract blocks into a face.
+//
+// The CELL endpoints are the defaults for `asciiCellStart` / `asciiCellEnd`
+// below, not the values themselves: that coarse→fine sweep is art direction
+// rather than a constant. HeroAscii.vue registers both ends as tunables (dev
+// panel → scenes) and writes them here, so they can be dialled against the live
+// scene and saved to tuning.config.json.
 const ASCII_CELL_START = 45;
 const ASCII_CELL_END = 9;
 const ASCII_FONT_START = 15;
 const ASCII_FONT_END = 44;
+
+/**
+ * WHICH section the sweep runs across — and it is not the hero.
+ *
+ * It used to be a window inside the hero, and that was always one beat too many
+ * for one section. The hero has to assemble a name out of a scattered field, and
+ * the name is not readable until it is finished; the face resolving underneath it
+ * competes for exactly the attention the name is asking for. Every attempt to fix
+ * that by moving the window inside the hero trades one collision for another —
+ * start it earlier and it fights the assembly, start it later and it has no room
+ * to run before the hero is over.
+ *
+ * So the two beats get a section each. The hero is the NAME: the field stays
+ * coarse and unreadable from top to bottom, and the only thing resolving is the
+ * letters. The section after it is the FACE: the camera pulls back, the grid
+ * resolves, and the key light kicks on part-way through (`spotlights.ts` already
+ * put the "tada" here — the light half of this reveal has always lived in this
+ * section; only the grid was somewhere else).
+ *
+ * `asciiRampStart`/`End` are now fractions of THAT section rather than of the
+ * hero. Before it the ramp reads 0 (coarse), after it 1 (resolved), because the
+ * section-local progress is clamped at both ends.
+ */
+const ASCII_RAMP_SECTION = "reveal";
+const ASCII_RAMP_START = 0.1;
+const ASCII_RAMP_END = 0.75;
 
 // Set-piece reveal window: fraction of a section's scroll range used to fade a
 // set-piece in (and, symmetrically, out) so it blooms while the section is centered.
@@ -246,6 +278,24 @@ export const useSectionsStore = defineStore("sections", () => {
     const end = boundaries.value[1] ?? 1;
     return clamp01(progress.value / (end || 1));
   });
+
+  /**
+   * Progress through a named section, 0..1, clamped outside it.
+   *
+   * Clamped is the useful part: a beat anchored to a section reads 0 everywhere
+   * before it and 1 everywhere after, so a sweep driven by this holds both of its
+   * endpoints for the whole rest of the page without anyone writing that down. It
+   * takes an id rather than an index so it survives sections being inserted or
+   * reordered, the same reasoning as the anchored keyframes below.
+   */
+  const progressInSection = (id: string) => {
+    const i = sections.value.findIndex((s) => s.id === id);
+    if (i < 0) return 0;
+    const b = boundaries.value;
+    const start = b[i] ?? 0;
+    const span = (b[i + 1] ?? 1) - start || 1;
+    return clamp01((progress.value - start) / span);
+  };
 
   // ---- Anchored-keyframe resolver (shared by camera + spotlights) ----
   // Resolve a (section, local t, optional milestone) anchor to absolute scroll
@@ -499,11 +549,32 @@ export const useSectionsStore = defineStore("sections", () => {
     JSON.stringify(headKeyframes.value[sectionId] ?? [], null, 2);
 
   // ASCII params as pure functions of progress (hero ramp, then locked at end).
+  // The endpoints are live (see the note on the constants above); the ramp
+  // between them stays here, because this store owns scroll.
+  const asciiCellStart = ref(ASCII_CELL_START);
+  const asciiCellEnd = ref(ASCII_CELL_END);
+  const asciiRampStart = ref(ASCII_RAMP_START);
+  const asciiRampEnd = ref(ASCII_RAMP_END);
+
+  /** How far into the reveal section the face's sweep is allowed to look. Named
+   *  so the one place that decides WHERE the reveal lives is the constant. */
+  const revealProgress = computed(() => progressInSection(ASCII_RAMP_SECTION));
+
+  /** Where the face is within its own sweep: 0 = coarse, 1 = fully resolved.
+   *  Smoothstepped, so starting the window late doesn't snap into motion. */
+  const asciiRamp = computed(() => {
+    const from = asciiRampStart.value;
+    const span = asciiRampEnd.value - from || 1;
+    return smoothstep(clamp01((revealProgress.value - from) / span));
+  });
+
   const asciiCellSize = computed(() =>
-    Math.round(lerp(ASCII_CELL_START, ASCII_CELL_END, heroProgress.value))
+    Math.round(lerp(asciiCellStart.value, asciiCellEnd.value, asciiRamp.value))
   );
+  // Follows the same window: the glyph inside a cell growing while the cell
+  // itself is held would read as the grid breathing rather than resolving.
   const asciiFontSize = computed(() =>
-    Math.round(lerp(ASCII_FONT_START, ASCII_FONT_END, heroProgress.value))
+    Math.round(lerp(ASCII_FONT_START, ASCII_FONT_END, asciiRamp.value))
   );
 
   // Reveal (0..1) for the set-piece of section `index`: blooms in over the first
@@ -623,6 +694,13 @@ export const useSectionsStore = defineStore("sections", () => {
     activeIndex,
     localProgress,
     heroProgress,
+    progressInSection,
+    revealProgress,
+    asciiCellStart,
+    asciiCellEnd,
+    asciiRampStart,
+    asciiRampEnd,
+    asciiRamp,
     asciiCellSize,
     asciiFontSize,
     addressing,

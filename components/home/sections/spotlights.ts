@@ -42,9 +42,9 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
       // Dark through the hero — let the head emerge via the ASCII ramp alone.
       { section: "identity", t: 0, position: v3(0.4, 0.7, 0.9), target: FACE, intensity: 0, color: "#ffffff" },
       { section: "identity", t: 1, position: v3(0.4, 0.7, 0.9), target: FACE, intensity: 0, color: "#ffffff" },
-      // TADA — the bulb kicks on mid-interlude, front-above, with a brief flicker.
+      // TADA — the bulb kicks on mid-reveal, front-above, with a brief flicker.
       {
-        section: "pause",
+        section: "reveal",
         t: 0.45,
         position: v3(0.32, 0.55, 0.85),
         target: FACE,
@@ -54,8 +54,8 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
         penumbra: 0.45,
         effect: { type: "flicker", amount: 0.7, speed: 26 },
       },
-      // Settle, full and clean, at the end of the interlude.
-      { section: "pause", t: 1, position: v3(0.3, 0.5, 0.85), target: FACE, intensity: 13, color: "#ffffff", angle: 0.5, penumbra: 0.45 },
+      // Settle, full and clean, at the end of the reveal.
+      { section: "reveal", t: 1, position: v3(0.3, 0.5, 0.85), target: FACE, intensity: 13, color: "#ffffff", angle: 0.5, penumbra: 0.45 },
       // Biography — the key visits every card, from the card's side, on the same
       // beats the head's gaze uses. GENERATED at runtime (see ./biography.ts and
       // `useBiographyChoreography`) and spliced in here, because the cards come
@@ -97,7 +97,7 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
     keyframes: [
       { section: "identity", t: 0, position: v3(-0.6, 0.3, 0.8), target: FACE, intensity: 0, color: "#bcd6ff" },
       // Comes up just after the key for a layered reveal.
-      { section: "pause", t: 0.6, position: v3(-0.55, 0.28, 0.8), target: FACE, intensity: 6, color: "#bcd6ff", angle: 0.6, penumbra: 0.7 },
+      { section: "reveal", t: 0.6, position: v3(-0.55, 0.28, 0.8), target: FACE, intensity: 6, color: "#bcd6ff", angle: 0.6, penumbra: 0.7 },
       // Biography — counter-side to the swinging key (i.e. the side the head has
       // swerved to), so the shadow side never goes black as the key crosses over.
       // GENERATED with the key; see the note in the key track above.
@@ -119,7 +119,7 @@ export const SPOTLIGHT_TRACKS: SpotTrack[] = [
     keyframes: [
       { section: "identity", t: 0, position: v3(0.0, 0.9, -0.7), target: FACE, intensity: 0, color: "#00ff9c" },
       {
-        section: "pause",
+        section: "reveal",
         t: 0.8,
         position: v3(0.2, 0.95, -0.7),
         target: FACE,

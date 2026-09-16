@@ -4,7 +4,7 @@
 
 The home page is a **scroll-driven 3D scene**. As the visitor scrolls, a single
 GLB head — quantized by an ASCII post-process — is flown through a sequence of
-**sections** (hero → pause → biography → contact). Thin line/wireframe
+**sections** (hero → reveal → biography → contact). Thin line/wireframe
 "set-pieces" bloom around the head per section/milestone, and at the finale the
 head turns to address the visitor.
 
@@ -110,7 +110,7 @@ Layout `mode` controls how `SectionHost` renders the section's component:
 | mode | layout | used by |
 | --- | --- | --- |
 | `bare` | just a height spacer; the component positions itself | hero (`AsciiTextAnimation` is `position:fixed`) |
-| `pinned` | a sticky, centered card using `layout` align/offset/maxWidth | pause, contact |
+| `pinned` | a sticky, centered card using `layout` align/offset/maxWidth | reveal, contact |
 | `flow` | the component fills the section height | biography cluster |
 
 ### Genuinely content-shaped data → `content/biography/*.md` (markdown)
@@ -138,13 +138,18 @@ that belongs to the biography *section* in the registry.
 | `components/home/ScrollableContent.vue` | Owns the scroll → progress lifecycle (`useScrollTimeline`); renders every section via `<SectionHost>`. |
 | `components/home/SectionHost.vue` | Renders one section's dedicated component in its layout `mode` (flow/pinned/bare); provides scroll length + alignment. |
 | `components/home/sections/registry.ts` | `SECTION_DEFS` — the typed section sequence + scene spine. |
-| `components/home/sections/*.vue` | The section components: `HeroSection` (ASCII identity), `InterludeSection` (camera-only beat), `BiographySection` (+ `BiographyCard`), `ContactSection` (the terminal finale). |
+| `components/home/sections/*.vue` | The section components: `HeroSection` (the identity's DOM half — the `fullest-stack` entry over the canvas, plus the `sr-only` name), `InterludeSection` (camera-only beat), `BiographySection` (+ `BiographyCard`), `ContactSection` (the terminal finale). |
 | `components/home/SceneSetPieces.vue` | Maps each section's + each milestone's `setPiece[]` to its 3D component, passing `:reveal`, `:variant`, `:position` — plus `:cardProgress` for pieces that opt in. Owns the selective-render overlay (see below). |
 | `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `StaffLines` (a page of the hymnal, playing), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
 | `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
 | `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
-| `components/home/ScrollSpotlights.vue` | The scroll-driven **spotlight rig**: keyframed `THREE.SpotLight`s that light the ASCII'd head, driven imperatively in `onBeforeRender`. Dark through the hero, then "tada" on at the interlude, then follow the scroll. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
-| `components/home/AsciiTextAnimation.vue` | The hero: the name assembles character-by-character across the hero section's scroll range. |
+| `components/home/ScrollSpotlights.vue` | The scroll-driven **spotlight rig**: keyframed `THREE.SpotLight`s that light the ASCII'd head, driven imperatively in `onBeforeRender`. Dark through the hero, then "tada" on in the reveal section, then follow the scroll. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
+| `components/home/HeroGlyphs.vue` | The hero name **as geometry**: one quad per character on layer 4, swarming the frame and landing one after another across `heroProgress` (`swarm`; or flying in from the head — `emerge`; or neither, assembling in place). Renders itself to an offscreen buffer for the pass below. |
+| `components/home/HeroAscii.vue` | The ASCII pass. Replaces `<ASCIIPmndrs>` with `DualGridAsciiEffect` so the face and the name get **different cell sizes**. Registers both grids as tunables under the `identity` scene. |
+| `components/home/hero/DualGridAsciiEffect.ts` | The effect itself: pmndrs' `ASCIIEffect` maths run twice — once over the scene, once over the glyph buffer — composited in one pass. |
+| `components/home/hero/glyphGeometry.ts` | One EXTRUDED geometry per character, built once at mount; the scramble swaps geometry references. Font is `heroFont.json`, a subset cut by `scripts/make-hero-font.mjs`. |
+| `components/home/hero/glyphBuffer.ts` | The offscreen target `HeroGlyphs` writes and `HeroAscii` reads. |
+| `components/home/AsciiTextAnimation.vue` | **Unmounted.** The old screen-space hero (a fixed DOM overlay scrambling Courier glyphs). Superseded by `HeroGlyphs`; kept on disk until the 3D treatment is signed off. |
 
 ### Selective-render overlay (issue #17)
 
@@ -162,6 +167,220 @@ composer), they're re-drawn crisp on top:
    face reads *inside* the graph, and *in front of* the horizon.
 
 No second rAF, no per-frame layout reads, nothing allocated per frame (issue #4).
+
+### The hero name: two grids, one pass
+
+The set-pieces above dodge the character grid entirely. The hero name does the
+opposite — it *wants* to be ASCII — but it cannot share the face's grid, and that
+is worth being precise about, because it is the reason this is more than a
+config change.
+
+**The face's cell size is the narrative.** It sweeps coarse → fine
+(`asciiCellStart` → `asciiCellEnd`, smoothstepped in the sections store): at the
+top of the scroll the head is unreadable blocks, and scrolling is what resolves
+it into a face. A name sharing that grid is illegible for exactly as long — fine
+for a face that is supposed to be a puzzle, useless for a name.
+
+**The sweep gets a section of its own, and it is not the hero.** It used to be a
+window *inside* the hero, and that was always one beat too many for one section:
+the hero has to assemble a name out of a scattered field, the name is not readable
+until it is finished, and a face resolving underneath it competes for exactly the
+attention the name is asking for. Moving the window around inside the hero only
+trades one collision for another — open it earlier and it fights the assembly,
+open it later and it has no room to run.
+
+So the two beats get a section each. **identity** is the NAME: the field stays
+coarse from top to bottom and the only thing resolving is the letters, with the
+camera held still for the section's whole length. **reveal** (which used to be an
+"interlude", i.e. a pause with nothing to do) is the FACE: the camera pulls back,
+the grid resolves, and the key light kicks on at t 0.45 with a flicker. That last
+one was *already* written that way in `spotlights.ts` — the light half of this
+reveal always lived in that section; only the grid was somewhere else.
+
+`ASCII_RAMP_SECTION` in the sections store names the section, and
+`asciiRampStart` / `asciiRampEnd` are fractions **of it**. Before it the ramp
+reads 0 and after it 1, because `progressInSection` clamps at both ends — so the
+face holds coarse across the whole hero and stays resolved for the rest of the
+page without anyone writing that down. The window ends at 0.5 so the resolved face
+gets the frame to itself for a beat before the biography's headline flows up from
+below.
+
+But a post-process samples **one buffer at one cell size**. `ASCIIEffect` cannot
+be configured out of that; it is one effect over one buffer. So:
+
+1. `HeroGlyphs` puts its quads on **layer 4**, which the main render never sees
+   (a camera's default mask is layer 0 — the same trick the overlay above uses,
+   one layer further along).
+2. In `onBeforeRender` — *before* the composer runs — it draws that layer into
+   its own target (`hero/glyphBuffer.ts`), cleared to black so the buffer's
+   luminance means "there is a letter here".
+3. `DualGridAsciiEffect` runs the ASCII maths twice in its single pass: the scene
+   on the face's scroll-driven cell, the glyph buffer on its own constant one.
+
+One extra buffer read in a pass that already existed. Both grids were already
+screen-space, so the frame cost is close to nothing.
+
+**The characters swarm the frame, then land one after another.** They start
+scattered across the visible frame — the extent is measured from the live camera
+each frame, so it tracks the fov this scene widens on narrow viewports — each
+drifting on its own orbit and tumbling, and `stagger` lands them in sequence.
+
+**Scattered needs a home each; drift alone will not do it.** Every glyph's path
+is a sum of sines about the frame's *centre*, so however wide you let them roam
+they all roam around the same point — characters orbiting one spot, which reads
+as a clump that happens to be moving. Widening `swarmSpread` widens every path at
+once, so the clump only gets bigger. So the frame is divided into a row-balanced
+grid with its outer ring **on** the edge (cell *centres* leave a half-cell margin
+all the way round, which on three rows is a third of the height lost to a band
+across the middle), each character takes a place in a seeded order with a jitter,
+and `swarmWander` is the roam *around* that home. The roam is mapped into the
+room each glyph actually has on either side rather than added symmetrically —
+lerping home toward the drift shrinks the homes by exactly the amount you asked
+them to move, and adding-then-clamping pins whatever reaches an edge, which is
+the one thing in this field that looks broken.
+That is a response to a constraint, not decoration: the spotlight rig is dark
+through the hero (the "tada" is in the reveal section), so these glyphs are the only
+lit thing on screen there. Starting them clustered on an unlit head (`emerge`) or
+sitting still (both knobs at 0) opens the site on an empty or a dead frame. All
+three treatments are implemented; `emerge` and `swarm` are 0..1 amounts applied
+in that order.
+
+**The name holds the frame; the room leaves without it.** The anchor is a point
+in the *room*, composed against the pose the camera holds from the top of the
+page to the hero's centre — and for the rest of the hero the camera dollies back
+toward the reveal section. Left alone, that dolly shrinks the name and slides it out
+of frame, which is the one moment the treatment stops reading as a title and
+starts reading as an object that happens to be lettered. So `follow` *carries*
+the line: the rigid transform between the composed pose and the live one, applied
+to every glyph. The whole line moves together, skew and all, and because a rigid
+move preserves the distance to the lens, the size in the viewport is preserved
+with it — no scaling anywhere. Nothing changes before the pan begins (until the
+centre the two poses are the same and the carry is the identity), and **orbit
+mode switches it off**: there the camera belongs to whoever is flying it, and a
+name welded to the lens is one you can never walk around.
+
+**A world-unit title does not fit a phone, so the line is fitted.** Scene3D
+widens the fov in portrait to give back the width the rotation took, but it caps
+at 70° before the lens goes fisheye — so on a phone the frame at the name's depth
+is under half as wide as the pose was composed for. A name sized in world units
+is then wider than the screen, and the first thing a visitor sees is a title with
+its first letter missing. So the block is measured (`blockCols` advances plus the
+widest character, both taken from the geometry, not guessed at) and if it is
+wider than `fitWidth` of the visible frame, size, advance and line height scale
+down *together* until it is not. The anchor is then a proposal: it places the
+block by its centre, clamped to keep every letter inside `edgeMargin`, which
+lands it dead centre when the block fills the frame. On a desktop frame neither
+binds and the tuned values stand exactly as they are. The layout also runs along
+the composed frame's own axes rather than the world's, so the line is level *in
+the frame* — the world axes are a degree or two off whatever the pose is, and a
+title that is a degree off square reads as a mistake.
+
+**The letterform's edge is coverage, not a cell boundary.** One tap per cell
+makes "inside the letter" a yes-or-no question, so a stroke ends on a
+full-density character and the next cell is empty — a hard, stair-stepped edge in
+a frame where the face, being a photograph, shades. `nameFeather` mixes each cell
+with its four neighbours before the ramp reads it, so edge cells come out part
+lit and are handed sparser characters. The *whole texel* is blurred, not just its
+luminance: the composite multiplies the name's colour by the character it picked,
+so feathering the luminance alone would choose characters for a fringe and then
+paint them black.
+
+**It leaves by coming apart.** The exit used to be a translate — the line lifted
+out of frame as a block, which is a title card sliding off, and a strange ending
+for a name that had just spent the whole section assembling itself out of
+scattered characters. It is now the assembly run backwards, in the grid's own
+vocabulary: past `exitAt`, `HeroGlyphs` keeps drawing the name at full strength
+and only publishes how far along the exit is, and the pass takes it apart *cell
+by cell*. Each cell is a fleck with its own staggered start (`nameDissolveSpread`
+— at 0 they all go on one clock and the name slides off in formation, the exact
+thing this replaced), drifting off on a seeded angle biased upward
+(`nameDissolveRise`) and thinning as it dims, because a darker cell gets a
+sparser character: solid, sketchy, gone. The shader looks *backward* along each
+fleck's travel to find the ink it is carrying, which is what moves a letter
+outward instead of smearing it sideways. Reduced motion keeps the stagger and
+drops the flight.
+
+**The exit rides with the buffer, not through Vue.** `heroExit` is a plain
+mutable object next to `glyphTarget` in `hero/glyphBuffer.ts`, and the effect
+reads it in postprocessing's `update()` hook. It changes every scroll frame, so
+the reactive path the other settings use is the wrong one — that would run Vue's
+effect graph sixty times a second to move one float into one uniform. `update()`
+is also called after every render-loop callback, so it always has *this* frame's
+value whatever order the two components mounted in.
+
+**Gotcha: there are two camera poses per frame, and only one of them is drawn.**
+TresJS wires `useLoop().onBeforeRender` to the loop's *before* hook, but
+`<TresCanvas @loop>` — where `Scene3D` writes the camera transform from the
+scroll — is wired to the *after* hook. So in a before-render callback the camera
+object still holds the pose written at the end of the **last** frame, while
+`sections.cameraAt(progress)` gives the pose of the frame that has **not been
+drawn yet**. They differ by one frame of camera movement.
+
+For anything placed in world space that difference is invisible. For anything
+placed *relative to the camera* — the hero name once `follow` carries it — it is
+the entire error: the name gets positioned against a camera the frame is not shot
+from, so it lands off by however far the camera moved that frame. Zero while the
+camera is parked, growing with scroll speed exactly while it pans, and nothing
+else in the scene shows a trace of it. It reads as a problem with the name; it is
+a problem with which clock the name is reading. **A before-render callback that
+places something in screen space must read the camera OBJECT**, because that is
+what the draw will use.
+
+The old note here said the opposite, and the reason it gave was real: reading the
+object used to hand back an un-posed camera at the origin on the first frames,
+which put the name's anchor behind the lens, collapsed the frame extent to its
+floor and spawned every glyph on top of every other one. That failure is now
+covered at the source — `Scene3D` seeds the camera with a sane pose the moment
+the ref resolves — so `HeroGlyphs` reads the object and keeps the store pose only
+as a guard for a transform still sitting at the origin.
+
+**The characters are extruded, not billboarded.** A textured quad per character
+was the cheap build, and edge-on a plane is a zero-area sliver — a tumbling
+character vanished twice per turn, which `DoubleSide` cannot fix. They are real
+geometry with thickness. `TextGeometry` is normally the wrong tool here because
+it rebuilds on every text change and this thing scrambles several times a second
+— so every glyph the charset can show is built ONCE at mount and swapping a
+character is a geometry-reference assignment. The extrusion also earns its keep
+through the ASCII pass: the glyphs are additive, so a letter presenting more of
+itself to the lens accumulates more luminance and the pass picks a denser
+character for it. Depth arrives as character density.
+
+**Only the NAME is glyphs.** The `fullest-stack` entry and its definition stay
+in the DOM, over the canvas (`sections/HeroSection.vue`), revealed off
+`heroProgress` one beat behind the name. Prose re-sampled onto a character grid
+is mush at any cell size still coarse enough to read as ASCII — eight big letters
+survive that treatment, a sentence does not — and the entry doubles as real,
+crawlable text for a hero that is otherwise pixels in a canvas.
+
+**Scroll sets the odds; a clock does the rolling.** The decode is deliberately
+not a pure function of scroll — that version was correct and dead, because a
+still page was a still name. Each glyph re-rolls on its own jittered timer, and
+`heroProgress` sets the *probability* that the roll comes up as the real
+character: from `minFlash` (0.01 — the right letter flashes through the noise
+even at the very top, never zero) up to certainty, on a `flashBias` curve. Full
+progress *pins* the character rather than waiting for the next roll, so the
+settled name is still exactly deterministic; only the churn on the way is not.
+
+Three consequences worth keeping in mind:
+
+- **The composite ducks, it does not add.** Two bright things added together both
+  saturate to the ramp's last character and the letterform dissolves into
+  whatever it is crossing, so the name darkens the face behind it (`faceDuck`)
+  instead. Which also means **lighting is now typography**: the face has to sit
+  mid-ramp for the name to have anywhere to be brighter, so `spotlights.baseFill`
+  and `ScrollSpotlights` decide whether the name is readable.
+- **The letters keep breathing.** An assembled name with no ambient motion is
+  the one dead thing in a frame where the head floats (Levioso) and the
+  set-pieces drift, and it reads as a screenshot pasted over the scene. Each
+  glyph carries a seeded sway phase (`sway`, `swaySpeed`, `swayRot`) so the line
+  breathes instead of sliding as one block.
+- **There is a floor on the name's cell.** Below ~4 the cell is finer than the
+  letterform's own detail and the pass stops being visible — at that point you
+  are paying a shader to draw a letter as itself, and drawing the quads after the
+  composer would be cheaper.
+
+The layer map is now: **0** scene/head, **1** on-top set-pieces, **2** head depth
+stamp, **3** occluded set-pieces, **4** hero glyphs.
 
 ### `reveal` is a bloom — for an entrance, ask for `cardProgress`
 
@@ -250,14 +469,14 @@ section** (by id) at a local position `t` (0..1) — and, for the biography sect
 optionally to a specific `milestone` (card). The absolute scroll position is
 *derived* from the live section layout (`useSectionsStore().resolveAt`), so
 inserting / reordering / reweighting sections — or adding biography cards — keeps
-every beat on its mark (the "tada" stays mid-interlude, the sweep stays on its
+every beat on its mark (the "tada" stays mid-reveal, the sweep stays on its
 cards, the finale stays at the finale). This is the same reason the camera never
 breaks on a section insert; the lights and the **camera** (which can now hold
 several `cameraKeyframes` per section) ride the exact same anchor model.
 
 ```
 SPOTLIGHT_TRACKS (spotlights.ts)              ScrollSpotlights.vue @onBeforeRender
-  key:  [ {identity,t0 …off}, {pause,t.45 …on,flicker}, {biography,milestone2 …}, … ]
+  key:  [ {identity,t0 …off}, {reveal,t.45 …on,flicker}, {biography,milestone2 …}, … ]
   fill: [ … ]                  ──────►   resolveAt(section,t,milestone) → absolute %
   rim:  [ … ]                            → sort → bracket by store.progress → ease →
                                          lerp pose → head-anchored aim → effect →
@@ -293,7 +512,7 @@ SPOTLIGHT_TRACKS (spotlights.ts)              ScrollSpotlights.vue @onBeforeRend
   occludes the beam behind it) and ASCII'd like everything on layer 0, so it reads
   as a coherent shaft. Off by default; `coneOpacity` controls it.
 - **The beats.** Spots stay dark through the hero (the head still emerges via the
-  ASCII cell-size ramp alone), then snap on at the **interlude** with a brief flicker
+  ASCII cell-size ramp alone), then snap on in the **reveal** section with a brief flicker
   — the "tada, that's me" — settle on the face, swing across the biography cards
   (picking up the chapter accent), and resolve onto the face at the finale.
 - **Effects** are time-based modulations layered on the interpolated pose, evaluated
@@ -377,8 +596,8 @@ the middle, mirror-image three-quarters either side.
 yaw and must move together: `DEFAULT_HEAD_YAW` (store), `REST_YAW` in both
 `skills.ts` and `biography.ts`, the first-frame seed and `addressYaw` default in
 `Scene3D`, the dev panel's new-head-keyframe default, and the saved `addressYaw`
-in `tuning.config.json`. Persisted dev-panel edits in localStorage are in the old
-space and should be cleared.
+in `tuning.config.json`. (Panel edits no longer persist, so there is nothing
+stale to clear — a reload is enough.)
 
 **Amplitude and responsiveness are different problems.** They are easy to confuse
 when a turn feels wrong, and they have different fixes.
@@ -546,7 +765,7 @@ the registry spine, so `sections.setHeadKeyframes` and
 panel's *reset*, which reseeds from the committed spine, would silently drop
 every generated beat until the next reload. `setSectionKeyframes` replaces only
 the named section's keyframes, so the hand-off keyframes on either side
-(`pause` / `skills`) survive.
+(`reveal` / `skills`) survive.
 
 #### The screen ↔ world identity
 
@@ -1058,14 +1277,25 @@ sits is the only thing keeping a whole country outline off the face.
 
 ## Dev Panel and tuning
 
-> **Persisted tuning shadows code defaults.** Precedence is localStorage
-> (`fab:tuning`) → `tuning.config.json` → the inline default. So changing a default
-> in code does *nothing* in a browser that has ever saved that group from the
-> panel — the old value keeps winning, silently, and you will be looking at a
-> build that does not behave like the source. Reset the group in the panel (or
-> clear `fab:tuning`) after changing defaults. This matters doubly for any value
-> whose MEANING changed — a persisted `addressYaw` written before the face-on
-> refactor is a number in the old space, and will keep pointing the head wrong.
+> **Nothing sits in front of the config file, and a reload is the undo.** Edits
+> are held in memory only: precedence is `tuning.config.json` → the inline
+> default, and the panel writes nothing to storage as you drag. Refresh and you
+> are back to the committed values; *save to config file* is the one action that
+> makes a change outlast the tab.
+>
+> This used to persist every value to localStorage on every change, which gave a
+> slider drag two lives — the one you could see and one saved behind it. A browser
+> that had ever opened the panel read its own copy of the config forever after, so
+> anything committed later was invisible in it: the site shipped one way and the
+> person tuning it saw another, with nothing on screen to say so. That cost three
+> rounds of "did something not load?". And there was no way back either — a value
+> dragged somewhere ugly stayed ugly through a reload, because the reload restored
+> the mess instead of clearing it.
+>
+> The trade is real and deliberate: an unsaved edit is genuinely lost on refresh.
+> That is what the **dot on the save button** is for — `save •` in amber means
+> there is work here a reload would take with it. The legacy `fab:tuning` key is
+> cleared on load, so old scratchpads cannot resurface.
 
 A single, dev-only panel (the **⚙**, top-right of the homepage) that merges two
 things:
@@ -1092,19 +1322,20 @@ file; you **copy** them to code (`registry.ts` / `spotlights.ts`) to ship.
 > values — no per-user calibration.** Precedence when a component reads a value:
 >
 > ```
-> localStorage (dev scratchpad)  →  tuning.config.json (committed)  →  inline default (fallback)
+> tuning.config.json (committed)  →  inline default (fallback)
 > ```
 >
 > - **inline default** — the value passed to `useTuning(...)` in the component;
 >   the factory fallback if the config file has nothing for that key.
 > - **`tuning.config.json`** — what you've *saved* from the panel; what production
 >   reads. Commit it to deploy.
-> - **`localStorage` (`fab:tuning`)** — dev-only scratch: your in-progress drags,
->   not yet saved. Cleared on save. **This layer is why a tuned value can look
->   different in dev vs the deployed site** — until you hit *save to config file*.
 >
-> In production there is no store, panel, or `localStorage` — components read the
-> config file (or the inline default), at zero runtime cost.
+> In-progress drags are a third thing, but they are not a *layer*: they live in the
+> store until the page goes away, and nothing persists them. So what a fresh load
+> shows is always what ships.
+>
+> In production there is no store and no panel — components read the config file
+> (or the inline default), at zero runtime cost.
 
 ### Files
 
@@ -1113,7 +1344,7 @@ file; you **copy** them to code (`registry.ts` / `spotlights.ts`) to ship.
 | `tuning.config.json` | **The committed source of truth.** `group → key → value`, written by the panel's *save*, read by `useTuning` (dev + prod). Commit it to ship. |
 | `server/api/_tuning.post.ts` | Dev-only Nitro route that the panel POSTs to; merges + writes `tuning.config.json` on disk. Absent in the static prod build. |
 | `composables/useTuning.ts` | The API components call. Dev → store-backed; prod → plain refs reading the config file, else the inline default. |
-| `stores/tuning.ts` | The dev store: registered groups/fields/values, config-file + `localStorage` precedence, `saveToFile()`. |
+| `stores/tuning.ts` | The dev store: registered groups/fields/values, config-file precedence, `dirty`, `saveToFile()`. Edits are in-memory only. |
 | `components/home/DevPanel.vue` | The DOM panel shell (⚙, top-right) + the **global / scenes** tabs + shared `.dvp-*` styles + the *save to config file* button. Mounted dev-only in `pages/index.vue` as `<HomeDevPanel>`. |
 | `components/home/devpanel/*.vue` | The panel content: scene-control sections (`CameraSection`, `SceneSection`, `AsciiSection`, `LightsSection`, `SpotlightsSection`), the global `TuningGroups` list, the per-scene keyframe editors (`SceneEditor`, `SceneKeyframes` + `PoseKeyframeFields` / `SpotKeyframeFields`, `KeyframeOverview` / `OverviewGroup`), and shared renderers `TuningGroupFields` / `TuningGroupBlock`, all in a collapsible `DevPanelSection`. |
 | `composables/useDevPanelGroups.ts` | Routes each tuning group to the global tab or to a scene/milestone (by set-piece name or explicit `section` tag). |
@@ -1153,11 +1384,13 @@ config-file lookup); the value you pass is the inline fallback default.
     diffs / pasting elsewhere).
   - **reset** — restores the committed baseline (config-file value, else the inline
     default).
-- **save to config file** (panel footer) — writes *all* current values to
-  `tuning.config.json` via the dev server, then clears the `localStorage` scratch.
-  This is the step that makes dev == deployed.
-- Edits persist to `localStorage` (`fab:tuning`) as you drag, so reloads keep your
-  in-progress tweaks until you save, reset, or clear storage.
+- **save** (in the control bar, present in every panel state) — writes *all*
+  current values to `tuning.config.json` via the dev server. This is the step that
+  makes dev == deployed, and the only one that survives a reload. It reads
+  `save •` in amber whenever something is edited and unsaved.
+- Edits are **not** persisted as you drag. A reload discards them and brings back
+  the committed values — which is the cheap way out of a tuning session that went
+  nowhere, and the reason to hit save before refreshing one that did.
 
 ### Tabs: global vs. scenes
 

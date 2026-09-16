@@ -3,12 +3,11 @@
 // from the global `.dvp-*` sheet in DevPanel.vue so every section matches.
 import { ref } from "vue";
 
-const props = withDefaults(
-  defineProps<{ title: string; defaultOpen?: boolean }>(),
-  { defaultOpen: false }
-);
+defineProps<{ title: string }>();
 
-const open = ref(props.defaultOpen);
+// Every section starts collapsed, so opening the panel shows a scannable list
+// of headings instead of a wall of controls.
+const open = ref(false);
 </script>
 
 <template>

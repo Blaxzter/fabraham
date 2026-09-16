@@ -61,14 +61,62 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(0.06, 0.04, 0.48), rotation: v3(-0.15, 0.15, 0.02) },
+    /**
+     * HOLD, then pull back — rather than the single centre pose a section gets
+     * by default.
+     *
+     * A section's lone `camera` pose sits at t 0.5, so the camera reached it
+     * halfway through the hero and immediately began easing toward the
+     * interlude's. That put the pull-back UNDER the assembly: the name was still
+     * gathering itself out of the frame while the room it was gathering in
+     * receded behind it. Two moves competing for the same beat, and the one that
+     * lost was the one the section exists for.
+     *
+     * It now holds for the section's WHOLE length. The hero is the name's beat and
+     * nothing else's: the camera does not move, the grid stays coarse, the lights
+     * stay off, and the only thing resolving is the letters. Everything that
+     * happens TO the room — the pull-back, the face coming into focus, the key
+     * light — belongs to the section after it, which exists to do exactly that.
+     *
+     * Both keyframes carry the same pose on purpose: a track holds between two
+     * identical poses. (Sampling before the first keyframe clamps to it, so the
+     * t 0 entry is not strictly needed — it is here to say "held from the top of
+     * the page" out loud rather than leave it resting on that behaviour.)
+     */
+    cameraKeyframes: [
+      { t: 0, position: v3(0.06, 0.04, 0.48), rotation: v3(-0.15, 0.15, 0.02) },
+      { t: 1, position: v3(0.06, 0.04, 0.48), rotation: v3(-0.15, 0.15, 0.02) },
+    ],
   },
   {
-    id: "pause",
+    /**
+     * THE FACE. Not an interlude — a beat with a job.
+     *
+     * This section used to be a pause between the hero and the biography, and the
+     * face's reveal was crammed into the hero on top of the name. That gave the
+     * hero two things to say at once and this section nothing, which is the wrong
+     * way round: the name needs the frame to itself, and a head resolving out of
+     * an abstract field is not a transition, it is the moment the site is built
+     * around.
+     *
+     * So the three halves of that reveal happen here, and only here. The camera
+     * pulls back (this section's pose, reached at its centre), the grid resolves
+     * (`ASCII_RAMP_SECTION` in the sections store points at this id), and the key
+     * light kicks on at t 0.45 with a flicker and settles by t 1 — that last one
+     * was already written this way in `spotlights.ts`, which is the clue that this
+     * is where the reveal always wanted to be.
+     *
+     * It keeps `InterludeSection` as its component on purpose: "a beat with no
+     * content card, just a camera move and whatever blooms behind it" is exactly
+     * what this is. The eyebrow is the only text, and it names the beat.
+     */
+    id: "reveal",
     order: 20,
     type: "interlude",
     component: markRaw(InterludeSection),
     mode: "pinned",
-    title: "Interlude",
+    title: "The face",
+    subtitle: "resolving",
     weight: 1,
     accent: "#9ad1ff",
     setPiece: [],

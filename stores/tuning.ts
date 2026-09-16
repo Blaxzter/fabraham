@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { reactive, ref, computed, watch } from "vue";
+import { reactive, ref, computed } from "vue";
 import type { Ref } from "vue";
 import tuningConfig from "~/tuning.config.json";
 
@@ -62,6 +62,38 @@ const config = tuningConfig as TuneConfig;
 const clone = <T>(v: T): T =>
   typeof v === "object" && v !== null ? ({ ...v } as T) : v;
 
+/** Shallow equality, enough for the value kinds a tunable can hold (number,
+ *  string, boolean, or a flat vec3). */
+const sameValue = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+  const x = a as Record<string, unknown>;
+  const y = b as Record<string, unknown>;
+  const kx = Object.keys(x);
+  return kx.length === Object.keys(y).length && kx.every((k) => x[k] === y[k]);
+};
+
+/**
+ * Edits are held in memory and nowhere else. There is no scratchpad.
+ *
+ * This used to persist every value to localStorage on every change, which gave
+ * a slider drag two lives: the one you could see and one saved behind it. Two
+ * things followed, both bad. A browser that had ever opened the panel read its
+ * own copy of the config file forever after, so anything committed later was
+ * invisible in it — the site shipped one way and the person tuning it saw
+ * another, with nothing on screen to say so. And there was no way back: a value
+ * you dragged somewhere ugly stayed ugly through a reload, because the reload
+ * restored the mess rather than clearing it.
+ *
+ * Now a reload is the undo. Values come from the committed file (or the inline
+ * default), edits live until the page goes away, and *save to config file* is the
+ * one action that makes a change outlast the tab. That also means an unsaved edit
+ * is genuinely lost on refresh — which is the point, and why `dirty` exists to
+ * say so on the button.
+ */
+
 export const useTuningStore = defineStore("tuning", () => {
   const groups = reactive<Record<string, TuneGroup>>({});
   const values = reactive<Record<string, Record<string, unknown>>>({});
@@ -72,13 +104,14 @@ export const useTuningStore = defineStore("tuning", () => {
 
   const panelOpen = ref(false); // opens via the ⚙ toggle (so it never blocks the scene)
 
-  // Persisted overrides loaded once (client only).
-  let overrides: Record<string, Record<string, unknown>> = {};
+  // Nothing is read from storage any more, but browsers that used the old
+  // scratchpad are still carrying it — drop it, so it cannot come back as a
+  // surprise if anything ever reads this key again.
   if (import.meta.client) {
     try {
-      overrides = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+      localStorage.removeItem(LS_KEY);
     } catch {
-      overrides = {};
+      /* privacy mode — nothing to clean up anyway */
     }
   }
 
@@ -108,14 +141,9 @@ export const useTuningStore = defineStore("tuning", () => {
       groups[groupId]!.fields.push({ key, kind, ...meta });
     }
     if (values[groupId]![key] === undefined) {
-      // Precedence: localStorage scratchpad (dev edits) → config file → inline default.
-      const ov = overrides[groupId]?.[key];
-      values[groupId]![key] =
-        ov !== undefined
-          ? clone(ov)
-          : cfg !== undefined
-            ? clone(cfg)
-            : clone(def);
+      // Precedence: committed config file → inline default. Nothing sits in front
+      // of the file, so what you see on load is what ships.
+      values[groupId]![key] = cfg !== undefined ? clone(cfg) : clone(def);
     }
   };
 
@@ -188,7 +216,6 @@ export const useTuningStore = defineStore("tuning", () => {
         defaults[g] ??= {};
         for (const k in payload[g]!) defaults[g]![k] = clone(payload[g]![k]);
       }
-      if (import.meta.client) localStorage.removeItem(LS_KEY);
       saveState.value = "saved";
       setTimeout(() => (saveState.value = "idle"), 1500);
     } catch {
@@ -210,20 +237,22 @@ export const useTuningStore = defineStore("tuning", () => {
     return out;
   });
 
-  // Persist edits (client).
-  if (import.meta.client) {
-    watch(
-      values,
-      () => {
-        try {
-          localStorage.setItem(LS_KEY, JSON.stringify(values));
-        } catch {
-          /* quota / privacy mode — ignore */
-        }
-      },
-      { deep: true }
-    );
-  }
+  /**
+   * Is anything edited but not saved?
+   *
+   * `defaults` is the committed baseline — the config value, or the inline one
+   * where the file has nothing — and `saveToFile` moves it forward on success. So
+   * this is exactly "what you would lose by reloading", which is worth putting on
+   * the save button now that reloading is how you throw work away.
+   */
+  const dirty = computed(() => {
+    for (const g in values) {
+      for (const k in values[g]!) {
+        if (!sameValue(values[g]![k], defaults[g]?.[k])) return true;
+      }
+    }
+    return false;
+  });
 
   return {
     groups,
@@ -237,6 +266,7 @@ export const useTuningStore = defineStore("tuning", () => {
     exportGroup,
     saveToFile,
     saveState,
+    dirty,
     gizmoFields,
   };
 });

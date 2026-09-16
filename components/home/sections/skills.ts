@@ -400,11 +400,19 @@ export const skillsHeadKeyframes = (): HeadKeyframe[] => {
  * are aiming at. Pulled back (high z) and lifted (high y) so the head sits small
  * and low and the cards have the upper half of the frame to come in through; the
  * pan to the right waits until 0.88, by which time the last card has landed.
+ *
+ * Pulled back further (1.74 → 2.15) once the hero and the reveal got a close
+ * frame each. This chapter is a FIELD — a cloud of tools with a head somewhere in
+ * it — and at the old distance the cloud was cropped on every edge and the head
+ * was big enough to be the subject, which is the wrong way round for the one
+ * section that is about breadth. It also gives back the contrast the sequence
+ * needs: the face fills the frame at the reveal, and here the same head is one
+ * object among many.
  */
 export const skillsCameraKeyframes = (): CameraKeyframe[] => [
-  { t: 0, position: v3(0.0, 0.13, 1.74), rotation: v3(-0.01, 0.0, 0.0) },
-  { t: 0.88, position: v3(0.0, 0.13, 1.72), rotation: v3(-0.01, 0.0, 0.0) },
-  { t: 0.98, position: v3(0.18, 0.09, 1.7), rotation: v3(-0.03, 0.0, 0.0) },
+  { t: 0, position: v3(0.0, 0.13, 2.15), rotation: v3(-0.01, 0.0, 0.0) },
+  { t: 0.88, position: v3(0.0, 0.13, 2.13), rotation: v3(-0.01, 0.0, 0.0) },
+  { t: 0.98, position: v3(0.18, 0.09, 2.11), rotation: v3(-0.03, 0.0, 0.0) },
 ];
 
 // ---------------------------------------------------------------------------

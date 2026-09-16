@@ -59,6 +59,10 @@ const activeTitle = computed(
 
 // Short enough to sit in the control bar next to "edit ▸"; the long form of
 // each state (and the diagnostic when it fails) lives in the tooltip below.
+//
+// The dot on "save" is load-bearing. Edits are held in memory only — a reload is
+// how you throw them away — so the one thing the bar has to answer at a glance is
+// whether there is anything here a refresh would take with it.
 const saveLabel = computed(() => {
     switch (tuning.saveState) {
         case "saving":
@@ -68,13 +72,15 @@ const saveLabel = computed(() => {
         case "error":
             return "save failed";
         default:
-            return "save";
+            return tuning.dirty ? "save •" : "save";
     }
 });
 const saveTitle = computed(() =>
     tuning.saveState === "error"
         ? "Could not write tuning.config.json — is the dev server running?"
-        : "Write tuning.config.json — the deployed source of truth. Commit it to ship these values to everyone. Until you do, your edits live only in this browser's localStorage."
+        : tuning.dirty
+          ? "Unsaved edits — a reload will discard them. Writes tuning.config.json, the deployed source of truth; commit it to ship these values to everyone."
+          : "Nothing to save: these are the committed values. Edits live in memory until you save, so a reload always brings you back here."
 );
 </script>
 
@@ -93,7 +99,7 @@ const saveTitle = computed(() =>
                 <button
                     type="button"
                     class="dvp-btn dvp-save-trigger"
-                    :class="tuning.saveState"
+                    :class="[tuning.saveState, { dirty: tuning.dirty }]"
                     :disabled="tuning.saveState === 'saving'"
                     :title="saveTitle"
                     @click="tuning.saveToFile()"
@@ -205,11 +211,11 @@ const saveTitle = computed(() =>
                     </template>
 
                     <template v-else>
-                        <DevPanelSection title="Camera" :default-open="true">
+                        <DevPanelSection title="Camera">
                             <CameraSection />
                         </DevPanelSection>
 
-                        <DevPanelSection title="ASCII" :default-open="true">
+                        <DevPanelSection title="ASCII">
                             <AsciiSection />
                         </DevPanelSection>
 
@@ -401,6 +407,13 @@ const saveTitle = computed(() =>
     font-size: 0.62rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+/* Unsaved edits. Amber rather than the panel's green, because this is not a
+   success state — it is work a reload would take with it. The `saved` and
+   `error` rules come after, so a save result still wins the colour. */
+.dvp-save-trigger.dirty {
+    border-color: rgba(255, 196, 92, 0.65);
+    color: #ffc45c;
 }
 .dvp-save-trigger.saving {
     opacity: 0.5;

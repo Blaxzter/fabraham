@@ -180,7 +180,7 @@ const copy = async (which: string, text: string) => {
 
 <template>
   <!-- Camera -->
-  <DevPanelSection title="Camera" :default-open="true">
+  <DevPanelSection title="Camera">
     <template #actions>
       <button class="dvp-btn" @click.stop="copy('cam', sections.exportCameraKeyframes(sectionId))">
         {{ copied === "cam" ? "copied" : "copy" }}
@@ -242,7 +242,7 @@ const copy = async (which: string, text: string) => {
   </DevPanelSection>
 
   <!-- Spotlights -->
-  <DevPanelSection title="Spotlights" :default-open="true">
+  <DevPanelSection title="Spotlights">
     <div v-for="(tr, tIdx) in spotTracks" :key="tr.ti" class="dvp-kf-track">
       <div class="dvp-row"><span class="dvp-light-name">{{ tr.id }}</span></div>
       <div

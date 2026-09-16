@@ -22,7 +22,7 @@
     "maxPitch": 0.14
   },
   "skillsFlight": {
-    "faceY": 64,
+    "faceY": 57,
     "perspective": 600,
     "dof": 22,
     "tilt": 45,
@@ -79,5 +79,59 @@
     "scale": 0.85,
     "tilt": 0.72,
     "parallax": 0.03
+  },
+  "heroGlyphs": {
+    "anchor": {
+      "x": -0.163,
+      "y": 0.06,
+      "z": 0.22
+    },
+    "size": 0.034,
+    "advance": 0.038,
+    "lineHeight": 0.047,
+    "swarm": 1,
+    "swarmSpread": 0.95,
+    "swarmSpeed": 3,
+    "swarmDepth": 0.08,
+    "spinSpeed": 0.9,
+    "tumbleBias": 0.6,
+    "emerge": 0,
+    "originRadius": 0.16,
+    "originJitter": 0.35,
+    "bow": 0.06,
+    "stagger": 0.55,
+    "faceCamera": true,
+    "sway": 0.004,
+    "swaySpeed": 0,
+    "swayRot": 0.05,
+    "minFlash": 0.01,
+    "flashBias": 1.5,
+    "flipEvery": 0.2,
+    "assembleAt": 0.72,
+    "exitAt": 0.86,
+    "extrude": 0.22,
+    "gain": 1.15,
+    "preGain": 0.6,
+    "fitWidth": 0.88,
+    "edgeMargin": 0.04,
+    "follow": 1,
+    "swarmWander": 0.55,
+    "flipChaos": 0.8
+  },
+  "heroAscii": {
+    "nameCell": 6,
+    "glyphGain": 1.25,
+    "faceDuck": 0.85,
+    "nameFeather": 0.5,
+    "nameFeatherSpread": 1,
+    "nameDissolveReach": 12,
+    "nameDissolveSpread": 0.7,
+    "nameDissolveRise": 0.55
+  },
+  "faceAscii": {
+    "faceCellCoarse": 45,
+    "faceCellFine": 9,
+    "faceRampStart": 0.05,
+    "faceRampEnd": 0.5
   }
 }
