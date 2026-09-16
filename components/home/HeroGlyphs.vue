@@ -265,15 +265,84 @@ const stagger = tune.num("stagger", 0.72, { min: 0, max: 0.95, step: 0.01, label
 const faceCamera = tune.bool("faceCamera", true, { label: "Settle square to the lens" });
 
 /**
+ * How the settled name is TURNED — the thing `faceCamera` on its own cannot say.
+ *
+ * `faceCamera` makes every letter parallel to the image plane, which is a flat
+ * wall of glyphs: correct, legible, and with no depth in it at all. Since the
+ * pass reads LUMINANCE to pick a character, a wall presents the same face
+ * everywhere and the whole name comes back at one density — which is why a
+ * counter (the hole in an A, the eye of an R) can end up reading as a slightly
+ * dimmer patch rather than as a hole.
+ *
+ * These are a rotation applied after that, in the letter's own frame (+X right,
+ * +Y up, +Z at the lens), so they read as pitch / yaw / roll of the LINE rather
+ * than of the world. All zero is exactly the old behaviour.
+ */
+const tiltX = tune.num("tiltX", 0, { min: -60, max: 60, step: 0.5, label: "Settled tilt — pitch (deg)" });
+const tiltY = tune.num("tiltY", 0, { min: -60, max: 60, step: 0.5, label: "Settled tilt — yaw (deg)" });
+const tiltZ = tune.num("tiltZ", 0, { min: -60, max: 60, step: 0.5, label: "Settled tilt — roll (deg)" });
+
+/**
+ * The CURVE: the line wrapped around the viewer rather than flat across the
+ * frame, like type on the inside of a cylinder.
+ *
+ * Two halves, because a curve is both, and either one alone looks like a
+ * mistake. `curveTurn` turns each letter about its own up axis by an amount
+ * proportional to how far it sits from the middle of the line — so the ends
+ * angle inward and the centre is left square. `curveDepth` then brings those
+ * ends toward the LENS, by the square of the same offset, which is the arc
+ * itself. Turn without depth is a fan of letters standing on a straight line;
+ * depth without turn is a straight line of letters bent out of the frame.
+ *
+ * Both are signed: negative bows the line away from the camera instead.
+ *
+ * The depth is real perspective, so the ends also come out slightly LARGER —
+ * which is the curve reading, not a bug, but it is why this wants single digits
+ * of a world unit rather than a bold setting.
+ */
+const curveTurn = tune.num("curveTurn", 14, { min: -60, max: 60, step: 0.5, label: "Curve — turn at the ends (deg)" });
+const curveDepth = tune.num("curveDepth", 0.015, {
+  min: -0.15,
+  max: 0.15,
+  step: 0.001,
+  label: "Curve — ends toward the lens",
+});
+
+/**
  * Ambient sway — the letters keep breathing once they have landed.
  *
  * Without it an assembled name is the one dead thing in a frame where the head
  * floats (Levioso) and the set-pieces drift, and it reads as a screenshot pasted
  * over the scene rather than as something sharing the air with it.
+ *
+ * Two things about the shape of it, both learned the hard way:
+ *
+ * SPEED 0 IS STILL. Every term is `sin(elapsed * speed + phase)`, so at speed 0
+ * it does not stop — it FREEZES at `sin(phase)`, which is a seeded per-letter
+ * offset and a seeded per-letter tilt that then never change. Turning the sway
+ * off scattered the name off its baseline permanently, and because the ASCII
+ * pass rounds each letter onto its own cell, a few percent of cap height came
+ * out as whole cells of stagger: a title that looked broken rather than calm.
+ * The loop gates on the speed now, so 0 means what it says.
+ *
+ * TOGETHER, OR EACH ON ITS OWN. Even in motion, an independent phase per letter
+ * is a line whose baseline is never a line — the same cell rounding turns the
+ * phase spread into visible stagger. So the sway is written as a single breath
+ * for the whole LINE plus a per-letter departure from it, and `swayTogether` is
+ * how much of that departure is allowed: at 1 the name breathes as one object
+ * and the baseline holds exactly, at 0 every letter is on its own clock. Near
+ * the top is the useful end — enough life to sit in the same air as the head,
+ * not enough to un-set the type.
  */
 const swayAmp = tune.num("sway", 0.004, { min: 0, max: 0.05, step: 0.0005, label: "Sway — distance" });
-const swaySpeed = tune.num("swaySpeed", 0.55, { min: 0, max: 4, step: 0.05, label: "Sway — speed" });
+const swaySpeed = tune.num("swaySpeed", 0.55, { min: 0, max: 4, step: 0.05, label: "Sway — speed (0 = still)" });
 const swayRot = tune.num("swayRot", 0.05, { min: 0, max: 0.6, step: 0.005, label: "Sway — tilt" });
+const swayTogether = tune.num("swayTogether", 0.9, {
+  min: 0,
+  max: 1,
+  step: 0.01,
+  label: "Sway — as one line (0 = each letter alone)",
+});
 
 /** The odds the decode runs on (see the header note). */
 const minFlash = tune.num("minFlash", 0.01, { min: 0, max: 0.5, step: 0.005, label: "Right-letter chance at start" });
@@ -603,6 +672,13 @@ const tmpCarry = new Vector3();
 const tmpAnchor = new Vector3();
 const tumbleQuat = new Quaternion();
 const restQuat = new Quaternion();
+/** The settled tilt, the curve's turn, and the two folded onto `restOrient` —
+ *  the orientation a landed glyph actually converges to. */
+const tiltQuat = new Quaternion();
+const curveQuat = new Quaternion();
+const glyphRest = new Quaternion();
+/** +Y in the glyph's local frame: the axis the curve turns each letter about. */
+const UP_AXIS = new Vector3(0, 1, 0);
 /** The pose the anchor was composed against, and the rigid move from it to the
  *  live one — see `follow`. */
 const refPos = new Vector3();
@@ -883,15 +959,44 @@ onBeforeRender(({ delta, elapsed }) => {
     tmpCentre.copy(tmpCamPos).addScaledVector(tmpFwd, camDist);
   }
 
+  // The settled turn, resolved once. In the letter's own frame, so the three
+  // read as pitch/yaw/roll of the line rather than of the world. (`tmpEuler` is
+  // free by here — the camera poses above are already baked into quaternions.)
+  tmpEuler.set(tiltX.value * DEG2RAD, tiltY.value * DEG2RAD, tiltZ.value * DEG2RAD);
+  tiltQuat.setFromEuler(tmpEuler);
+  const curveRad = curveTurn.value * DEG2RAD;
+  const curveZ = curveDepth.value;
+  // Half the line in COLUMNS, which is what the per-glyph offset is measured in.
+  // Both lines are measured against the longest, so they curve as one block
+  // rather than each about its own centre — two arcs of different radii stacked
+  // on top of each other is the one way this reads as broken.
+  const midCol = (blockCols - 1) * 0.5;
+
   const spread = swarmSpread.value;
   const chaos = clamp01(flipChaos.value);
   const wander = clamp01(swarmWander.value);
   const t = elapsed * swarmSpeed.value;
+  // See the note on the sway tunables: the speed is a GATE (0 is still, not
+  // frozen at a random phase), `swayT` is the line's own clock, and `alone` is
+  // how far each letter is allowed to depart from it.
+  const swaying = !still && swaySpeed.value > 0;
+  const swayT = elapsed * swaySpeed.value;
+  const alone = 1 - clamp01(swayTogether.value);
+  // The line's breath: the same three sines with NO phase, which every letter
+  // is a departure from rather than an independent copy of. Hoisted because
+  // they are the same number for all of them.
+  const lineX = Math.sin(swayT);
+  const lineY = Math.sin(swayT * 0.77);
+  const lineZ = Math.sin(swayT * 0.61);
+  const lineRot = Math.sin(swayT * 0.8);
 
   for (let i = 0; i < total; i++) {
     const g = glyphs[i]!;
     const cp = charProgress(assemble, i);
     const eased = easeOutCubic(cp);
+    /** Where this letter sits across the line: −1 at the left end, +1 at the
+     *  right, 0 in the middle. Both the turn and the depth are read off it. */
+    const u = midCol > 0 ? (g.col - midCol) / midCol : 0;
 
     // --- where it belongs ----------------------------------------------------
     // Along the composed frame's own axes rather than the world's, so the line
@@ -901,6 +1006,10 @@ onBeforeRender(({ delta, elapsed }) => {
       .copy(refCentre)
       .addScaledVector(refRight, placedX + g.col * adv)
       .addScaledVector(refUp, placedY - g.lineOffset * lh);
+    // The arc. Squared, so the middle of the line is left where it was composed
+    // and only the ends travel — and along the COMPOSED forward axis, negated
+    // because `refFwd` points into the scene and this is a move toward the lens.
+    if (curveZ !== 0) tmpTarget.addScaledVector(refFwd, -u * u * curveZ);
     // Carried per glyph rather than laid out around the carried anchor: the
     // transform is rigid, so the two agree at `follow` 1 — but at a partial
     // setting only this one lerps the whole line evenly instead of stretching it.
@@ -979,21 +1088,40 @@ onBeforeRender(({ delta, elapsed }) => {
     g.mesh.position.lerpVectors(tmpPre, tmpTarget, eased);
 
     // --- ambient sway --------------------------------------------------------
-    // Per-glyph phase, so the landed line breathes rather than sliding as one
-    // block. Scaled by `eased` so it does not fight the swarm's own drift.
-    if (!still && swayAmp.value > 0) {
-      const st = elapsed * swaySpeed.value;
+    // Scaled by `eased` so it does not fight the swarm's own drift, and blended
+    // against the line's own breath so `alone` reads as a DISTANCE off it.
+    //
+    // The blend is on the value, not on the phase. Detuning the phase instead
+    // was the obvious version and it does not work: the y term carries the
+    // phase at 1.7x, so a tenth of a turn of detune is already 60 degrees, two
+    // sines 60 degrees apart differ by most of their amplitude, and "nearly
+    // together" came out as far apart as ever. Lerping the sampled values makes
+    // the knob linear — at 0.9 no letter is ever more than a tenth of the
+    // amplitude off the line, which is what it looks like it promises.
+    if (swaying && swayAmp.value > 0) {
       const a = swayAmp.value * eased;
-      g.mesh.position.x += Math.sin(st + g.swayPhase) * a;
-      g.mesh.position.y += Math.sin(st * 0.77 + g.swayPhase * 1.7) * a * 0.6;
-      g.mesh.position.z += Math.sin(st * 0.61 + g.swayPhase * 2.3) * a * 0.4;
+      const ph = g.swayPhase;
+      g.mesh.position.x += (lineX + (Math.sin(swayT + ph) - lineX) * alone) * a;
+      g.mesh.position.y +=
+        (lineY + (Math.sin(swayT * 0.77 + ph * 1.7) - lineY) * alone) * a * 0.6;
+      g.mesh.position.z +=
+        (lineZ + (Math.sin(swayT * 0.61 + ph * 2.3) - lineZ) * alone) * a * 0.4;
     }
 
     // --- the tumble ----------------------------------------------------------
     // A loose glyph spins continuously; landing is a slerp back to the rest
     // orientation, so the settle converges exactly instead of unwinding a
     // number that keeps growing.
-    g.mesh.quaternion.copy(restOrient);
+    //
+    // The rest orientation is per-glyph now: the shared one, then the settled
+    // tilt, then this letter's own share of the curve — all post-multiplied, so
+    // each is read in the frame the one before it leaves behind.
+    glyphRest.copy(restOrient).multiply(tiltQuat);
+    if (curveRad !== 0) {
+      curveQuat.setFromAxisAngle(UP_AXIS, -u * curveRad);
+      glyphRest.multiply(curveQuat);
+    }
+    g.mesh.quaternion.copy(glyphRest);
 
     const loose = Math.max(em, sw);
     if (!still && loose > 0 && spinSpeed.value > 0 && eased < 1) {
@@ -1007,12 +1135,14 @@ onBeforeRender(({ delta, elapsed }) => {
       tmpAxis.normalize();
       tumbleQuat.setFromAxisAngle(tmpAxis, g.spin);
       g.mesh.quaternion.multiply(tumbleQuat);
-      g.mesh.quaternion.slerp(restOrient, eased);
+      g.mesh.quaternion.slerp(glyphRest, eased);
     }
-    if (!still && swayRot.value > 0) {
-      g.mesh.rotateZ(
-        Math.sin(elapsed * swaySpeed.value * 0.8 + g.swayRotPhase) * swayRot.value * eased
-      );
+    // Same gate, same blend. The frozen tilt was the louder half of the scatter:
+    // 0.05rad is ~3 degrees, and three degrees of italic on every second letter
+    // is what the eye reads as a line that will not sit down.
+    if (swaying && swayRot.value > 0) {
+      const own = Math.sin(swayT * 0.8 + g.swayRotPhase);
+      g.mesh.rotateZ((lineRot + (own - lineRot) * alone) * swayRot.value * eased);
     }
 
     // --- the glyph itself: scroll sets the ODDS, a clock does the rolling ----

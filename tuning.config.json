@@ -82,7 +82,7 @@
   },
   "heroGlyphs": {
     "anchor": {
-      "x": -0.163,
+      "x": -0.18,
       "y": 0.06,
       "z": 0.22
     },
@@ -101,30 +101,36 @@
     "bow": 0.06,
     "stagger": 0.55,
     "faceCamera": true,
-    "sway": 0.004,
-    "swaySpeed": 0,
-    "swayRot": 0.05,
+    "sway": 0.008,
+    "swaySpeed": 0.4,
+    "swayRot": 0.09,
+    "swayTogether": 0.75,
     "minFlash": 0.01,
     "flashBias": 1.5,
     "flipEvery": 0.2,
     "assembleAt": 0.72,
     "exitAt": 0.86,
-    "extrude": 0.22,
-    "gain": 1.15,
-    "preGain": 0.6,
+    "extrude": 0.46,
+    "gain": 2.3,
+    "preGain": 0.62,
     "fitWidth": 0.88,
     "edgeMargin": 0.04,
     "follow": 1,
     "swarmWander": 0.55,
-    "flipChaos": 0.8
+    "flipChaos": 0.8,
+    "tiltX": 0,
+    "tiltY": 0,
+    "tiltZ": 0,
+    "curveTurn": 17.5,
+    "curveDepth": 0.004
   },
   "heroAscii": {
     "nameCell": 6,
-    "glyphGain": 1.25,
-    "faceDuck": 0.85,
+    "glyphGain": 3,
+    "faceDuck": 0.43,
     "nameFeather": 0.5,
-    "nameFeatherSpread": 1,
-    "nameDissolveReach": 12,
+    "nameFeatherSpread": 0.6,
+    "nameDissolveReach": 4.5,
     "nameDissolveSpread": 0.7,
     "nameDissolveRise": 0.55
   },
@@ -133,5 +139,14 @@
     "faceCellFine": 9,
     "faceRampStart": 0.05,
     "faceRampEnd": 0.5
+  },
+  "heroEntry": {
+    "sizeMin": 1.3,
+    "sizeVw": 4.2,
+    "sizeMax": 2.4,
+    "pronScale": 1,
+    "posScale": 0.85,
+    "defScale": 0.7,
+    "defMeasure": 46
   }
 }

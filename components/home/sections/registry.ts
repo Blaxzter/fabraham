@@ -116,8 +116,38 @@ export const SECTION_DEFS: SectionDef[] = [
     component: markRaw(InterludeSection),
     mode: "pinned",
     title: "The face",
-    subtitle: "resolving",
-    weight: 1,
+    /**
+     * No eyebrow, on purpose.
+     *
+     * `InterludeSection` renders a section's subtitle as a label in the middle of
+     * the frame — which, for every other interlude, is the only thing marking a
+     * beat that has no card. This beat has the opposite problem: it is the most
+     * loaded frame on the page, and a word sitting in the middle of it is a
+     * caption narrating the one thing the visitor can already see happening. It
+     * also stood still on screen while the grid moved under it, which is what made
+     * it read as a status message rather than as typography.
+     *
+     * The `title` stays: it is how the dev panel and the keyframe overview name
+     * this section, and neither is rendered to the page.
+     */
+    subtitle: "",
+    /**
+     * THE pace lever for the reveal — every beat in this section is a fraction of
+     * it: the ASCII sweep (`ASCII_RAMP_START`/`END` in the sections store, 0.1 →
+     * 0.75 of the section), the camera's pull-back, and the key light's kick at
+     * t 0.45.
+     *
+     * At 1 that sweep had 65vh of scroll: two thirds of a screen, a few notches of
+     * a wheel, and the face SNAPPED into focus. For a beat the rest of the site is
+     * arranged around — the head surfacing out of an abstract field — that is the
+     * one thing it cannot afford to do. At 2.5 the same sweep runs across ~160vh,
+     * so the resolve is something you scroll THROUGH rather than past, and the
+     * light arrives partway up it instead of on top of it.
+     *
+     * Reach for this before retuning the ramp window: the window is art direction
+     * (where in the section the sweep sits), this is pace.
+     */
+    weight: 2.5,
     accent: "#9ad1ff",
     setPiece: [],
     setPieceVariant: "",

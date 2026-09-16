@@ -197,6 +197,12 @@ the grid resolves, and the key light kicks on at t 0.45 with a flicker. That las
 one was *already* written that way in `spotlights.ts` — the light half of this
 reveal always lived in that section; only the grid was somewhere else.
 
+That section carries `weight: 2.5` (≈250vh) rather than an interlude's usual 1,
+and the weight is the pace lever for the whole beat: the sweep, the pull-back and
+the light are all fractions of it. At 1 the coarse→resolved sweep had 65vh to
+run and the face snapped into focus; the reveal is the moment the site is built
+around, so it is the one beat that should be scrolled *through*.
+
 `ASCII_RAMP_SECTION` in the sections store names the section, and
 `asciiRampStart` / `asciiRampEnd` are fractions **of it**. Before it the ramp
 reads 0 and after it 1, because `progressInSection` clamps at both ends — so the
@@ -369,11 +375,18 @@ Three consequences worth keeping in mind:
   instead. Which also means **lighting is now typography**: the face has to sit
   mid-ramp for the name to have anywhere to be brighter, so `spotlights.baseFill`
   and `ScrollSpotlights` decide whether the name is readable.
-- **The letters keep breathing.** An assembled name with no ambient motion is
-  the one dead thing in a frame where the head floats (Levioso) and the
-  set-pieces drift, and it reads as a screenshot pasted over the scene. Each
-  glyph carries a seeded sway phase (`sway`, `swaySpeed`, `swayRot`) so the line
-  breathes instead of sliding as one block.
+- **The letters keep breathing — as a line.** An assembled name with no ambient
+  motion is the one dead thing in a frame where the head floats (Levioso) and the
+  set-pieces drift, and it reads as a screenshot pasted over the scene. Each glyph
+  carries a seeded sway phase (`sway`, `swaySpeed`, `swayRot`), but the motion is
+  written as one breath for the whole *line* plus a per-letter departure from it,
+  and `swayTogether` is how much of that departure is allowed: at 1 the name
+  breathes as one object, at 0 every letter is on its own clock. Keep it high. The ASCII pass rounds each letter onto its own cell, so a few percent of
+  cap height of phase spread comes out as whole cells of stagger — a baseline
+  that will not sit down. Note also that **`swaySpeed` 0 is a gate, not a
+  multiplier**: the terms are `sin(elapsed * speed + phase)`, which at speed 0
+  freezes at `sin(phase)` — a permanent seeded offset and tilt per letter — so
+  the loop skips the sway outright rather than evaluating it at zero speed.
 - **There is a floor on the name's cell.** Below ~4 the cell is finer than the
   letterform's own detail and the pass stops being visible — at that point you
   are paying a shader to draw a letter as itself, and drawing the quads after the
