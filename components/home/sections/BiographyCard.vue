@@ -301,7 +301,11 @@ const accentStyle = computed(() =>
    together, because this block styles the card FOR that layout (rim on the left
    for every card, and the key that follows it). They were 768px while the
    layout that needed them never arrived, which is how the cards ended up lit
-   from the wrong side AND off screen. */
+   from the wrong side AND off screen.
+
+   Three places now, not two: `BIO_RAIL_MAX_PX` in ./biography.ts mirrors it for
+   the head's gaze, which has to aim at the rail rather than at a card side that
+   only exists in the data below this width. */
 @media (max-width: 1024px) {
   .bio-card {
     /* The rail column (BiographySection) already sets the width by pinning both

@@ -766,11 +766,14 @@ unconditionally). Nothing is authored for this section in `registry.ts` or
 `spotlights.ts`; both carry a comment saying why.
 
 It is a `watch` on a **signature** of everything the generators read (section id,
-start/span/pageVh, and each milestone's side/accent/offset) — deliberately not a
-`watchEffect` (which would track the stores it writes into) and not the milestone
-array (which would re-run on every reactive tick). Both setters *overwrite* the
-whole section's track, so re-running carelessly would clobber live dev-panel
-edits.
+start/span/pageVh, **the frame's half-extents and which DOM layout the cards are
+in**, and each milestone's side/accent/offset) — deliberately not a `watchEffect`
+(which would track the stores it writes into) and not the milestone array (which
+would re-run on every reactive tick). Both setters *overwrite* the whole section's
+track, so re-running carelessly would clobber live dev-panel edits. The viewport
+terms are **quantised** for the same reason: an aspect rounded to 0.02 and a rail
+width rounded to 20px keep a window drag — or mobile Safari collapsing its URL
+bar mid-scroll — from regenerating the chapter on every pixel.
 
 **Generated tracks double as their section's reset baseline.** They can't live on
 the registry spine, so `sections.setHeadKeyframes` and
@@ -796,16 +799,55 @@ screenY(p) = anchorP + (anchorP − p) * (pageVh − 1)
 Two consequences, and they set every number in the module:
 
 - At its own beat a card sits `anchorP` down the viewport — with the shipped
-  weights, ~28–48%, i.e. **above** the head, so tracking it needs a **negative**
-  pitch. The last card creeps just below centre and the formula flips the sign on
-  its own.
-- Across its own window a card sweeps only ~25% of the viewport upward, because
-  the page scrolls almost exactly as fast as the card rises. So the same
+  weights, ~28–53%, i.e. **above** the head, so tracking it needs a **negative**
+  pitch. A card that is still low flips the sign on its own.
+- Across its own window a card sweeps a good fraction of the viewport upward,
+  because the page scrolls almost exactly as fast as the card rises. So the same
   "**two poses per card is not enough**" rule applies here as in skills, for a
   subtler reason: one pose per card would leave the head permanently mid-swing.
 
 This is the quantitative form of the camera-anchors-vs-pixel-positions caveat
 under [Notes / known limitations](#notes--known-limitations).
+
+#### The frame is measured, not assumed
+
+The identity above turns a *screen* position into a *world* one, which needs the
+size of the visible world — and that was two constants (`FRAME_HALF_W = 0.96`,
+`FRAME_HALF_H = 0.54`) whose own comment admitted they assumed a wide (≈16:9)
+viewport. They are right for one shape of screen. On a 390×844 phone the real
+frame at this chapter's camera is `{ w: 0.42, h: 0.91 }` — under half the width,
+nearly double the height — so the authored `HEAD_SWERVE_X` of 0.46 put a head
+0.61 units wide more than halfway off the side of the screen, and the gaze aimed
+at cards that, below the rail breakpoint, alternate sides only in the data.
+
+Both now come from `~/lib/frame`, which owns `fovForAspect` (the lens `Scene3D`
+actually renders with), `frameHalfAt(aspect, distance)` and the head's measured
+half-extents. **One formula, so the scene and the generators cannot disagree
+about how wide the world is** — a disagreement is precisely what the bug was.
+`BioFraming` therefore carries four viewport terms alongside the scroll ones:
+`halfW` / `halfH`, `rail` (a *width* question — the DOM layout) and `viewportW`.
+`rail` and the half-extents are deliberately separate inputs: a 900×600 window is
+in the rail layout with a perfectly wide frame.
+
+**The narrow composition is derived, not authored.** There is no second keyframe
+set and no breakpoint in the 3D half at all. `headRoom()` shrinks the swing to
+whatever keeps the whole head inside the frame, and `cramped` — how far short of
+the authored swerve that lands, 0 on every landscape viewport and approaching 1
+on a phone — scales the two things that take over when a sideways move is no
+longer available: the head **drops** toward the floor of the frame
+(`HEAD_DROP_FRAC`), and the pitch grows from a glance (`GAZE_MAX_PITCH`) into the
+chapter's main motion (`GAZE_MAX_PITCH_CRAMPED`), tracking each card up and over
+a head that now sits under the timeline rather than beside it. The gaze
+references became *multiples of the frame* for the same reason (`1.2 × halfW`
+resolves to the old 1.15 at 16:9): what should hold across screens is how far
+across the **frame** a card is, not how many world units away.
+
+Two things follow that are worth knowing before retuning any of it. Every
+landscape viewport still resolves to exactly the authored poses, so desktop is
+untouched — but a 16:10 or 3:2 laptop now gets a *corrected* gaze, since the old
+constants were quietly wrong there too. And the drop is expressed as a fraction
+of the room below centre rather than a distance, so it scales itself between a
+tablet in portrait and a phone with no breakpoint in between.
 
 #### Mixing accent colours into a light
 
@@ -1281,6 +1323,7 @@ sits is the only thing keeping a whole country outline off the face.
 | `composables/useSections.ts` | Sources the section sequence from `registry.ts` into the store (`useSections`); loads + normalizes the `content/biography` collection (`useBiographyMilestones`); generates the biography chapter's head + spotlight tracks from the loaded cards (`useBiographyChoreography`, see [the biography's swerve](#generated-at-runtime-the-biographys-swerve)). |
 | `composables/usePointer.ts` | The cursor as -1..1 screen coords — **one** listener for the whole app, refcounted, shared by the head's addressing parallax and the skyline's depth parallax. Viewport size is read per pointer *move*, never per frame. `y` is +1 at the **bottom**. |
 | `composables/useScrollTimeline.ts` | Owns the Lenis singleton (driven by `gsap.ticker`), the single `ScrollTrigger`, and their teardown. |
+| `lib/frame.ts` | The lens and the frame it makes, in one place: `fovForAspect` (widens the vertical fov on portrait viewports, capped at 70°) drives `Scene3D`'s camera, `frameHalfAt(aspect, distance)` tells the generators how big the visible world is at a pose, and `HEAD_HALF` is the head's measured half-extents. Shared precisely so the scene and the choreography cannot disagree about the size of the frame — see [the frame is measured, not assumed](#the-frame-is-measured-not-assumed). |
 | `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [Dev Panel and tuning](#dev-panel-and-tuning). |
 | `stores/spotlights.ts` | The live, editable spotlight rig: global knobs + the keyframe `tracks` (seeded from `SPOTLIGHT_TRACKS`). Read by `ScrollSpotlights` + Scene3D's base lights, edited by the dev panel's Spotlights section. `setSectionKeyframes` replaces just one section's keyframes in a track (for the runtime generators), keeping them as the reset baseline so *reset* doesn't drop them. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `stores/BootState.ts` | Boot sequence phases. |
@@ -1609,6 +1652,18 @@ dev tuning layer — see **[Dev Panel and tuning](#dev-panel-and-tuning)**.
   inside the window where its stage is actually *pinned*, absorb the offset in the
   section's own layout constants (`BIO_TOP_PAD`/`BIO_RANGE`,
   `SKILLS_TOP_PAD`/`SKILLS_RANGE`) rather than in each keyframe.
+- **The contact finale has no narrow composition yet.** Its whole staging is
+  lateral — the camera pans right (`x: 0.62`) so the head sits on the left and
+  turns to address a terminal card on the right. At that pose's distance a
+  portrait phone's frame is only ~0.56 world units either side of the camera
+  axis, so the head (at world 0) is roughly 60% off frame left and in practice
+  invisible: the finale reads as a full-screen terminal with no one behind it.
+  Unlike the biography this cannot be rescued by measuring the frame, because
+  there *is* no other side of the screen to put a full-width card on — it needs a
+  composition decision (head above the terminal rather than beside it, and an
+  addressing pose aimed down instead of right). The groundwork is in place:
+  `~/lib/frame` already answers "how much room is there", which is what made the
+  biography's version derivable.
 - **Never bind `usePreferences().reducedMotion` straight into a template.** It
   reads localStorage, so it is `false` during SSR and can be `true` on the
   client's first render — and Vue only *warns* about class/style hydration

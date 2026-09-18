@@ -5,6 +5,7 @@ import { EffectComposerPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
 import type { Group, Material, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
+import { fovForAspect } from "~/lib/frame";
 import SceneSetPieces from "./SceneSetPieces.vue";
 import HeroGlyphs from "./HeroGlyphs.vue";
 import HeroAscii from "./HeroAscii.vue";
@@ -312,46 +313,16 @@ watch(
 // stretched. The hard-coded aspect=1 distorted everything on wide viewports.
 const { width: windowWidth, height: windowHeight } = useWindowSize();
 
-/** The FOV every camera pose in the registry was framed against. */
-const BASE_FOV = 45;
 /**
- * The aspect at or above which nothing below changes a thing.
+ * The lens is shared, not local.
  *
- * Square, NOT the 16:9 the poses were composed for — deliberately. Every
- * LANDSCAPE viewport has to come out at exactly `BASE_FOV`, or a 16:10 laptop
- * (1.6) and a 3:2 one (1.5) would quietly get a wider lens than the scene was
- * tuned on. This is a rescue for viewports that are TALLER than they are wide,
- * and 1 is the only threshold that says exactly that.
+ * `fovForAspect` lives in `~/lib/frame` because the biography's choreography has
+ * to measure the frame this lens produces in order to keep the head inside it
+ * (see `frameHalfAt` there, and `biography.ts`). Two copies of the widening
+ * formula would be two chances for the scene and the generators to disagree
+ * about how wide the world is — which is exactly the bug that put the head off
+ * the side of a phone in the first place.
  */
-const REF_ASPECT = 1;
-/**
- * A perspective camera's `fov` is its VERTICAL one, so the horizontal frame is
- * whatever the aspect makes of it — and on a phone held upright that is barely
- * a third of the width the scene was composed for. Every pose in the registry
- * parks the camera between z ≈ 0.5 and 1.7 on the assumption of a wide frame
- * (the biography's gaze maths say so out loud: `FRAME_HALF_W = 0.96` "assumes a
- * wide (≈16:9) viewport"), so in portrait the head stopped being a head and
- * became a wall of ASCII with no silhouette.
- *
- * So once a viewport goes portrait, widen the VERTICAL fov by however much the
- * aspect has narrowed past square — giving back the width the rotation took,
- * rather than trying to reach a desktop frame a phone was never going to hold.
- * Two things make this the right lever rather than moving the camera back: it
- * touches no authored pose, and it moves the real frame TOWARD the wide one the
- * choreography already assumes instead of further from it.
- *
- * Capped, because even that ask reaches ~84° on a tall phone — a fisheye, which
- * would bend the set-pieces' straight lines into the corners. 70° recovers most
- * of the silhouette while the projection still reads as the same lens.
- */
-const MAX_FOV = 70;
-const DEG = Math.PI / 180;
-const fovForAspect = (aspect: number) => {
-  if (aspect >= REF_ASPECT) return BASE_FOV;
-  const halfH = Math.tan((BASE_FOV / 2) * DEG) * (REF_ASPECT / aspect);
-  return Math.min(MAX_FOV, 2 * Math.atan(halfH) / DEG);
-};
-
 watch(
   [cameraRef, windowWidth, windowHeight],
   () => {

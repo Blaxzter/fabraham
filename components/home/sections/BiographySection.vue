@@ -286,7 +286,15 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
    numbers as before and needs no mobile branch of its own.
 
    The generated spline and its nodes go with the zigzag they described; the rail
-   and the dots below replace them. */
+   and the dots below replace them.
+
+   The 3D half is no longer exempt, though — it turned out it could not be. The
+   head's swerve is a world constant and the frame a phone gives it is less than
+   half the width the swerve was authored against, so it swung clean out of shot;
+   and the gaze went on aiming at cards that alternate sides only in the data. Both
+   are now derived from the live frame and from THIS breakpoint, which is why
+   `BIO_RAIL_MAX_PX` in ./biography.ts restates the 1024 below. Move one, move all
+   three (here, BiographyCard.vue, and that constant). */
 @media (max-width: 1024px) {
   .bio-connector,
   .bio-node {
@@ -318,6 +326,17 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
     to {
       background-position-y: 8px; /* one dash period → seamless loop */
     }
+  }
+  /* The chapter label stops being sticky here, and that is not a downgrade.
+     Pinned at the top of a 7-viewport section it is fine over a 26vw card in the
+     wide layout — there is a whole column of empty page beside it. In the rail
+     layout the card is the width of the screen, so the headline was printing
+     "How I got here" straight across a milestone's own prose for most of the
+     chapter: two pieces of text in the same pixels, neither readable. Nothing
+     else is competing for that band on a phone, so it becomes what a chapter
+     title on a narrow screen normally is — an opener you scroll past. */
+  .bio-heading {
+    position: static;
   }
   .bio-card-pos {
     /* Right of the rail, filling the margin — but capped, because this band runs
