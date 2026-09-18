@@ -31,9 +31,7 @@
     <div
       :class="[
         'transition-opacity duration-700',
-        contentRevealed && !orbitInspect
-          ? 'opacity-100'
-          : 'opacity-0 pointer-events-none',
+        contentRevealed && !orbitInspect ? 'opacity-100' : 'opacity-0 content-inert',
       ]"
     >
       <HomeScrollableContent />
@@ -101,3 +99,30 @@ useSeoMeta({
   ogType: "website",
 });
 </script>
+
+<style scoped>
+/**
+ * The fence around the hidden content — and it has to be a fence, because
+ * `pointer-events` alone is not one.
+ *
+ * The property is INHERITED, so `pointer-events: none` on this wrapper is only a
+ * default its subtree is free to overrule: `.section-card` (SectionHost),
+ * `.skill-card` and the terminal's `.token` each declare `auto`, and each hands
+ * it straight back down to everything inside it. At opacity 0 those elements are
+ * invisible and still hit-testable — and in orbit mode they sit over a canvas
+ * whose ONE interaction is a drag. The finale's card is 32rem wide, on the right,
+ * exactly where the cursor is left by the button that starts explore mode: the
+ * visitor drags, an invisible `<p>` takes the pointerdown, OrbitControls never
+ * sees it, and the free camera reads as frozen.
+ *
+ * Two selectors, so it covers the wrapper and everything under it, and no
+ * `!important`: the scope attribute makes this (0,2,0) against the cards' (0,1,0),
+ * which wins on specificity alone. `visibility: hidden` would not have been
+ * enough either — SkillsSection writes `visibility: visible` inline on every card
+ * in flight, which the scrubber can bring back at any point of the run.
+ */
+.content-inert,
+.content-inert :deep(*) {
+  pointer-events: none;
+}
+</style>
