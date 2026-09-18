@@ -121,11 +121,22 @@ const defStyle = computed(() => ({
          `adj.` sits between the two halves rather than at the end, where it
          reads as what it is — a note on the word to its left, not on the phrase.
          The line is allowed to run wider than the definition's measure to stay
-         on one line (see `.hero-entry`), and the transcription never breaks. -->
+         on one line (see `.hero-entry`), and the transcription never breaks.
+
+         The `<wbr>`s are the break opportunities this line would otherwise not
+         have. Every gap here is a MARGIN, not a space (see `.hw-noun`) — which
+         is what keeps the spacing tunable, and also means the browser sees the
+         whole entry as one unbreakable run. So when the phone rule below lifted
+         `nowrap`, the only legal break in it was the hyphen inside the compound:
+         the headword split into "fullest-" / "stack" and everything after it ran
+         off the right edge. A `<wbr>` is zero-width and adds nothing to the box,
+         so it costs the desktop line nothing — `nowrap` suppresses it there
+         anyway — and below the breakpoint it lets the entry come apart between
+         its units instead of through the middle of one. -->
     <p class="he-headword" :style="entryStyle">
-      <span class="hw-word">fullest-stack</span>
-      <span class="hw-pron">/ˈfʊl.ɪst stak/</span>
-      <span class="hw-pos">adj.</span>
+      <span class="hw-word">fullest-stack</span><wbr>
+      <span class="hw-pron">/ˈfʊl.ɪst stak/</span><wbr>
+      <span class="hw-pos">adj.</span><wbr>
       <span class="hw-word hw-noun">developer</span>
     </p>
     <p class="he-def" :style="defStyle">
@@ -182,6 +193,12 @@ const defStyle = computed(() => ({
   color: var(--accent);
   font-weight: 700;
   text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
+  /* `fullest-stack` is a compound, and its hyphen is a legal break the browser
+     will take the moment the line is allowed to wrap. A coinage split across two
+     lines stops being a coinage, so hold it shut — the same reasoning, and the
+     same rule, as the transcription below. The `<wbr>`s in the template are what
+     the line breaks at instead. */
+  white-space: nowrap;
 }
 
 /* The template's own newline between the spans is not a space — Vue condenses
@@ -233,22 +250,61 @@ const defStyle = computed(() => ({
 }
 
 /* On a phone the head fills the frame and there is no room beside it, so the
-   entry drops to the bottom and runs the full width. */
+   entry runs the full width — and sits directly under the name rather than down
+   at the bottom of the screen.
+
+   `top` rather than `bottom`, because what it is anchored to is the NAME. The
+   name is scene geometry, not DOM, so there is nothing here to align to: it is
+   composed at a fixed world y (`heroGlyphs.anchor`, y 0.11) and fitted to the
+   frame by width alone, and `Scene3D`'s fov cap means every viewport narrower
+   than ~0.59 aspect — which is every phone — gets exactly the same lens. So the
+   block lands at a constant 31–42% of the screen on all of them, and 46% clears
+   its last line. Retune this if the anchor moves; there is no way to derive it
+   from CSS.
+   At `bottom: 12vh` the entry was at 69–88% instead, which left a third of a
+   screen of nothing between the name and its own definition and read as two
+   unrelated things that happened to be on the same page. */
 @media (max-width: 640px) {
   .hero-entry {
     left: 20px;
     right: 20px;
-    top: auto;
-    bottom: 12vh;
+    top: 46%;
+    bottom: auto;
     max-width: none;
   }
 
   /* One line is a nicety; fitting on the screen is not. Below this width the
-     entry is allowed to wrap after the headword — which is a break between two
-     whole units, not the one through the middle of the transcription that
-     `.hw-pron` is still holding shut. */
+     entry is allowed to wrap at the `<wbr>`s in the template — breaks between
+     whole units, not the one through the middle of the compound (`.hw-word`) or
+     the transcription (`.hw-pron`), both of which stay shut. */
   .he-headword {
     white-space: normal;
+  }
+
+  /* Gaps move onto the PRECEDING span once the line is allowed to wrap.
+     A `margin-left` is still applied when its span begins a line, so the entry
+     came out ragged — the term flush at the margin and the two lines under it
+     indented by a gap that has nothing to its left to be a gap from. Hung off
+     the element before it instead, the same space falls at the END of a line,
+     where it costs nothing and is invisible. Identical on one line, which is why
+     the desktop rules above are untouched: `0.6em` here and `0.6em` there are
+     the same 0.6em of the headword's size. */
+  .hw-word:not(.hw-noun) {
+    margin-right: 0.6em;
+  }
+  .hw-pron {
+    margin-left: 0;
+  }
+
+  /* The noun takes the last line to itself. It is the half of the entry that
+     says what the job actually is (see the template), so it is the one part that
+     should not be left finishing someone else's line — and giving it the line
+     outright is also what keeps the transcription and the `adj.` that annotates
+     the term together on the one above, which is the grouping the entry means.
+     Above this width it goes back to flowing inline, gap and all. */
+  .hw-noun {
+    display: block;
+    margin-left: 0;
   }
 }
 
