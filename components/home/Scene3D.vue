@@ -11,6 +11,7 @@ import HeroGlyphs from "./HeroGlyphs.vue";
 import HeroAscii from "./HeroAscii.vue";
 import ScrollSpotlights from "./ScrollSpotlights.vue";
 import CursorOrb from "./CursorOrb.vue";
+import Planets from "./Planets.vue";
 import TuningGizmos from "./TuningGizmos.vue";
 
 const store = useSceneControlStore();
@@ -115,7 +116,8 @@ const wireframeGroupRef = shallowRef<Group | null>(null);
 // Cursor position (normalised -1..1) from the shared `usePointer` singleton —
 // one listener for the whole app, since the set-pieces react to the cursor too
 // (the Berlin skyline parallaxes against it). Always recorded; only *applied* to
-// the head while the contact beat is centered (store.addressing). Honour
+// the head while the contact beat is centered (store.tracking — the turn itself
+// outlives it, see the loop). Honour
 // reduced-motion by dropping the cursor-follow — the head still turns to face
 // front. The preference resolves OS prefers-reduced-motion + the /setup override.
 const { pointer } = usePointer();
@@ -235,8 +237,13 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // At the contact beat, addressing ramps 0→1 and swings the head from its
   // keyframed rotation toward the CLI; the cursor parallax rides on top (dropped
   // under prefers-reduced-motion, but the turn itself still happens).
+  //
+  // The two do not end together. The TURN holds for the rest of the page — the
+  // coda is still addressing the visitor — while the TRACKING is released as the
+  // coda opens, handing the face over to the planets (`tracking` in the sections
+  // store). So this is `tracking`, not `addressing`.
   const addressing = sectionsStore.addressing;
-  const cursorScale = reducedMotion.value ? 0 : addressing;
+  const cursorScale = reducedMotion.value ? 0 : sectionsStore.tracking;
   const baseYaw = headPose.rotation.y * (1 - addressing) + addressYaw.value * addressing;
   const basePitch = headPose.rotation.x * (1 - addressing) + addressPitch.value * addressing;
   // What the head is actually watching. The orb, when there is one — it hovers
@@ -429,6 +436,13 @@ watch(
          shedding sparks that fall away behind it. On the default layer, so it
          goes through the ASCII pass with the face rather than sitting on top. -->
     <CursorOrb />
+
+    <!-- The coda: coloured lights on inclined orbits circling the head, painting
+         the face as they pass. Comes up as the cursor tracking (and the fly with
+         it) is released, so the last beat has exactly one thing moving around
+         the head. Its lights live in the scene for the whole page at intensity
+         0 — see the note in the component. -->
+    <Planets />
 
     <!-- The hero name, as geometry. Renders to its OWN buffer on layer 4 (so it
          never lands on the face's coarse grid) which HeroAscii composites back

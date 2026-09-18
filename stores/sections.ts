@@ -65,6 +65,25 @@ const REVEAL_FADE = 0.25;
 // section that follows.
 const HANDOFF_FADE = 0.12;
 
+// The finale's two hand-overs, both fractions of the CODA's scroll range (the
+// section after contact), so they read as one swap rather than as two unrelated
+// fades. See `tracking` and `orbiting` below.
+//
+// The release is the shorter of the two on purpose: the fly should be gone
+// before the system that replaces it is fully up, or the coda spends its first
+// screen with a burning ember and five planets competing for the same face.
+const TRACK_RELEASE = 0.3;
+/**
+ * Where the planets are fully up — and, because the spotlight spine imports it,
+ * where the scroll rig has finished getting out of their way.
+ *
+ * Exported for exactly that: `components/home/sections/spotlights.ts` anchors the
+ * coda keyframes that fade the finale's green key/fill/rim down to a neutral
+ * floor at this same `t`, so the two halves of the swap cannot drift apart. Move
+ * this and the rig moves with it.
+ */
+export const ORBIT_RISE = 0.45;
+
 // Vertical layout of the biography milestone cluster, shared by BiographySection
 // (where it places the cards/nodes/connector) and `subReveal` below (where each
 // milestone's set-piece blooms). Sharing one formula keeps the 3D backdrop
@@ -654,6 +673,59 @@ export const useSectionsStore = defineStore("sections", () => {
     return smoothstep(clamp01(local / 0.6));
   });
 
+  /**
+   * How much of the head's gaze is on the CURSOR (0..1) — and, with it, whether
+   * there is a fly out there to look at.
+   *
+   * This used to be `addressing` itself, and the two are not one thing. The TURN
+   * is a posture the finale puts the head into and everything after it inherits:
+   * the coda is still asking the visitor for something, and a head that looks
+   * away while it does that reads as having lost interest. The TRACKING is an
+   * interaction, and it belongs to the terminal — it is the visitor being
+   * noticed at the moment they are being invited to type.
+   *
+   * Carried past that beat it also collides with the coda, whose whole image is
+   * a system of coloured lights circling the head (`orbiting` below, and
+   * `Planets.vue`): a face lit by five moving sources does not also need to be
+   * flinching at the mouse, and the fly's embers sit in front of the one thing
+   * the coda is composed around.
+   *
+   * So it rides `addressing` up, holds for the whole contact section, and is
+   * released across the opening of whatever follows — the orb burns out as the
+   * planets rise. With nothing after contact it simply IS `addressing`, so the
+   * beat survives the coda being removed.
+   */
+  const tracking = computed(() => {
+    const a = addressing.value;
+    if (a <= 0) return 0;
+    const i = sections.value.findIndex((s) => s.type === "contact");
+    if (i < 0 || i + 1 >= sections.value.length) return a;
+    const bs = boundaries.value;
+    const start = bs[i + 1] ?? 1; // the coda's opening
+    const end = bs[i + 2] ?? 1;
+    const local = (progress.value - start) / (end - start || 1);
+    return a * (1 - smoothstep(clamp01(local / TRACK_RELEASE)));
+  });
+
+  /**
+   * How far up the coda's orbiting lights are (0..1) — see `Planets.vue`.
+   *
+   * Found by TYPE rather than by position, for the same reason `addressing` is:
+   * "the last section" is a fact about the current registry, not about the beat.
+   * It rises over the opening of the outro and then holds, so the system is fully
+   * lit while the invitation is on screen and stays that way as the page bottoms
+   * out.
+   */
+  const orbiting = computed(() => {
+    const i = sections.value.findIndex((s) => s.type === "outro");
+    if (i < 0) return 0;
+    const bs = boundaries.value;
+    const start = bs[i] ?? 0;
+    const end = bs[i + 1] ?? 1;
+    const local = (progress.value - start) / (end - start || 1);
+    return smoothstep(clamp01(local / ORBIT_RISE));
+  });
+
   const enable = () => {
     enabled.value = true;
   };
@@ -704,6 +776,8 @@ export const useSectionsStore = defineStore("sections", () => {
     asciiCellSize,
     asciiFontSize,
     addressing,
+    tracking,
+    orbiting,
     // helpers
     cameraAt,
     headAt,

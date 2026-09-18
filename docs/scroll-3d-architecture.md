@@ -45,8 +45,12 @@ store.progress   ← the single source of truth (Pinia ref, scroll-driven)
     │
     ├──► Scene3D @loop (TresJS useLoop):
     │       cameraAt(progress) → cam.position/rotation.set(...)   (imperative)
-    │       head gaze: lerp(restingProfile → cursor, store.addressing)  (imperative)
+    │       head gaze: lerp(keyframed pose → terminal, store.addressing), then
+    │                  + cursor parallax × store.tracking                 (imperative)
     │       wireframe rotation applied imperatively to its group
+    │
+    ├──► Planets @onBeforeRender: store.orbiting → five PointLights walked round
+    │       their own orbits and written onto real lights + sprites (imperative)
     │
     ├──► SceneSetPieces: :reveal = revealFor(i) / subReveal(...) → each set-piece fades/scales
     │
@@ -134,7 +138,7 @@ that belongs to the biography *section* in the registry.
 | File | Role |
 | --- | --- |
 | `pages/index.vue` | Orchestrator. Boot screen + `<HomeScene3D>` are client-only (`<ClientOnly>`) for SSG-compatibility; dev (`import.meta.dev`) skips the boot screen. |
-| `components/home/Scene3D.vue` | The `<TresCanvas>`. Loads the head (DRACO GLB), drives the camera/head/wireframe imperatively in `@loop`, renders the ASCII effect and `<SceneSetPieces>`. Owns the **head addressing** beat (turns to face + follow the cursor at the finale). |
+| `components/home/Scene3D.vue` | The `<TresCanvas>`. Loads the head (DRACO GLB), drives the camera/head/wireframe imperatively in `@loop`, renders the ASCII effect and `<SceneSetPieces>`. Owns the **head addressing** beat (turns to face the terminal at the finale, and follows the cursor for as long as `tracking` says to). |
 | `components/home/ScrollableContent.vue` | Owns the scroll → progress lifecycle (`useScrollTimeline`); renders every section via `<SectionHost>`. |
 | `components/home/SectionHost.vue` | Renders one section's dedicated component in its layout `mode` (flow/pinned/bare); provides scroll length + alignment. |
 | `components/home/sections/registry.ts` | `SECTION_DEFS` — the typed section sequence + scene spine. |
@@ -144,6 +148,7 @@ that belongs to the biography *section* in the registry.
 | `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
 | `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
 | `components/home/CursorOrb.vue` | The **fly**: a glowing orb orbiting the cursor in 3D (between the head and the lens) while the head is tracking it, burning off embers that rise, cool and fall. Spring gravity toward the cursor + wander + a speed floor, so it never settles. Goes through the ASCII pass with the face, and is pitched loud enough to survive it. See [The finale (contact)](#the-finale-contact). |
+| `components/home/Planets.vue` | The **planets**: a handful of coloured `PointLight`s circling the head at the coda, each on its own radius, plane and (Kepler-derived) period, with an additive body at each one. Real lights, so the face is modelled by them as they pass and eclipsed when they swing behind it. Rises as the cursor tracking is released. See [The finale (contact)](#the-finale-contact). |
 | `components/home/ScrollSpotlights.vue` | The scroll-driven **spotlight rig**: keyframed `THREE.SpotLight`s that light the ASCII'd head, driven imperatively in `onBeforeRender`. Dark through the hero, then "tada" on in the reveal section, then follow the scroll. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `components/home/HeroGlyphs.vue` | The hero name **as geometry**: one quad per character on layer 4, swarming the frame and landing one after another across `heroProgress` (`swarm`; or flying in from the head — `emerge`; or neither, assembling in place). Renders itself to an offscreen buffer for the pass below. |
 | `components/home/HeroAscii.vue` | The ASCII pass. Replaces `<ASCIIPmndrs>` with `DualGridAsciiEffect` so the face and the name get **different cell sizes**. Registers both grids as tunables under the `identity` scene. |
@@ -487,6 +492,19 @@ every beat on its mark (the "tada" stays mid-reveal, the sweep stays on its
 cards, the finale stays at the finale). This is the same reason the camera never
 breaks on a section insert; the lights and the **camera** (which can now hold
 several `cameraKeyframes` per section) ride the exact same anchor model.
+
+**A track holds its last keyframe forever**, which is a feature everywhere except
+where something else wants the face. Past the end of its own section a track
+clamps, so the finale's rig — a 16-intensity `#00ff9c` key, a pale-green fill, a
+green rim — used to run to the bottom of the page and light the coda too. Three
+saturated green sources do not sit *under* the coda's coloured planets, they
+repaint whatever the planets land on. So all three tracks now carry one more
+keyframe, anchored to the outro at `ORBIT_RISE` (imported from the sections store,
+so it is the exact `t` the planets are fully up at): key `2.5`, fill `1.2`, rim
+`3`, all on one neutral `CODA_NEUTRAL`. What is left is a floor that keeps the
+head off the backdrop while contributing no hue of its own — the only colour in
+the last frame is whichever planet is facing you. **Anything that should end
+before the page does needs a keyframe saying so**; clamping is the default.
 
 ```
 SPOTLIGHT_TRACKS (spotlights.ts)              ScrollSpotlights.vue @onBeforeRender
@@ -1320,12 +1338,13 @@ sits is the only thing keeping a whole country outline off the face.
 
 | File | Responsibility |
 | --- | --- |
-| `stores/sections.ts` | **Shared state only** (issue #4): `progress`, the `sections` spine, `milestoneCount`, the editable per-section `cameraKeyframes` + `headKeyframes` maps (seeded from the registry; `cameraAt`/`headAt` read them, so scenes-tab edits move camera/head live), and the derived getters — `boundaries`, `anchors`, `activeIndex`, `localProgress`, `heroProgress`, `cameraAt`, `headAt`, `revealFor`, `subReveal`, `asciiCellSize/FontSize`, `addressing`. Owns **no** rAF loop. Hosts the shared **anchor resolver** `resolveAt` / `anchorAt` + the biography `bioFrac`/`bioAnchorFromFrac`/`localFracAt` position transforms, plus the keyframe interpolator (`buildPoseTrack`/`samplePose`) shared by camera + head. `setHeadKeyframes` replaces a whole section's head track for the runtime generators, recording it as that section's reset baseline. |
+| `stores/sections.ts` | **Shared state only** (issue #4): `progress`, the `sections` spine, `milestoneCount`, the editable per-section `cameraKeyframes` + `headKeyframes` maps (seeded from the registry; `cameraAt`/`headAt` read them, so scenes-tab edits move camera/head live), and the derived getters — `boundaries`, `anchors`, `activeIndex`, `localProgress`, `heroProgress`, `cameraAt`, `headAt`, `revealFor`, `subReveal`, `asciiCellSize/FontSize`, `addressing`, `tracking`, `orbiting`. Owns **no** rAF loop. Hosts the shared **anchor resolver** `resolveAt` / `anchorAt` + the biography `bioFrac`/`bioAnchorFromFrac`/`localFracAt` position transforms, plus the keyframe interpolator (`buildPoseTrack`/`samplePose`) shared by camera + head. `setHeadKeyframes` replaces a whole section's head track for the runtime generators, recording it as that section's reset baseline. |
 | `composables/useSections.ts` | Sources the section sequence from `registry.ts` into the store (`useSections`); loads + normalizes the `content/biography` collection (`useBiographyMilestones`); generates the biography chapter's head + spotlight tracks from the loaded cards (`useBiographyChoreography`, see [the biography's swerve](#generated-at-runtime-the-biographys-swerve)). |
 | `composables/usePointer.ts` | The cursor as -1..1 screen coords — **one** listener for the whole app, refcounted, shared by the head's addressing parallax and the skyline's depth parallax. Viewport size is read per pointer *move*, never per frame. `y` is +1 at the **bottom**. `pointerActive` flips true on the first real mouse move and never back — anything that draws itself AT the cursor (the cursor orb) gates on it, so it doesn't sit in the middle of a touch screen pointing at nothing. |
 | `composables/useCursorOrb.ts` | Where the cursor orb is **on screen** (`x`/`y` in the same -1..1 screen-space convention as `usePointer`, plus an `influence` that follows its fade), so `Scene3D` can aim the head at the orb instead of the cursor. Written by `CursorOrb` in its render loop, read by `Scene3D` in its own — a plain object, **deliberately not a ref**: a value rewritten every frame has no business in the reactivity graph (issue #4). Published in screen space rather than as a world position so it is a drop-in swap for the pointer the gaze was already tuned against, and so the projection happens where the camera has just been updated. |
 | `composables/useScrollTimeline.ts` | Owns the Lenis singleton (driven by `gsap.ticker`), the single `ScrollTrigger`, and their teardown. |
 | `lib/frame.ts` | The lens and the frame it makes, in one place: `fovForAspect` (widens the vertical fov on portrait viewports, capped at 70°) drives `Scene3D`'s camera, `frameHalfAt(aspect, distance)` tells the generators how big the visible world is at a pose, and `HEAD_HALF` is the head's measured half-extents. Shared precisely so the scene and the choreography cannot disagree about the size of the frame — see [the frame is measured, not assumed](#the-frame-is-measured-not-assumed). |
+| `lib/glow.ts` | `createGlowTexture()` — the soft radial falloff every glowing thing in the scene is drawn with (the cursor orb, its sparks, the coda's planets). One gradient, shared, because its long shallow tail is what gives the ASCII ramp something to walk down; a factory rather than a singleton, so each consumer disposes what it made. |
 | `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [Dev Panel and tuning](#dev-panel-and-tuning). |
 | `stores/spotlights.ts` | The live, editable spotlight rig: global knobs + the keyframe `tracks` (seeded from `SPOTLIGHT_TRACKS`). Read by `ScrollSpotlights` + Scene3D's base lights, edited by the dev panel's Spotlights section. `setSectionKeyframes` replaces just one section's keyframes in a track (for the runtime generators), keeping them as the reset baseline so *reset* doesn't drop them. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `stores/BootState.ts` | Boot sequence phases. |
@@ -1612,6 +1631,14 @@ The last section is the payoff — a transmission from the visitor to the head:
   — by default a resting profile gazing into its own data. As the contact beat
   centers, `store.addressing` ramps `0 → 1` and `Scene3D` blends the head's rotation
   from that keyframed pose toward the terminal card, with a gentle parallax on top.
+  **The turn and the tracking are two ramps, not one.** `addressing` is a posture:
+  once the head has turned to the visitor it stays turned for the rest of the page,
+  because the coda is still asking them for something and a head that looks away
+  while it does that reads as having lost interest. `tracking` is the interaction —
+  the cursor parallax, and the fly it is aimed at — and it belongs to the terminal
+  beat alone: it rides `addressing` up, holds for all of contact, and is released
+  across the coda's opening as the planets come up (below). With nothing after
+  contact the two are the same number, so the beat survives the coda being removed.
   That parallax is aimed at the **orb**, not at the cursor (`followOrb`, and see
   below): the orb hovers near the pointer and lags a fast move, so the head reads
   as tracking something alive in the room rather than as being wired to the mouse
@@ -1695,6 +1722,48 @@ The last section is the payoff — a transmission from the visitor to the head:
   edge-detects it and fires a bright, fast ripple along the same path, while the
   terminal flashes its glow — so the CLI visibly *sends* the signal the head
   receives.
+- **Then the planets come up (the coda).** `Planets` hangs a handful of coloured
+  `PointLight`s on orbits around the head for the outro — `store.orbiting` rises
+  over the outro's opening and holds to the bottom of the page, across exactly the
+  stretch where `tracking` is letting the cursor go, so the fly burns out as the
+  system arrives and only ever one thing is pulling at the face. It is the beat
+  where the head stops being a correspondent and becomes an OBJECT, which is the
+  thing the outro's card then asks you to fly a camera around (its CSS glyph — a
+  lens travelling a tipped ring around a core — is the same picture).
+  - **Orbits, not a halo.** What sells it is that no two orbits share a radius, a
+    plane or a period. Radii step outward by `spread`; each plane has its own
+    inclination (from a formula, so any `count` gets a spread of them) and its own
+    slowly precessing ascending node, stepped by the golden angle so none of them
+    coincide; and angular speed falls off as `r^-1.5` — Kepler's third law, the one
+    piece of physics an eye actually knows — so the outer lights visibly lag the
+    inner ones and the set drifts out of phase instead of spinning as one rigid
+    thing. The inner radius is DERIVED from `HEAD_HALF` (the measured silhouette in
+    `~/lib/frame`) plus a margin, so a new head model moves the whole system out
+    with it rather than leaving the first planet orbiting inside a nose.
+  - **The rig gets out of the way.** The three spotlight tracks fade to a dim
+    neutral across the same stretch (see [Scroll-driven
+    spotlights](#scroll-driven-spotlights)) instead of clamping the finale's green
+    rig to the bottom of the page.
+  - **They are real lights.** Each body carries a `PointLight` at its own position
+    (`decay` 1 and a short `range`, matching the spotlight rig's convention), so a
+    planet at the temple lights that temple, and when it swings behind the head the
+    face goes dark on that side while the body is eclipsed by the geometry it just
+    stopped lighting. The colour survives the ASCII pass because the pass keeps the
+    scene's own rgb (`useSceneColor`), so the modelling reads as a change of HUE
+    across the grid, not just of glyph density. The palette is the page's own
+    accents — the hero/terminal green, the reveal's blue, the skills chapter's
+    amber, plus two it has not used — so the coda reads as every chapter's light
+    coming back round the head at once.
+  - **The lights are never hidden.** The pool sits in the scene for the whole page
+    at `intensity` 0 rather than being mounted or made visible at the coda: hiding
+    a light changes the renderer's lights-state hash, which recompiles every
+    material built against it — a stutter that would land exactly on this beat. An
+    intensity-0 light costs a few instructions per fragment. The *sprites* are
+    hidden; sprites are not lights.
+  - Under reduced motion the lights stay and the clock stops: the face is still
+    modelled by five coloured sources, they simply hold position. Unlike the fly,
+    there is a calmer version of this, and it is most of the picture. Live-tunable
+    under **Planets** in the outro scene.
 
 The finale's positions are art-directed, so the values above are wired through the
 dev tuning layer — see **[Dev Panel and tuning](#dev-panel-and-tuning)**.

@@ -19,7 +19,8 @@
     "addressYaw": 0.45,
     "addressPitch": 0.02,
     "maxYaw": 0.22,
-    "maxPitch": 0.14
+    "maxPitch": 0.14,
+    "followOrb": 1
   },
   "skillsFlight": {
     "faceY": 57,
@@ -172,5 +173,29 @@
     "sparkHot": "#fee190",
     "sparkMid": "#ffae2b",
     "sparkCool": "#ff3d12"
+  },
+  "planets": {
+    "count": 5,
+    "radius": 0.5585603391756346,
+    "spread": 0.2,
+    "speed": 2.02,
+    "tilt": 0.8,
+    "precess": 0.055,
+    "size": 0.04,
+    "haloScale": 9.1,
+    "glow": 2.6,
+    "intensity": 5.8,
+    "range": 1.8,
+    "shimmer": 0.21,
+    "centre": {
+      "x": 0,
+      "y": 0.02,
+      "z": 0
+    },
+    "c1": "#00ff9c",
+    "c2": "#9ad1ff",
+    "c3": "#ffb454",
+    "c4": "#ff5470",
+    "c5": "#b06cff"
   }
 }

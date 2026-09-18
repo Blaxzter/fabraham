@@ -5,7 +5,6 @@ import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
-  CanvasTexture,
   Color,
   Points,
   PointsMaterial,
@@ -14,16 +13,18 @@ import {
   Vector3,
 } from "three";
 import type { Group, Object3D } from "three";
+import { createGlowTexture } from "~/lib/glow";
 
 /**
  * The fly: a small glowing orb that keeps the cursor company while the head is
  * looking at it, shedding sparks that fall away behind it.
  *
- * It lives for exactly as long as the head's gaze does — `store.addressing`, the
- * same 0→1 ramp `Scene3D` uses to swing the head toward the terminal and track
- * the cursor with it (see "The finale (contact)" in
- * docs/scroll-3d-architecture.md). Before the contact beat there is nothing to
- * follow, and no orb.
+ * It lives for exactly as long as the head's gaze does — `store.tracking`, the
+ * same ramp `Scene3D` scales the cursor parallax by (see "The finale (contact)"
+ * in docs/scroll-3d-architecture.md). Before the contact beat there is nothing
+ * to follow, and no orb; after it — across the coda, where the planets take the
+ * face over — the head keeps facing the visitor but stops watching the mouse,
+ * and the fly burns out with the tracking that summoned it.
  *
  * Where it flies
  * --------------
@@ -297,36 +298,10 @@ const PHYS_STEP = 1 / 120;
 const MAX_FRAME = 0.1; // a backgrounded tab doesn't get to resume with a 4s kick
 const FALLBACK_HEAD_DIST = 0.5; // if the head group isn't in the scene yet
 
-/**
- * A soft radial falloff, drawn once into a canvas and shared by the orb and every
- * spark.
- *
- * White, so each material's `color` (or, for the sparks, their vertex colour) is
- * what tints it: the core keeps it nearly white, everything else takes the
- * accent, and additive blending stacks them into a hot centre with a coloured
- * bloom. A flat `MeshBasicMaterial` sphere would just be a disc of one colour —
- * no falloff, and a hard-edged disc is the one thing an ASCII ramp can make
- * nothing of.
- */
-const makeGlowTexture = () => {
-  if (!import.meta.client) return null;
-  const px = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = px;
-  canvas.height = px;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  const g = ctx.createRadialGradient(px / 2, px / 2, 0, px / 2, px / 2, px / 2);
-  g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.12, "rgba(255,255,255,0.88)");
-  g.addColorStop(0.34, "rgba(255,255,255,0.26)");
-  g.addColorStop(0.68, "rgba(255,255,255,0.05)");
-  g.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, px, px);
-  return new CanvasTexture(canvas);
-};
-const glowTexture = makeGlowTexture();
+// The soft radial falloff the orb and every spark are drawn with — one gradient,
+// shared by everything in the scene that glows (see ~/lib/glow). Ours to dispose:
+// it is a factory, not a singleton.
+const glowTexture = createGlowTexture();
 
 // Depth-tested (the default) because this draws in the main pass: the orb is in
 // the scene with the head, not pasted over it. `depthWrite` stays off — it is
@@ -570,8 +545,12 @@ onBeforeRender(({ delta, elapsed }) => {
   // cursor. On touch, `pointer` never leaves (0,0), so the orb would otherwise
   // sit buzzing in the middle of the screen around nothing. Reduced motion drops
   // it outright: it is pure motion, there is no calmer version of it to show.
+  //
+  // `tracking`, not `addressing`: the head goes on facing the visitor through the
+  // coda, but it stops watching the mouse there, and this is the thing it was
+  // watching. It burns out over the coda's opening as the planets come up.
   const wanted =
-    reducedMotion.value || !pointerActive.value ? 0 : store.addressing;
+    reducedMotion.value || !pointerActive.value ? 0 : store.tracking;
   reveal += (wanted - reveal) * (1 - Math.exp(-6 * delta));
   if (wanted === 0 && reveal < 0.002) {
     group.visible = false;
