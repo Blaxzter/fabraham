@@ -1,4 +1,4 @@
-import { getCurrentScope, onScopeDispose, shallowRef } from "vue";
+import { getCurrentScope, onScopeDispose, ref, shallowRef } from "vue";
 
 /**
  * The cursor, normalised to -1..1 across the viewport — shared by everything in
@@ -26,6 +26,21 @@ import { getCurrentScope, onScopeDispose, shallowRef } from "vue";
  */
 const pointer = shallowRef({ x: 0, y: 0 });
 
+/**
+ * Whether a real cursor has ever moved in this session.
+ *
+ * `pointer` starts at (0,0) — dead centre — and on a touch device it stays
+ * there, because nothing here listens for touch. That is fine for a parallax
+ * (zero offset is *no* parallax), but not for anything that draws itself AT the
+ * cursor: it would sit in the middle of the screen pointing at nothing. Such
+ * consumers gate on this instead (the cursor orb does), and get the same
+ * treatment for the frames before the visitor has moved the mouse at all.
+ *
+ * One-way: it never goes back to false. A cursor that stops moving is still a
+ * cursor.
+ */
+const pointerActive = ref(false);
+
 let refs = 0;
 let listening = false;
 
@@ -36,6 +51,7 @@ const onMove = (event: MouseEvent) => {
     x: (event.clientX / window.innerWidth) * 2 - 1,
     y: (event.clientY / window.innerHeight) * 2 - 1,
   };
+  if (!pointerActive.value) pointerActive.value = true;
 };
 
 const release = () => {
@@ -58,5 +74,5 @@ export function usePointer() {
     refs++;
     onScopeDispose(release);
   }
-  return { pointer };
+  return { pointer, pointerActive };
 }

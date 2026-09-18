@@ -143,6 +143,7 @@ that belongs to the biography *section* in the registry.
 | `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `StaffLines` (a page of the hymnal, playing), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
 | `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
 | `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
+| `components/home/CursorOrb.vue` | The **fly**: a glowing orb orbiting the cursor in 3D (between the head and the lens) while the head is tracking it, burning off embers that rise, cool and fall. Spring gravity toward the cursor + wander + a speed floor, so it never settles. Goes through the ASCII pass with the face, and is pitched loud enough to survive it. See [The finale (contact)](#the-finale-contact). |
 | `components/home/ScrollSpotlights.vue` | The scroll-driven **spotlight rig**: keyframed `THREE.SpotLight`s that light the ASCII'd head, driven imperatively in `onBeforeRender`. Dark through the hero, then "tada" on in the reveal section, then follow the scroll. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
 | `components/home/HeroGlyphs.vue` | The hero name **as geometry**: one quad per character on layer 4, swarming the frame and landing one after another across `heroProgress` (`swarm`; or flying in from the head — `emerge`; or neither, assembling in place). Renders itself to an offscreen buffer for the pass below. |
 | `components/home/HeroAscii.vue` | The ASCII pass. Replaces `<ASCIIPmndrs>` with `DualGridAsciiEffect` so the face and the name get **different cell sizes**. Registers both grids as tunables under the `identity` scene. |
@@ -1321,7 +1322,8 @@ sits is the only thing keeping a whole country outline off the face.
 | --- | --- |
 | `stores/sections.ts` | **Shared state only** (issue #4): `progress`, the `sections` spine, `milestoneCount`, the editable per-section `cameraKeyframes` + `headKeyframes` maps (seeded from the registry; `cameraAt`/`headAt` read them, so scenes-tab edits move camera/head live), and the derived getters — `boundaries`, `anchors`, `activeIndex`, `localProgress`, `heroProgress`, `cameraAt`, `headAt`, `revealFor`, `subReveal`, `asciiCellSize/FontSize`, `addressing`. Owns **no** rAF loop. Hosts the shared **anchor resolver** `resolveAt` / `anchorAt` + the biography `bioFrac`/`bioAnchorFromFrac`/`localFracAt` position transforms, plus the keyframe interpolator (`buildPoseTrack`/`samplePose`) shared by camera + head. `setHeadKeyframes` replaces a whole section's head track for the runtime generators, recording it as that section's reset baseline. |
 | `composables/useSections.ts` | Sources the section sequence from `registry.ts` into the store (`useSections`); loads + normalizes the `content/biography` collection (`useBiographyMilestones`); generates the biography chapter's head + spotlight tracks from the loaded cards (`useBiographyChoreography`, see [the biography's swerve](#generated-at-runtime-the-biographys-swerve)). |
-| `composables/usePointer.ts` | The cursor as -1..1 screen coords — **one** listener for the whole app, refcounted, shared by the head's addressing parallax and the skyline's depth parallax. Viewport size is read per pointer *move*, never per frame. `y` is +1 at the **bottom**. |
+| `composables/usePointer.ts` | The cursor as -1..1 screen coords — **one** listener for the whole app, refcounted, shared by the head's addressing parallax and the skyline's depth parallax. Viewport size is read per pointer *move*, never per frame. `y` is +1 at the **bottom**. `pointerActive` flips true on the first real mouse move and never back — anything that draws itself AT the cursor (the cursor orb) gates on it, so it doesn't sit in the middle of a touch screen pointing at nothing. |
+| `composables/useCursorOrb.ts` | Where the cursor orb is **on screen** (`x`/`y` in the same -1..1 screen-space convention as `usePointer`, plus an `influence` that follows its fade), so `Scene3D` can aim the head at the orb instead of the cursor. Written by `CursorOrb` in its render loop, read by `Scene3D` in its own — a plain object, **deliberately not a ref**: a value rewritten every frame has no business in the reactivity graph (issue #4). Published in screen space rather than as a world position so it is a drop-in swap for the pointer the gaze was already tuned against, and so the projection happens where the camera has just been updated. |
 | `composables/useScrollTimeline.ts` | Owns the Lenis singleton (driven by `gsap.ticker`), the single `ScrollTrigger`, and their teardown. |
 | `lib/frame.ts` | The lens and the frame it makes, in one place: `fovForAspect` (widens the vertical fov on portrait viewports, capped at 70°) drives `Scene3D`'s camera, `frameHalfAt(aspect, distance)` tells the generators how big the visible world is at a pose, and `HEAD_HALF` is the head's measured half-extents. Shared precisely so the scene and the choreography cannot disagree about the size of the frame — see [the frame is measured, not assumed](#the-frame-is-measured-not-assumed). |
 | `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [Dev Panel and tuning](#dev-panel-and-tuning). |
@@ -1609,8 +1611,14 @@ The last section is the payoff — a transmission from the visitor to the head:
   base pose from its **head keyframe track** (see [Head keyframes](#head-keyframes))
   — by default a resting profile gazing into its own data. As the contact beat
   centers, `store.addressing` ramps `0 → 1` and `Scene3D` blends the head's rotation
-  from that keyframed pose toward the terminal card, with a gentle cursor parallax
-  on top. Reduced-motion drops the parallax but still turns. The finale-overlay
+  from that keyframed pose toward the terminal card, with a gentle parallax on top.
+  That parallax is aimed at the **orb**, not at the cursor (`followOrb`, and see
+  below): the orb hovers near the pointer and lags a fast move, so the head reads
+  as tracking something alive in the room rather than as being wired to the mouse
+  — at rest the two differ by a few percent of the parallax range, and the
+  difference shows when the cursor moves. Whenever there is no orb to watch it
+  falls back to the raw pointer on its own. Reduced-motion drops the parallax but
+  still turns. The finale-overlay
   angles (`addressYaw`/`addressPitch`/cursor ranges) are live-tunable (see
   [Dev Panel and tuning](#dev-panel-and-tuning)); the resting pose itself is now a head keyframe.
 - **An interactive terminal.** `ContactSection` is a CLI/terminal card that types
@@ -1629,6 +1637,60 @@ The last section is the payoff — a transmission from the visitor to the head:
     `ContactSection` via `useElementBounding` → `store.contactAnchor` as NDC) ray-
     cast through the camera onto a plane, so it tracks the card across
     viewport/scroll.
+- **Something is flying around your cursor.** `CursorOrb` is a small glowing orb
+  (two additive sprites: a white-hot core in a tinted halo). It is alive for
+  exactly as long as the head's gaze is — the same `store.addressing` ramp — so it
+  reads as *what the head is looking at* rather than as a cursor decoration. The
+  cursor is unprojected through the live camera onto a point at `depthFrac` of the
+  camera→head distance, so its centre of gravity sits in 3D **between the head and
+  the lens** and follows the camera pose instead of assuming one. The orb never
+  reaches it: a spring pull (which, unlike an inverse-square well, grows with
+  distance and so cannot be escaped), a wander force of incommensurate sines,
+  heavy drag, and a **speed floor** that forbids it ever coming to rest — applied
+  along its current heading, so it still carries past the cursor rather than
+  parking on it. The **drag** is the knob that decides how much: a spring on its
+  own is a bell, and at a damping ratio of 0.04 the orb sailed a quarter of the
+  way past the cursor on every move and rang for a dozen swings. Overshoot past a
+  0.3-unit cursor jump, by drag: `0.9 → 0.238`, `3 → 0.196`, `6 → 0.138`,
+  `12 → 0.049`. At 12 (ratio 0.55) it rings once and sits down, and because drag
+  that heavy kills a kick in a tenth of a second, `minSpeed` becomes the speed
+  almost all of the time — the dial for how frantic it is. At 0.16 it hovers
+  within ~0.022 units of the pointer.
+  - **It burns; it does not draw a trail.** Each spark is born at the orb with a
+    little scatter and an updraft, and is on its own from there: it rises for an
+    instant, falls under its own gravity, slows against its own drag, and burns
+    out. It is **dropped, not thrown** — `inherit` is near zero and the spark drag
+    is high, so whatever sideways motion it had is gone in a few tenths of a
+    second and gravity has the rest of its life to itself. That is the difference
+    between a flame dripping and a comet; with a third of the orb's velocity
+    inherited and little drag the cloud strings out along the orbit
+    (0.128×0.200, ratio 1.6) instead of falling (0.057×0.178, ratio 3.1). Each
+    one is also
+    **cooling**: a white-hot flash, then a long burn down through two more stops
+    to a dying ember, each with its own flicker phase so the field crackles
+    instead of pulsing together. Colour carries the cooling and brightness carries
+    the decay; a single-colour spark that only fades has half of that, and reads
+    as one trail particle. A ring buffer of 1024 keeps ~200 alive at the defaults,
+    rising ~0.1 world units above the orb and falling ~0.21 below it.
+  - **Loud enough to survive the ASCII pass.** A glyph is picked from a cell's
+    luminance, so anything peaking in the middle of that ramp comes out as grey
+    mush beside the lit face. `sparkGain` drives a spark past saturation at birth
+    — at the defaults about 150 of the ~200 alive sit in the dense-glyph half of
+    the ramp, and the cooling fade then walks each one down through the *whole*
+    ramp rather than through the bottom third of it. The cloud covers roughly
+    34×39 cells, each spark about 1.8 wide, which is a burning mass rather than
+    scattered dots.
+  - Orb and sparks integrate on a fixed 120Hz substep, and **spawning happens
+    inside that loop**, so a fast orb lays its sparks along the path it flew
+    rather than dumping the frame's worth at the position it ended on, and nothing
+    changes shape between 30 and 144fps. It renders on the **default layer**, i.e.
+    through the ASCII composer with the face, where the soft radial falloff shared
+    by the orb and every spark is exactly the gradient a character ramp is built
+    to resolve. Dropped entirely under reduced motion or when there is no real
+    cursor (`pointerActive`, so it never buzzes in the middle of a phone screen).
+    Live-tunable under **Cursor orb**, including the three burn stops — fire by
+    default, pull them toward the accent if that reads as too literal against the
+    terminal.
 - **CLI ↔ scene.** Every typed command bumps `store.pulseSeq`; `SignalField`
   edge-detects it and fires a bright, fast ripple along the same path, while the
   terminal flashes its glow — so the CLI visibly *sends* the signal the head

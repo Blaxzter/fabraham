@@ -148,5 +148,29 @@
     "posScale": 0.85,
     "defScale": 0.7,
     "defMeasure": 46
+  },
+  "cursorOrb": {
+    "depthFrac": 0.33,
+    "pull": 120,
+    "drag": 11,
+    "wander": 2.3,
+    "minSpeed": 0.05,
+    "maxSpeed": 2.6,
+    "size": 0.046,
+    "haloScale": 2,
+    "sparkRate": 280,
+    "sparkLife": 0.9,
+    "sparkGain": 5.2,
+    "sparkFlicker": 14,
+    "updraft": 0.2,
+    "sparkGravity": 0.7,
+    "sparkDrag": 2.6,
+    "sparkSize": 0.022,
+    "inherit": 0.7,
+    "scatter": 0.1,
+    "tint": "#ff0000",
+    "sparkHot": "#fee190",
+    "sparkMid": "#ffae2b",
+    "sparkCool": "#ff3d12"
   }
 }

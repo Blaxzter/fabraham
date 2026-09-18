@@ -10,6 +10,7 @@ import SceneSetPieces from "./SceneSetPieces.vue";
 import HeroGlyphs from "./HeroGlyphs.vue";
 import HeroAscii from "./HeroAscii.vue";
 import ScrollSpotlights from "./ScrollSpotlights.vue";
+import CursorOrb from "./CursorOrb.vue";
 import TuningGizmos from "./TuningGizmos.vue";
 
 const store = useSceneControlStore();
@@ -83,6 +84,21 @@ const addressYaw = tuneHead.num("addressYaw", 1.17, { min: -2.5, max: 2.5, step:
 const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
 const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
 const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
+/**
+ * Whether the head watches the ORB or the cursor itself.
+ *
+ * At 1 the gaze is aimed at the fly (`CursorOrb`), which is a damped, wandering
+ * thing that hovers near the pointer and lags behind a fast move — so the head
+ * reads as tracking something alive in the room rather than as being wired to the
+ * mouse. At 0 it goes back to the raw pointer. The two only diverge by a few
+ * percent of the parallax range while the cursor is still; the difference shows
+ * when it moves, which is the point.
+ *
+ * It scales the orb's own fade rather than replacing it, so whenever there is no
+ * orb to look at — before the contact beat, under reduced motion, on a touch
+ * device — the head is back on the pointer with nothing to configure.
+ */
+const followOrb = tuneHead.num("followOrb", 1, { min: 0, max: 1, step: 0.05, label: "Follow the orb (vs the cursor)" });
 
 // The constant base lighting the scroll spotlights sit on top of. Lives in the
 // spotlights store (edited in the dev panel's Spotlights section, alongside the
@@ -104,6 +120,12 @@ const wireframeGroupRef = shallowRef<Group | null>(null);
 // front. The preference resolves OS prefers-reduced-motion + the /setup override.
 const { pointer } = usePointer();
 const { reducedMotion } = usePreferences();
+// Where the cursor orb is on screen, in the same -1..1 screen-space shape as
+// `pointer` so the two are interchangeable inputs to the gaze below. Plain
+// object, rewritten by CursorOrb each frame and read here each frame — never a
+// ref, because a value that changes every frame has no business in the
+// reactivity graph (issue #4). `influence` is 0 whenever there is no orb.
+const orbGaze = useCursorOrb();
 
 // ASCII and rendering configuration
 const gl = {
@@ -217,8 +239,16 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   const cursorScale = reducedMotion.value ? 0 : addressing;
   const baseYaw = headPose.rotation.y * (1 - addressing) + addressYaw.value * addressing;
   const basePitch = headPose.rotation.x * (1 - addressing) + addressPitch.value * addressing;
-  const targetY = baseYaw + pointer.value.x * maxYaw.value * cursorScale;
-  const targetX = basePitch + pointer.value.y * maxPitch.value * cursorScale;
+  // What the head is actually watching. The orb, when there is one — it hovers
+  // near the cursor and lags a fast move, so the gaze inherits that life instead
+  // of being pinned to the pointer — blending back to the raw cursor by however
+  // much of an orb there is (`influence` follows its fade, and is 0 before the
+  // contact beat, under reduced motion, and on touch).
+  const orbMix = orbGaze.influence * followOrb.value;
+  const aimX = pointer.value.x + (orbGaze.x - pointer.value.x) * orbMix;
+  const aimY = pointer.value.y + (orbGaze.y - pointer.value.y) * orbMix;
+  const targetY = baseYaw + aimX * maxYaw.value * cursorScale;
+  const targetX = basePitch + aimY * maxPitch.value * cursorScale;
   // Frame-rate independent: the per-frame factor is re-based onto this frame's
   // actual delta, so the feel is identical at 30, 60 or 144fps.
   const ease = 1 - Math.pow(1 - turnSpeed.value, delta * 60);
@@ -393,6 +423,12 @@ watch(
 
     <!-- Data-driven line set-pieces that bloom around the head per chapter. -->
     <SceneSetPieces />
+
+    <!-- The fly: a glowing orb orbiting the cursor, in 3D between the head and
+         the lens, for as long as the head is tracking the cursor (addressing),
+         shedding sparks that fall away behind it. On the default layer, so it
+         goes through the ASCII pass with the face rather than sitting on top. -->
+    <CursorOrb />
 
     <!-- The hero name, as geometry. Renders to its OWN buffer on layer 4 (so it
          never lands on the face's coarse grid) which HeroAscii composites back
