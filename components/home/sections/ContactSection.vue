@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from "vue";
-import { useElementBounding } from "@vueuse/core";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
+import { useElementBounding, useMediaQuery } from "@vueuse/core";
 import type { Section } from "~/types/section";
 
 // The finale: a CLI/terminal sign-off — and a real, typeable shell for the
@@ -281,6 +289,26 @@ const histNext = () => {
 };
 
 const focusInput = () => inputRef.value?.focus();
+
+/**
+ * A shorter hint where there is no room for the long one.
+ *
+ * The field is bumped to 16px on a phone (see `.term-field`, which explains
+ * why), so the full hint is ~250px of text in a 242px field and lost its last
+ * two characters — a call to action reading "try: hel".
+ *
+ * Gated on `mounted` rather than used directly, per the rule in
+ * docs/scroll-3d-architecture.md: a media query is `false` during prerender and
+ * can be `true` on the client's first render, and a hydration mismatch is
+ * something Vue warns about rather than repairs. Resolving it one tick later
+ * makes the swap an ordinary update.
+ */
+const mounted = ref(false);
+onMounted(() => (mounted.value = true));
+const narrow = useMediaQuery("(max-width: 768px)");
+const hint = computed(() =>
+  mounted.value && narrow.value ? "try: help" : "type a command — try: help"
+);
 </script>
 
 <template>
@@ -302,7 +330,7 @@ const focusInput = () => inputRef.value?.focus();
     <div ref="bodyRef" class="term-body">
       <!-- Static, crawlable session (types itself in). -->
       <p class="t-line cmd" style="--i: 0">
-        <span class="prompt">frederic@berlin:~$</span> whoami
+        <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> whoami
       </p>
       <p class="t-line out" style="--i: 1">systems that scale · AI that ships</p>
 
@@ -317,7 +345,7 @@ const focusInput = () => inputRef.value?.focus();
       </p>
 
       <p class="t-line cmd" style="--i: 4">
-        <span class="prompt">frederic@berlin:~$</span> contact --open
+        <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> contact --open
       </p>
       <div class="t-line links" style="--i: 5">
         <a
@@ -339,35 +367,45 @@ const focusInput = () => inputRef.value?.focus();
       <!-- Live command log. -->
       <template v-for="(line, i) in log" :key="i">
         <p v-if="line.kind === 'in'" class="log cmd">
-          <span class="prompt">frederic@berlin:~$</span> {{ line.text }}
+          <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> {{ line.text }}
         </p>
         <!-- eslint-disable-next-line vue/no-v-html (controlled link markup only) -->
         <p v-else-if="line.html" class="log resp" v-html="line.html" />
         <p v-else class="log resp">{{ line.text }}</p>
       </template>
-
-      <!-- The live prompt. -->
-      <form class="t-line term-prompt" style="--i: 6" @submit.prevent="run">
-        <span class="prompt">frederic@berlin:~$</span>
-        <input
-          ref="inputRef"
-          v-model="cmd"
-          class="term-field"
-          type="text"
-          autocomplete="off"
-          autocapitalize="off"
-          autocorrect="off"
-          spellcheck="false"
-          :placeholder="focused ? '' : 'type a command — try: help'"
-          aria-label="Terminal input — try typing help"
-          @focus="focused = true"
-          @blur="focused = false"
-          @keydown.up.prevent="histPrev"
-          @keydown.down.prevent="histNext"
-        />
-        <span v-if="!focused && !cmd" class="cursor" aria-hidden="true" />
-      </form>
     </div>
+
+    <!-- The live prompt — OUTSIDE `.term-body`, which is the scrolling one.
+         It used to be the last child of it, and a scroller clips its last child
+         first: on a phone the body's `max-height` left 64px of content below the
+         fold with `scrollTop` at 0, so the one interactive thing in this section
+         — a terminal you can actually type into — was never on screen, behind an
+         inner scrollbar nothing indicates on touch. Sitting outside it, the
+         prompt is pinned to the foot of the card and the transcript scrolls
+         above it, which is both what every terminal emulator does and the only
+         arrangement that holds however much output the shell accumulates.
+         The card's bottom padding moved with it (see `.term-body` /
+         `.term-prompt`), so the layout is otherwise what it was. -->
+    <form class="t-line term-prompt" style="--i: 6" @submit.prevent="run">
+      <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span>
+      <input
+        ref="inputRef"
+        v-model="cmd"
+        class="term-field"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        :placeholder="focused ? '' : hint"
+        aria-label="Terminal input — try typing help"
+        @focus="focused = true"
+        @blur="focused = false"
+        @keydown.up.prevent="histPrev"
+        @keydown.down.prevent="histNext"
+      />
+      <span v-if="!focused && !cmd" class="cursor" aria-hidden="true" />
+    </form>
   </article>
 </template>
 
@@ -462,7 +500,14 @@ const focusInput = () => inputRef.value?.focus();
 }
 
 .term-body {
-  padding: 1.2rem 1.35rem 1.3rem;
+  /* No bottom padding: the prompt below it carries the card's instead, so the
+     card is padded as it always was. The one real difference is 6px: the
+     prompt's `margin-top` used to collapse against the last line's
+     `margin-bottom` and now cannot, since the body's `overflow` makes it a
+     block formatting context. Kept rather than compensated — a prompt that a
+     transcript scrolls under wants the air more than one sitting at the end of
+     it did. */
+  padding: 1.2rem 1.35rem 0;
   max-height: 60vh;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -564,12 +609,16 @@ const focusInput = () => inputRef.value?.focus();
   text-underline-offset: 2px;
 }
 
-/* The live prompt line. */
+/* The live prompt line. Now a sibling of the scrolling body rather than its last
+   child (see the template), so it also carries the card's bottom padding — the
+   horizontal value is `.term-body`'s, so the prompt still lines up with the
+   transcript above it to the pixel. */
 .term-prompt {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.4rem;
+  padding: 0 1.35rem 1.3rem;
 }
 .term-field {
   flex: 1 1 auto;
@@ -595,6 +644,40 @@ const focusInput = () => inputRef.value?.focus();
 @media (max-width: 768px) {
   .term-field {
     font-size: 16px;
+  }
+
+  /* `60vh` is a desktop-shaped cap: on a 1080px screen it is 648px and the
+     session never reaches it, but on a phone it is 506px against 538px of
+     transcript, so the card arrived already scrolled — an inner scroller inside
+     a page that is itself scrolling, with no affordance a touch device shows.
+     Size it to the room actually left instead: the viewport, less the window
+     chrome, the prompt and a margin off the top and bottom of the screen. The
+     session then fits outright and nothing scrolls until the visitor has typed
+     enough to fill it, at which point scrolling is what a terminal should do.
+     `dvh` because a phone's `100vh` is the URL-bar-hidden height, which is more
+     screen than there usually is; the `vh` line above it is the fallback. */
+  .term-body {
+    max-height: calc(100vh - 11rem);
+    max-height: calc(100dvh - 11rem);
+  }
+
+  /* 44px of tappable height, up from 31. These two links are the section's
+     actual call to action and a thumb is not a cursor — the extra is padding,
+     so nothing about how they read changes. */
+  .token {
+    padding: 0.6rem 0.05rem;
+  }
+
+  /* The prompt loses its host. `frederic@berlin:~$` is 18 characters, which on a
+     390px card is 158 of the 284px inside it — so the field the visitor is meant
+     to type into had about 13 characters of room, the placeholder truncated to
+     "type a com", and anything typed scrolled out of sight as they went. At `~$`
+     the same field gets 29. Nothing is lost: the host is in the window title bar
+     two lines above, which is where a terminal puts it anyway — and every
+     transcript line stops wrapping as well, since they were each paying the same
+     158px before their first word. */
+  .p-host {
+    display: none;
   }
 }
 
