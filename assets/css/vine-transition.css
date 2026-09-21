@@ -1,0 +1,47 @@
+/**
+ * The handoff between the home chapter and /projects.
+ *
+ * The two pages are one plant. The projects chapter grows a vine that buds three
+ * cards; /projects opens by drawing its own vine down the page — that opening
+ * draw already exists (`EASE_INTRO` in `components/projects/ProjectsTimeline.vue`,
+ * "the deliberate opening draw"). What was missing between them was everything:
+ * the route swapped instantly, so the arrival draw read as a page loading rather
+ * than as the same strand carrying on.
+ *
+ * So this is deliberately NOT a showpiece. A big wipe would upstage the draw it
+ * exists to set up, and the honest continuation is already on the other side.
+ * All it does is stop the cut: the old page sinks and dims, the new one rises
+ * into place, and the vine on /projects starts growing into a frame that is
+ * already settling. `out-in`, so the two never overlap and the draw is the first
+ * motion you see on the new page.
+ *
+ * Scoped to the projects route via `definePageMeta` rather than set globally —
+ * the home page carries a WebGL canvas and a boot sequence, and transitioning
+ * every navigation in and out of that is a different, riskier question.
+ */
+.vine-enter-active {
+  transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.22, 0.85, 0.3, 1);
+}
+.vine-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease-in;
+}
+/* Entering from just below: the page arrives the way the vine travels. */
+.vine-enter-from {
+  opacity: 0;
+  transform: translateY(26px);
+}
+.vine-leave-to {
+  opacity: 0;
+  transform: translateY(-14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vine-enter-active,
+  .vine-leave-active {
+    transition: opacity 0.18s linear;
+  }
+  .vine-enter-from,
+  .vine-leave-to {
+    transform: none;
+  }
+}

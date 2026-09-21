@@ -30,11 +30,9 @@ const { data: projects } = await useAsyncData("debug-projects", () =>
   queryCollection("projects").all()
 );
 
-// Test getting a single project
+// Test getting a single project. Deliberately not a hard-coded slug: this used
+// to name a placeholder that no longer exists, so it only ever returned null.
 const { data: singleProject } = await useAsyncData("debug-single", () =>
-  queryCollection("projects").path("/projects/blockchain-voting-system").first()
+  queryCollection("projects").first()
 );
-
-console.log("Debug all projects:", projects.value);
-console.log("Debug single project:", singleProject.value);
 </script>

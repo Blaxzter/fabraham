@@ -451,7 +451,14 @@ export const useSectionsStore = defineStore("sections", () => {
   // computed only reads k.t/k.milestone (for `at`), so a position/rotation slider
   // edit does NOT recompute it — but the per-frame sampler reads these refs every
   // frame, so the camera/head still update live (zero per-frame allocation).
-  type PoseEntry = { at: number; position: Vec3; rotation: Vec3; opacity: number };
+  type PoseEntry = {
+    at: number;
+    position: Vec3;
+    rotation: Vec3;
+    opacity: number;
+    /** Interpolate the segment starting here linearly — see `CameraKeyframe`. */
+    linear: boolean;
+  };
   const buildPoseTrack = (
     map: Record<string, HeadKeyframe[]>,
     fallback: (s: Section) => HeadKeyframe
@@ -467,6 +474,7 @@ export const useSectionsStore = defineStore("sections", () => {
           rotation: k.rotation,
           // Absent on camera keyframes, and on head keyframes that don't fade.
           opacity: k.opacity ?? 1,
+          linear: k.linear === true,
         });
       }
     });
@@ -494,9 +502,13 @@ export const useSectionsStore = defineStore("sections", () => {
       if (p >= tr[i]!.at && p <= tr[i + 1]!.at) break;
     }
     const raw = (p - tr[i]!.at) / (tr[i + 1]!.at - tr[i]!.at || 1);
-    const t = easeInOut(raw); // smooth settle into each pose
     const a = tr[i]!;
     const b = tr[i + 1]!;
+    // Eased by default — that settle is what makes a handful of art-directed
+    // poses read as poses. A keyframe that opts into `linear` is sampling a
+    // continuous motion instead, where the ease would show up as a tremor (see
+    // `CameraKeyframe.linear`).
+    const t = a.linear ? raw : easeInOut(raw);
     scratch.position.x = lerp(a.position.x, b.position.x, t);
     scratch.position.y = lerp(a.position.y, b.position.y, t);
     scratch.position.z = lerp(a.position.z, b.position.z, t);

@@ -197,6 +197,8 @@ if (import.meta.client) {
 }
 
 // Setup render loop to track camera changes
+const TWO_PI = Math.PI * 2;
+
 const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // Camera ownership depends on the mode.
   if (store.cameraControlMode === "orbit") {
@@ -259,7 +261,18 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // Frame-rate independent: the per-frame factor is re-based onto this frame's
   // actual delta, so the feel is identical at 30, 60 or 144fps.
   const ease = 1 - Math.pow(1 - turnSpeed.value, delta * 60);
-  headRotationY.value += (targetY - headRotationY.value) * ease;
+  // Yaw chases the SHORTEST way round, not the shortest numeric distance.
+  //
+  // For everything authored by hand this changes nothing — every one of those
+  // angles is well inside half a turn, so the wrap below is a no-op. It matters
+  // for a track that WINDS: the projects chapter turns the head after the vine's
+  // growing tip, which goes all the way around, so that track accumulates two
+  // full turns and hands over to a neighbour that quite reasonably asks for 0.
+  // Read numerically that is a two-turn unwind; read as an angle it is no motion
+  // at all, which is also what it looks like. Pitch is never more than a nod, so
+  // it is left alone.
+  const dYaw = targetY - headRotationY.value;
+  headRotationY.value += (dYaw - TWO_PI * Math.round(dYaw / TWO_PI)) * ease;
   headRotationX.value += (targetX - headRotationX.value) * ease;
   headRotationZ.value += (headPose.rotation.z - headRotationZ.value) * ease;
   // Apply imperatively to the Three group — no reactive prop patching (issue #4).

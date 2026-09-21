@@ -8,6 +8,9 @@ import {
   Points,
   ShaderMaterial,
 } from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { ColorRepresentation } from "three";
 
 /**
@@ -265,6 +268,111 @@ export const createLinkPool = (
       field.attr.needsUpdate = true;
     },
   };
+};
+
+// ---------------------------------------------------------------------------
+// Fat lines
+// ---------------------------------------------------------------------------
+
+/**
+ * Lines with an actual width.
+ *
+ * `createLines` above cannot do this, and neither can any amount of tuning it.
+ * From three's own source for `LineBasicMaterial.linewidth`:
+ *
+ *   > Can only be used with SVGRenderer. WebGL and WebGPU ignore this setting
+ *   > and always render line primitives with a width of one pixel.
+ *
+ * That is a hard limit of the WebGL core profile, not a three shortcoming, and
+ * it is why every set-piece in this folder is drawn in 1px hairlines. It is
+ * fine — often better than fine — for a field of filaments: a latent space, a
+ * signal, a wire-frame horizon all WANT to be thin. It is wrong for anything
+ * that is supposed to have MASS. The projects vine spent a version braiding
+ * four hairlines together to fake a thick stem, which is a workaround for this
+ * exact limitation.
+ *
+ * `LineSegments2` is three's answer: each segment is drawn as an instanced
+ * quad in the vertex shader, expanded to `linewidth` CSS pixels. A pixel width
+ * is only meaningful against a resolution, but nothing here has to supply one —
+ * `LineSegments2.onBeforeRender` reads it off the renderer's viewport, and
+ * three keeps that viewport in CSS pixels (it is `setSize`'s arguments; the
+ * device-pixel multiply happens later, on the way to GL). So a width authored
+ * here is the same width on a retina screen as on a 1x one, which is the whole
+ * reason to prefer this over driving the uniform by hand.
+ *
+ * Reach for this when a piece needs weight, and for `createLines` otherwise —
+ * a hairline is one draw call and one vertex pair per segment, which is still
+ * the right default for the dense fields most of these backdrops are made of.
+ */
+export interface FatLineField {
+  lines: LineSegments2;
+  geometry: LineSegmentsGeometry;
+  material: LineMaterial;
+  /** `[ax,ay,az, bx,by,bz, …]` — the live buffer. Mutate, then `flush()`. */
+  position: Float32Array;
+  segmentCount: number;
+  /** Upload whatever this frame wrote. */
+  flush(): void;
+  dispose(): void;
+}
+
+export const createFatLines = (
+  positions: Float32Array,
+  opts: {
+    color: ColorRepresentation;
+    opacity?: number;
+    /** CSS pixels. Needs `setLineResolution` to mean anything. */
+    width?: number;
+  }
+): FatLineField => {
+  const geometry = new LineSegmentsGeometry();
+  // `setPositions` keeps a Float32Array BY REFERENCE (it only wraps it in an
+  // InstancedInterleavedBuffer, and the interleaved layout is exactly the
+  // xyz/xyz pairs we already build), so the piece can keep writing into the
+  // same array every frame and just flag it — no re-upload of a new buffer.
+  geometry.setPositions(positions);
+
+  const material = new LineMaterial({
+    color: new Color(opts.color),
+    linewidth: opts.width ?? 2,
+    worldUnits: false,
+    transparent: true,
+    opacity: opts.opacity ?? 0,
+    blending: AdditiveBlending,
+    depthWrite: false,
+  });
+
+  const lines = new LineSegments2(geometry, material);
+  lines.frustumCulled = false; // drawn in the overlay pass, not on the main camera
+
+  return {
+    lines,
+    geometry,
+    material,
+    position: positions,
+    segmentCount: positions.length / 6,
+    flush() {
+      const attr = geometry.getAttribute("instanceStart");
+      // Setting `needsUpdate` on an InterleavedBufferAttribute forwards to the
+      // shared buffer, so this covers instanceEnd too.
+      if (attr) attr.needsUpdate = true;
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    },
+  };
+};
+
+/**
+ * `drawFraction` for fat lines.
+ *
+ * The geometry is INSTANCED — one instance per segment — so the draw-on is a
+ * change of `instanceCount`, not of a draw range over vertices. Same idea, same
+ * reversibility, different lever.
+ */
+export const drawFatFraction = (field: FatLineField, t: number) => {
+  field.geometry.instanceCount = Math.floor(field.segmentCount * clamp01(t));
 };
 
 // ---------------------------------------------------------------------------

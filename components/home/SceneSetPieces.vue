@@ -13,6 +13,7 @@ import DocumentGrid from "./setpieces/DocumentGrid.vue";
 import StaffLines from "./setpieces/StaffLines.vue";
 import SignalField from "./setpieces/SignalField.vue";
 import StackFlight from "./setpieces/StackFlight.vue";
+import ProjectVine from "./setpieces/ProjectVine.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -61,6 +62,7 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   staffLines: StaffLines,
   signalField: SignalField,
   stackFlight: StackFlight,
+  projectVine: ProjectVine,
 };
 
 // Pieces that should be DEPTH-OCCLUDED by the head (the head hides whatever of
@@ -74,7 +76,17 @@ const SET_PIECES: Partial<Record<string, Component>> = {
 // simply hide them. That caveat does NOT apply to the skyline — the biography
 // camera sits back at z≈1.3, which leaves room for a piece placed low and pushed
 // back (see BerlinSkyline's HORIZON default).
-const OCCLUDED_PIECES = new Set(["lattice", "stackFlight", "berlinSkyline"]);
+//
+// `projectVine` joins them for the same reason the lattice did, and it is the
+// whole trick of that chapter: the vine coils BEHIND the skull and comes back
+// round the front, so the stretch that passes behind has to be hidden by the
+// head or the coil reads as a flat spiral pasted over the face.
+const OCCLUDED_PIECES = new Set([
+  "lattice",
+  "stackFlight",
+  "berlinSkyline",
+  "projectVine",
+]);
 
 // Keep the primary piece centered on the head; push stacked pieces aside and
 // BACK so two set-pieces in one beat read as distinct motifs, not one tangled
@@ -113,6 +125,7 @@ const PROGRESS_DRIVEN = new Set([
   "threadBoard",
   "documentGrid",
   "staffLines",
+  "projectVine",
 ]);
 
 const bioIndex = computed(() =>
@@ -222,6 +235,11 @@ const SETPIECE_LAYER = 1;
 const OCCLUDED_LAYER = 3;
 const HEAD_LAYER = 2;
 
+// Names stamped on each piece's wrapper group, so the render loop can tell the
+// two populations apart without counting on child order (see `onRender`).
+const ONTOP_TAG = "sp-top";
+const OCCLUDED_TAG = "sp-occluded";
+
 // Writes depth only (no colour): used to stamp the head's silhouette into the
 // depth buffer so the occluded set-pieces test against it.
 const depthOnlyMat = new MeshBasicMaterial({ colorWrite: false });
@@ -241,18 +259,28 @@ onRender(() => {
   // are per-object (not inherited) and some pieces add geometry asynchronously
   // (e.g. the SVG skyline mounts its lines after a fetch), so we re-tag every
   // frame — idempotent, a handful of objects, no allocation/layout read (stays
-  // within the issue #4 budget). Children render in `pieces` order; if that ever
-  // doesn't line up, fall back to tagging everything on-top.
+  // within the issue #4 budget).
+  //
+  // Identified by NAME, not by index, and that is the whole point. This used to
+  // pair `root.children[i]` with `pieces[i]` and fall back to tagging everything
+  // on-top when the two lengths disagreed. They disagree permanently: TresJS
+  // leaves placeholder `_Object3D` nodes among the children (14 children for 11
+  // pieces here), so the fallback was always taken and the depth-occlusion pass
+  // below was dead code — the head hid nothing, and the vine that is supposed to
+  // coil BEHIND the skull was drawn flat across the face.
+  //
+  // It hid for a long time because the bug needs the counts to differ: with the
+  // biography collection empty there is exactly one piece and one child, the
+  // lengths match, and occlusion works perfectly. It only breaks once the real
+  // content loads and the milestone pieces arrive.
+  //
+  // The wrapper groups below carry the name, so a stray node is simply skipped
+  // instead of shifting every piece onto the wrong layer.
   const kids = root.children;
-  const ps = pieces.value;
-  if (kids.length === ps.length) {
-    for (let i = 0; i < kids.length; i++) {
-      kids[i]!.traverse((o) =>
-        o.layers.set(ps[i]!.occluded ? OCCLUDED_LAYER : SETPIECE_LAYER)
-      );
-    }
-  } else {
-    root.traverse((o) => o.layers.set(SETPIECE_LAYER));
+  for (let i = 0; i < kids.length; i++) {
+    const kid = kids[i]!;
+    if (kid.name === OCCLUDED_TAG) kid.traverse((o) => o.layers.set(OCCLUDED_LAYER));
+    else if (kid.name === ONTOP_TAG) kid.traverse((o) => o.layers.set(SETPIECE_LAYER));
   }
 
   // Composite the crisp set-pieces over the ASCII'd scene the composer just drew
@@ -292,14 +320,22 @@ onBeforeUnmount(() => {
 
 <template>
   <TresGroup ref="setPiecesRoot">
-    <component
-      :is="piece.component"
+    <!-- One wrapper per piece, named with which layer its subtree belongs on.
+         The wrapper is what makes the tagging in `onRender` robust: it is always
+         exactly one child per piece, in any order, and it survives whatever
+         placeholder nodes the renderer puts beside it. -->
+    <TresGroup
       v-for="piece in pieces"
       :key="piece.key"
-      :reveal="revealOf(piece)"
-      :variant="piece.variant"
-      :position="piece.position"
-      v-bind="extraPropsOf(piece)"
-    />
+      :name="piece.occluded ? OCCLUDED_TAG : ONTOP_TAG"
+    >
+      <component
+        :is="piece.component"
+        :reveal="revealOf(piece)"
+        :variant="piece.variant"
+        :position="piece.position"
+        v-bind="extraPropsOf(piece)"
+      />
+    </TresGroup>
   </TresGroup>
 </template>

@@ -41,6 +41,23 @@ export interface CameraKeyframe {
   milestone?: number;
   position: Vec3;
   rotation: Vec3;
+  /**
+   * Interpolate the segment STARTING at this keyframe linearly, instead of with
+   * the default ease-in-out.
+   *
+   * The ease exists because most tracks are a handful of art-directed poses, and
+   * easing into each one is what makes the camera (or the head) *settle* rather
+   * than slide. That is exactly wrong for a track that samples a CONTINUOUS
+   * motion: the ease drives angular velocity to zero at every keyframe, so a
+   * densely sampled sweep comes out as a string of accelerate-decelerate hops —
+   * a tremor whose frequency rises with the sample count but whose amplitude
+   * never falls. The projects chapter's head track is the case in point: it
+   * follows the vine's growing tip around two full turns, and that is a spin, not
+   * a series of poses.
+   *
+   * Opt-in, so every existing track keeps the ease and behaves identically.
+   */
+  linear?: boolean;
 }
 
 /**
@@ -73,7 +90,8 @@ export type SetPieceName =
   | "documentGrid"
   | "staffLines"
   | "signalField"
-  | "stackFlight";
+  | "stackFlight"
+  | "projectVine";
 
 export type SectionType =
   | "hero"
@@ -81,6 +99,7 @@ export type SectionType =
   | "contact"
   | "interlude"
   | "skills"
+  | "projects"
   | "outro";
 
 export type Align = "center" | "left" | "right" | "top" | "bottom" | "free";

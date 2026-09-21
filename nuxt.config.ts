@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     // local Nuxt apps (e.g. the Gesangbuch PWA on 3000).
     devServer: { port: 3030 },
 
-    css: ['~/assets/css/tailwind.css', '~/assets/css/boot.css'],
+    css: ['~/assets/css/tailwind.css', '~/assets/css/boot.css', '~/assets/css/vine-transition.css'],
     vite: {
         plugins: [tailwindcss()],
         optimizeDeps: {

@@ -7,7 +7,9 @@ import BiographySection from "./BiographySection.vue";
 import SkillsSection from "./SkillsSection.vue";
 import ContactSection from "./ContactSection.vue";
 import OutroSection from "./OutroSection.vue";
+import ProjectsSection from "./ProjectsSection.vue";
 import { skillsCameraKeyframes, skillsHeadKeyframes } from "./skills";
+import { PROJECTS_CAM_Z, projectsHeadKeyframes } from "./projectsTeaser";
 
 // How a section's HTML is laid out over the canvas:
 //   flow   → the component fills the section height (the biography cluster).
@@ -153,6 +155,111 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(0.0, 0.05, 0.85), rotation: v3(-0.1, 0.0, 0.0) },
+  },
+  {
+    /**
+     * The work, before the story.
+     *
+     * Sits between the reveal and the biography on purpose: the face has just
+     * resolved, and the first thing it should be able to say is what it has
+     * built — the chapter after this one is how it got there. It is a REFERENCE,
+     * not the catalogue: three of the newest repositories and a way through to
+     * /projects, which is where all sixteen live.
+     *
+     * The chapter's whole idea is one object: a vine that comes in off-frame
+     * right, coils once around the head, and buds three cards along the way.
+     * That wrap is only possible because `SceneSetPieces` stamps the head into
+     * the depth buffer and draws occluded pieces against it — see the note on
+     * `projectVine` there. The cards themselves are real DOM, welded to the
+     * vine's buds by a per-frame projection through the live camera
+     * (./projectsTeaser.ts, and the render loop in ProjectVine.vue).
+     */
+    id: "projects",
+    order: 25,
+    type: "projects",
+    component: markRaw(ProjectsSection),
+    // "flow": the cards position themselves (fixed, transform-driven) and the
+    // heading is sticky inside the section — neither a pinned card nor a bare
+    // spacer. Same mode the biography cluster uses, for the same reason.
+    mode: "flow",
+    title: "What I have been growing",
+    subtitle: "Public work",
+    /**
+     * THE pace lever for this chapter. The vine assembles across the whole
+     * section (it is `PROGRESS_DRIVEN`), and each card opens as the drawing tip
+     * passes its bud — so this number is what spaces the three arrivals out.
+     *
+     * At 4 the three buds land inside roughly one viewport of scroll, which is
+     * fast enough that the second and third cards arrive while the first is
+     * still fading in and the coil reads as a single pop. 5 gives each card
+     * most of a screen to itself, which is the point of budding them in
+     * sequence rather than dealing them out at once.
+     *
+     * Raised 5 → 9 as the chapter grew a whole second half. It is no longer
+     * three cards on a coil: the vine now descends off the head into a curtain
+     * of hanging growth, the camera goes down after it and leaves the head
+     * behind, and the way through to /projects hangs there as a label you are
+     * given time to read.
+     *
+     * The number is set by keeping the CARDS where they were. The clocks in
+     * ./projectsTeaser.ts spend the first 48% of the section on the coil, then
+     * the descent and the fall, which puts the three buds at roughly 12%, 19%
+     * and 31% of the chapter; 9 is what makes those the same absolute scroll
+     * apart that they were at weight 5. Everything the chapter gained is
+     * paid for with new page rather than by hurrying what was already there.
+     */
+    weight: 9,
+    accent: "#00ff9c",
+    setPiece: ["projectVine"],
+    setPieceVariant: "",
+    layout: { align: "center" },
+    /**
+     * Back from the reveal's close-up (z 0.85) but not as far as the biography
+     * (z 1.3): the coil needs the head to still read as the thing being wrapped,
+     * while every bud has to stay inside the frame with room for its card.
+     * The distance lives in ./projectsTeaser.ts because the fit test there is
+     * asking about this exact lens — the three bud positions were picked by
+     * scanning the curve for points that clear both the frame edge and the
+     * head's silhouette at 16:9, 16:10, 3:2 and 4:3.
+     */
+    camera: { position: v3(0.04, 0.03, PROJECTS_CAM_Z), rotation: v3(-0.03, -0.02, 0.0) },
+    /**
+     * HOLD on the head, then GO DOWN WITH THE VINE, then come back up.
+     *
+     * The chapter's second half happens somewhere else. The vine leaves the
+     * coil, drops below the chin and breaks into a hanging curtain with the
+     * link in it — and a camera that stays on the head watches all of that
+     * happen in the bottom eighth of the frame, which is the same as not
+     * showing it. So the camera follows its own plant down.
+     *
+     * At y = -0.92 the head's chin (y = -0.378) is well above the top of the
+     * frame: the finale gets a clean stage of its own, which is the whole
+     * reason for the move. It also pulls in a little (1.22 → 1.12), because
+     * what is being read down there is a label, not a landscape.
+     *
+     * The timings are NOT free numbers — they are the chapter's two clocks in
+     * ./projectsTeaser.ts, read off one act behind:
+     *   0.46  `COIL_ENDS` is 0.48; start moving just before the tip drops, so
+     *         the camera is already travelling when it does.
+     *   0.62  `STEM_ENDS` is 0.54 — the camera settles while the curtain is
+     *         still falling off the node, not after. Arriving first is the one
+     *         failure mode here: it buys a held shot of an empty frame.
+     *   0.78  the hold. `CURTAIN_ENDS` is 0.68, so this is the chapter's only
+     *         still frame, and it is the one the visitor is meant to act in.
+     *   1.00  the BIOGRAPHY's own pose, to the number. The next chapter holds a
+     *         single pose at its centre, so anything else here would spend half
+     *         of it sliding into place. The climb runs against `revealFor`'s
+     *         drain (which starts at 0.75) on purpose: the piece is leaving and
+     *         so are we, rather than dissolving while we stare at it.
+     */
+    cameraKeyframes: [
+      { t: 0, position: v3(0.04, 0.03, PROJECTS_CAM_Z), rotation: v3(-0.03, -0.02, 0.0) },
+      { t: 0.46, position: v3(0.04, 0.03, PROJECTS_CAM_Z), rotation: v3(-0.03, -0.02, 0.0) },
+      { t: 0.62, position: v3(0.0, -0.92, 1.12), rotation: v3(-0.02, 0.0, 0.0) },
+      { t: 0.78, position: v3(0.0, -0.92, 1.12), rotation: v3(-0.02, 0.0, 0.0) },
+      { t: 1.0, position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, -0.03, 0.0) },
+    ],
+    headKeyframes: projectsHeadKeyframes,
   },
   {
     id: "biography",
