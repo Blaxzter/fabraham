@@ -197,5 +197,29 @@
     "c3": "#ffb454",
     "c4": "#ff5470",
     "c5": "#b06cff"
+  },
+  "vineSign": {
+    "desktopSizeVw": 4,
+    "desktopSizeMin": 39,
+    "desktopSizeMax": 84,
+    "desktopTiltX": -0.5,
+    "desktopTiltY": -7,
+    "mobileSize": 40,
+    "mobileTiltX": 6,
+    "mobileTiltY": -12,
+    "depth": 11,
+    "depthStep": 5.2,
+    "stroke": 4.2,
+    "commandSize": 0.86,
+    "boldFace": true,
+    "captionSize": 0.34,
+    "captionOpacity": 1,
+    "cordLength": 2.95,
+    "sprigsWidth": 9.8,
+    "glow": 12,
+    "sway": 5.2,
+    "swayPeriod": 7,
+    "ink": "#e9f1f8",
+    "cursor": "#fdae52"
   }
 }
