@@ -114,6 +114,9 @@ importers:
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -6845,7 +6848,7 @@ snapshots:
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/generator': 7.29.7
-      '@babel/parser': 7.27.7
+      '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
       debug: 4.4.3
@@ -7230,8 +7233,7 @@ snapshots:
       '@iconify/types': 2.0.0
       vue: 3.5.26(typescript@5.9.3)
 
-  '@img/colour@1.0.0':
-    optional: true
+  '@img/colour@1.0.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -13456,7 +13458,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

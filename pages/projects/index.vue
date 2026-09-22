@@ -61,6 +61,12 @@ const monthly = computed(() => {
   <div class="vp">
     <div class="wrap">
       <header class="hero">
+        <!-- The way home. This page has no site header, so the mark is it:
+             the same mark as the favicon, at the top-left where a wordmark
+             would sit, and a real link back to the front page. -->
+        <NuxtLink to="/" class="home-mark" aria-label="fabraham.dev — home">
+          <BrandMark :weight="2.5" />
+        </NuxtLink>
         <div class="hero-top">
           <div class="hero-id">
             <p class="eyebrow">Frederic Abraham · public work</p>
@@ -175,6 +181,31 @@ const monthly = computed(() => {
 .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; }
 
 .hero { padding-block: clamp(2.2rem, 7vh, 4rem) 0; }
+
+/* The mark sits in the page's second ink and takes the first on hover, so
+   it reads as a fixture, not a headline. `weight` on the mark thickens the
+   frame for this size; the height is the same 26px the eyebrow's cap line
+   sits at. */
+.home-mark {
+  display: inline-block;
+  height: 26px;
+  margin-bottom: clamp(1.4rem, 4vh, 2.4rem);
+  color: var(--vp-ink-2);
+  transition: color 160ms ease;
+}
+.home-mark:hover,
+.home-mark:focus-visible {
+  color: var(--vp-ink);
+}
+.home-mark:focus-visible {
+  outline: 2px solid #00ff9c;
+  outline-offset: 4px;
+}
+.home-mark svg {
+  display: block;
+  height: 100%;
+  width: auto;
+}
 
 /* The opening stagger. Every piece animates from its own `from` state, so the
    prerendered first paint is already the start of the animation rather than a

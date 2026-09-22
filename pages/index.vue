@@ -97,6 +97,15 @@ useSeoMeta({
   ogDescription:
     "A biographical 3D timeline: Berlin → Maastricht → Berlin. Generative AI, embeddings at scale, and retrieval-augmented generation.",
   ogType: "website",
+  // The logo as the social card (public/og.png, built by scripts/build-icons.cjs
+  // from public/logo.svg). Absolute on purpose: scrapers do not resolve
+  // relative URLs, and the site is static so there is no request to read a
+  // host from.
+  ogImage: "https://fabraham.dev/og.png",
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageAlt: "fabraham.dev",
+  twitterCard: "summary_large_image",
 });
 </script>
 

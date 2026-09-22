@@ -14,6 +14,21 @@ export default defineNuxtConfig({
     // local Nuxt apps (e.g. the Gesangbuch PWA on 3000).
     devServer: { port: 3030 },
 
+    app: {
+        head: {
+            // The SVG is the favicon; the .ico is the fallback for anything that
+            // still asks for one (Safari, old shortcut dialogs). Every raster here
+            // is built from the logo by `pnpm build:icons`.
+            link: [
+                { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+                { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+                { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+                { rel: 'manifest', href: '/site.webmanifest' },
+            ],
+            meta: [{ name: 'theme-color', content: '#313131' }],
+        },
+    },
+
     css: ['~/assets/css/tailwind.css', '~/assets/css/boot.css', '~/assets/css/vine-transition.css'],
     vite: {
         plugins: [tailwindcss()],

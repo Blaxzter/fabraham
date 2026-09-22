@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "optimize:model": "pnpm dlx @gltf-transform/cli@4 optimize public/models/head.glb public/models/head.glb --compress false --simplify false --texture-compress webp --texture-size 1024"
+    "optimize:model": "pnpm dlx @gltf-transform/cli@4 optimize public/models/head.glb public/models/head.glb --compress false --simplify false --texture-compress webp --texture-size 1024",
+    "build:icons": "node scripts/build-icons.cjs"
   },
   "dependencies": {
     "@nuxt/content": "3.10.0",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@nuxtjs/color-mode": "^4.0.0",
     "@types/three": "^0.182.0",
+    "sharp": "0.34.5",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.3"
   }
