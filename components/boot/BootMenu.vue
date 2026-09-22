@@ -1,5 +1,7 @@
 <template>
-  <div class="font-mono flex items-center justify-center min-h-[80vh]">
+  <!-- Fills the tube it is drawn in, not the viewport (the boot screen is a
+       monitor now, see BootScreen). -->
+  <div class="font-mono flex items-center justify-center min-h-full py-4">
     <div class="w-full max-w-6xl px-4 space-y-8">
       <!-- Menu Header -->
       <div class="text-center">

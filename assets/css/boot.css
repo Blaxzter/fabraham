@@ -145,3 +145,299 @@
   /* Enhanced contrast and brightness to simulate CRT phosphor intensity */
   filter: contrast(1.15) brightness(1.08) saturate(1.2);
 }
+
+/* ── The monitor ──────────────────────────────────────────────────────────────
+   The boot used to be eight CRT layers over the whole viewport — a filter, not
+   a thing. Now it is a set standing in a dark room: bezel, tube, picture. The
+   room clears once the 3D scene behind it is ready (`.is-lit`), so the monitor
+   ends up standing in the scene, and switch-off hands the page over. */
+.boot-root {
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.boot-backdrop {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  transition: opacity 1.2s ease;
+}
+.boot-root.is-lit .boot-backdrop {
+  opacity: 0;
+}
+
+.monitor {
+  position: relative;
+  /* As wide as the room allows, but never taller than it (short landscape). */
+  width: min(92vw, 900px, calc((100dvh - 120px) * 4 / 3));
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+.bezel {
+  position: relative;
+  width: 100%;
+  /* Plastic: a slight top-lit gradient, a seam a hair inside the edge, and a
+     chin under the screen for the LED. */
+  --bezel-pad: clamp(14px, 3.4vw, 34px);
+  padding: var(--bezel-pad);
+  padding-bottom: calc(var(--bezel-pad) + 20px);
+  border-radius: clamp(12px, 2.2vw, 22px);
+  background: linear-gradient(165deg, #302f2d 0%, #232321 55%, #1a1a19 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.03), 0 30px 80px rgba(0, 0, 0, 0.65),
+    0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.screen {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: clamp(8px, 2.4vw, 18px) / clamp(10px, 3vw, 22px);
+  background: #030503;
+  overflow: hidden;
+  /* The glass sits a little behind the bezel: a dark rim and a deep vignette. */
+  box-shadow: inset 0 0 0 2px #050505, inset 0 0 60px rgba(0, 0, 0, 0.9),
+    inset 0 0 6px rgba(0, 0, 0, 1);
+}
+/* The glass: one soft reflection over everything in the tube. */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.02) 30%,
+    transparent 55%
+  );
+}
+
+.tube {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+}
+/* The flash: what makes the power-on line white. The picture is nearly black
+   when the set comes on, so a squashed picture alone is a faint smear; this
+   sheet of light is what actually gets squashed into the line, and it burns
+   off as the picture opens. Same sheet, the other way round, at switch-off. */
+.tube::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #ffffff 0%, #e6ffe8 35%, #8ee79a 100%);
+  opacity: 0;
+}
+.monitor.is-on .tube::after {
+  animation: crt-flash-on 0.5s ease-out both;
+}
+@keyframes crt-flash-on {
+  0% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 0.85;
+  }
+  65% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.monitor.is-off .tube::after {
+  animation: crt-flash-off 0.38s ease-in forwards;
+}
+@keyframes crt-flash-off {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.picture {
+  position: absolute;
+  inset: 0;
+  /* Enough inset that the first line clears the tube's vignette on a phone. */
+  padding: clamp(20px, 3.5vw, 28px);
+  /* One size for every line, so the same script fits a phone-sized tube. */
+  font-size: clamp(11px, 1.55vw, 14px);
+  overflow: hidden;
+}
+.phase-scroll {
+  height: 100%;
+  overflow: auto;
+  /* The menu and the easter egg can be taller than the tube; a stock grey
+     scrollbar on a phosphor screen is not a thing, so it goes thin and dark. */
+  scrollbar-width: thin;
+  scrollbar-color: #1f3b25 transparent;
+}
+
+/* The vendor badge, top-right of POST, in the same phosphor as the text. */
+.bios-badge {
+  position: absolute;
+  top: clamp(18px, 3.5vw, 28px);
+  right: clamp(18px, 3.5vw, 28px);
+  z-index: 1;
+  width: clamp(52px, 12vw, 104px);
+  height: auto;
+  color: #4ade80;
+  filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.55));
+}
+
+.power-led {
+  position: absolute;
+  right: clamp(18px, 4vw, 40px);
+  bottom: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1d2a1f;
+  box-shadow: inset 0 0 2px #000;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.power-led.is-on {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80, 0 0 12px rgba(74, 222, 128, 0.5);
+}
+
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px clamp(12px, 4vw, 40px);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.hints .text-white {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Power on: black, a white line, the line opens into the picture with a flare. */
+.monitor:not(.is-on) .tube {
+  transform: scale(0.3, 0.002);
+  opacity: 0;
+}
+.monitor.is-on .tube {
+  animation: crt-power-on 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes crt-power-on {
+  0% {
+    transform: scale(0.3, 0.002);
+    opacity: 1;
+    filter: brightness(8);
+  }
+  30% {
+    transform: scale(1, 0.004);
+    filter: brightness(6);
+  }
+  60% {
+    transform: scale(1, 1);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scale(1, 1);
+    filter: brightness(1);
+  }
+}
+/* Switch off: the picture collapses to a line, then a dot. */
+.monitor.is-off .tube {
+  animation: crt-power-off 0.38s cubic-bezier(0.6, 0, 0.9, 0.4) forwards;
+}
+@keyframes crt-power-off {
+  0% {
+    transform: scale(1, 1);
+    filter: brightness(1);
+  }
+  45% {
+    transform: scale(1, 0.004);
+    filter: brightness(6);
+  }
+  80% {
+    transform: scale(0.02, 0.004);
+    filter: brightness(10);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0, 0.002);
+    filter: brightness(10);
+    opacity: 0;
+  }
+}
+
+/* The wait between POST and the scene: the logo's block cursor, in its own
+   proportions (37.64 : 66.84), blinking in steps like a real one. */
+.block-cursor {
+  display: block;
+  width: clamp(12px, 2.4vw, 18px);
+  aspect-ratio: 37.64 / 66.84;
+  background: #fdae52;
+  box-shadow: 0 0 8px rgba(253, 174, 82, 0.6);
+  animation: cursor-step 1s steps(1) infinite;
+}
+@keyframes cursor-step {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* No motion: the picture is simply there, and simply gone. The media query
+   covers the OS setting, `.no-motion` the /setup override. */
+@media (prefers-reduced-motion: reduce) {
+  .monitor:not(.is-on) .tube,
+  .monitor.is-on .tube {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .monitor.is-off .tube {
+    animation: none;
+    transform: none;
+    opacity: 0;
+  }
+  .screen-flicker,
+  .block-cursor,
+  .cursor-blink,
+  .tube::after {
+    animation: none;
+  }
+  .boot-backdrop {
+    transition: none;
+  }
+}
+.boot-root.no-motion .monitor:not(.is-on) .tube,
+.boot-root.no-motion .monitor.is-on .tube {
+  animation: none;
+  transform: none;
+  opacity: 1;
+}
+.boot-root.no-motion .monitor.is-off .tube {
+  animation: none;
+  transform: none;
+  opacity: 0;
+}
+.boot-root.no-motion .screen-flicker,
+.boot-root.no-motion .block-cursor,
+.boot-root.no-motion .cursor-blink,
+.boot-root.no-motion .tube::after,
+.boot-root.no-motion .crt-flicker,
+.boot-root.no-motion .crt-phosphor-glow,
+.boot-root.no-motion .crt-scanlines::after {
+  animation: none;
+}
+.boot-root.no-motion .boot-backdrop {
+  transition: none;
+}

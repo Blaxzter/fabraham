@@ -2,7 +2,7 @@
   <div class="relative">
     <!-- Boot screen is client-only and skipped in dev for faster iteration. -->
     <ClientOnly>
-      <BootScreen v-if="!isDev && !bootState.bootCompleted && !skipBootIntro" />
+      <BootScreen v-if="bootEnabled && !bootState.bootCompleted && !skipBootIntro" />
     </ClientOnly>
 
     <!-- Fixed 3D scene background. Client-only so the page stays SSG-compatible
@@ -58,6 +58,13 @@ const bootState = useBootStateStore();
 // `import.meta.dev` is build-time constant — no hostname sniffing, no stale ref.
 const isDev = import.meta.dev;
 
+// Dev skips the boot so a reload lands in the scene. `?boot=1` brings it back
+// for working on the boot against the real page — /boot-demo has no model to
+// load, so its memory test has nothing to count. Same value on server and
+// client for a given URL, so the first paint matches.
+const route = useRoute();
+const bootEnabled = !isDev || route.query.boot === "1";
+
 // Orbit mode hands the camera to the user, so the scroll overlay has to go: its
 // cards are positioned in SCREEN space against a camera that is no longer where
 // they assume, and it would swallow the drags meant for OrbitControls. Two ways
@@ -77,12 +84,12 @@ onMounted(() => {
 // Reveal the page content once the boot intro completes (instant in dev). The
 // content is always in the DOM (for prerender/SEO); this only toggles its
 // visibility, so the value must match on server and client-first-paint.
-const contentRevealed = computed(() => isDev || bootState.bootCompleted);
+const contentRevealed = computed(() => !bootEnabled || bootState.bootCompleted);
 
 // Start loading the scene while the boot sequence runs (hides perceived latency).
 const shouldLoadScene = computed(
   () =>
-    isDev ||
+    !bootEnabled ||
     bootState.phase === "booting" ||
     bootState.phase === "loading-scene" ||
     bootState.bootCompleted

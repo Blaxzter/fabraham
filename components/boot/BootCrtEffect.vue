@@ -251,4 +251,14 @@
   pointer-events: none;
   z-index: 8;
 }
+
+/* A tube that never flickers, for people who asked for that. The /setup
+   override is handled by `.no-motion` in boot.css. */
+@media (prefers-reduced-motion: reduce) {
+  .crt-flicker,
+  .crt-phosphor-glow,
+  .crt-scanlines::after {
+    animation: none;
+  }
+}
 </style>

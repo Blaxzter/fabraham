@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full flex flex-col overflow-hidden" ref="containerRef">
+  <div ref="containerRef" class="h-full flex flex-col overflow-hidden">
     <div class="space-y-0.5">
       <BootLine v-for="(line, index) in visibleLines" :key="index">
         <component :is="getLineWithActiveState(line, index)" />
@@ -9,7 +9,23 @@
 </template>
 
 <script setup lang="ts">
-import { h, resolveComponent, cloneVNode } from "vue";
+import { h, resolveComponent, cloneVNode, type VNode } from "vue";
+import { BOOTED_SESSION_KEY } from "~/stores/BootState";
+
+/**
+ * The POST screen. Eleven lines, and the length is set by the load, not a
+ * script: the memory test counts the head model's bytes as they arrive and the
+ * model line holds until the scene says it is ready. On a fast connection the
+ * whole thing is about three seconds; on a slow one it stretches, and the
+ * visitor can see why. A cached visit still gets `MIN_ON_SCREEN_MS` so it does
+ * not flash. Any key, click, tap or scroll skips to the end.
+ *
+ * `mode`: "auto" reads the session flag (see BOOTED_SESSION_KEY) and boots warm
+ * on a repeat load; the demo page forces one or the other.
+ */
+const props = withDefaults(defineProps<{ mode?: "auto" | "cold" | "warm" }>(), {
+  mode: "auto",
+});
 
 const emit = defineEmits<{
   complete: [];
@@ -17,451 +33,212 @@ const emit = defineEmits<{
   bootMenu: [];
 }>();
 
+const bootState = useBootStateStore();
+const { reducedMotion } = usePreferences();
+
+type Line = () => VNode;
 const containerRef = ref<HTMLElement | null>(null);
-const visibleLines = ref<any[]>([]);
-const activeLineIndex = ref(-1); // Track which line currently has the cursor
-let bootTimeline: gsap.core.Timeline | null = null;
+const visibleLines = ref<Line[]>([]);
+const activeLineIndex = ref(-1); // the line that carries the cursor
 
 // Function to add isActive prop to VNode
-const getLineWithActiveState = (line: any, index: number) => {
-  const vnode = typeof line === "function" ? line() : line;
+const getLineWithActiveState = (line: Line, index: number) => {
+  const vnode = line();
   // Add isActive prop to all VNodes (non-component elements like <br> will ignore it)
   if (vnode && typeof vnode.type !== "string") {
-    // It's a component, not a native element
     return cloneVNode(vnode, { isActive: index === activeLineIndex.value });
   }
   return vnode;
 };
 
-// ===== DEBUG CONFIGURATION =====
-// Global speed multiplier - adjust to make entire boot faster/slower
-const SPEED_MULTIPLIER = 0.4; // 0.5 = 2x faster, 2.0 = 2x slower
-
-// Disable auto-boot to home screen (stays at end of boot sequence)
-const DISABLE_AUTO_BOOT = false; // Set to true for debugging
-
-// Disable "press any key to skip" functionality
-const DISABLE_SKIP = true; // Set to true to force watching full boot sequence
-
-// Random delay configuration
-const ENABLE_RANDOM_DELAYS = true; // Add randomness to delays for realism
-const RANDOM_DELAY_MIN = -0.1; // Minimum random adjustment (seconds)
-const RANDOM_DELAY_MAX = 0.8; // Maximum random adjustment (seconds)
-// ===============================
-
-// Resolve the BootText component for use in h()
 const BootTextComponent = resolveComponent("BootText");
+type Color = "green" | "white" | "cyan" | "yellow" | "red";
+const T =
+  (text: string, color: Color, bold = false): Line =>
+  () =>
+    h(BootTextComponent, { animate: true, text, color, bold });
+const BR: Line = () => h("br");
 
-// Generate random delay variation
-const getRandomDelay = (baseDelay: number): number => {
-  if (!ENABLE_RANDOM_DELAYS) return baseDelay;
-  const randomAdjustment =
-    Math.random() * (RANDOM_DELAY_MAX - RANDOM_DELAY_MIN) + RANDOM_DELAY_MIN;
-  return Math.max(0, baseDelay + randomAdjustment); // Ensure non-negative
+// ── The two honest lines ──────────────────────────────────────────────────────
+// The memory counter advances against `loadProgress`, but never faster than
+// one step per `MEM_STEP_MS`, so a cached load still counts up instead of
+// landing on [OK] in one frame.
+const MEM_STEPS = ["16MB", "512MB", "4GB", "16GB", "32GB"];
+const MEM_STEP_MS = 120;
+const memShown = ref(0);
+const memByProgress = computed(() =>
+  Math.min(MEM_STEPS.length - 1, Math.floor(bootState.loadProgress * (MEM_STEPS.length - 1) + 1e-6))
+);
+const memDone = computed(
+  () => memShown.value === MEM_STEPS.length - 1 && bootState.loadProgress >= 1
+);
+const memLine: Line = () =>
+  h(BootTextComponent, {
+    animate: true,
+    text: `Testing memory: ${MEM_STEPS[memShown.value]}${memDone.value ? " [OK]" : ""}`,
+    color: "green",
+  });
+const modelLine: Line = () =>
+  h(BootTextComponent, {
+    animate: true,
+    text: `Loading GLTF models...${bootState.sceneReady ? " [OK]" : ""}`,
+    color: "green",
+  });
+
+/** One POST step: a line to show, then a pause in seconds or a condition to hold on. */
+type Step = { line: Line; enter?: () => void; wait?: number | (() => boolean) };
+
+// The counter only runs while its line is on screen; started any earlier it
+// would have finished before anyone could see it count.
+let memTicker: ReturnType<typeof setInterval> | null = null;
+const startMemTicker = () => {
+  memTicker = setInterval(() => {
+    if (memShown.value < memByProgress.value) memShown.value++;
+  }, MEM_STEP_MS);
 };
 
-// Boot sequence messages with timing delays (in seconds after previous message)
-// Format: { message: () => VNode, delay: number }
-const bootMessages = [
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "FABRAHAM BIOS v3.14.2025",
-        color: "cyan",
-        bold: true,
-      }),
-    delay: 0,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Copyright (C) 2025, Fabraham Systems",
-        color: "white",
-      }),
-    delay: 0.1,
-  },
-  { message: () => h("br"), delay: 0.3 },
-
-  // Hardware detection - slower
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Detecting hardware configuration...",
-        color: "white",
-      }),
-    delay: 0.5,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "CPU: Neural Processing Unit @4.2GHz [OK]",
-        color: "green",
-      }),
-    delay: 0.4,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "GPU: WebGL Rendering Engine v2.0 [OK]",
-        color: "green",
-      }),
-    delay: 0.3,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Memory: 32GB DDR5-6000 [OK]",
-        color: "green",
-      }),
-    delay: 0.3,
-  },
-  { message: () => h("br"), delay: 0.2 },
-
-  // Memory test - fast
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing system memory...",
-        color: "white",
-      }),
-    delay: 0.3,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing: 16MB",
-        color: "white",
-      }),
-    delay: 0.05,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing: 512MB",
-        color: "white",
-      }),
-    delay: 0.05,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing: 4GB",
-        color: "white",
-      }),
-    delay: 0.05,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing: 16GB",
-        color: "white",
-      }),
-    delay: 0.05,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Testing: 32GB [OK]",
-        color: "green",
-      }),
-    delay: 0.05,
-  },
-  { message: () => h("br"), delay: 0.2 },
-
-  // Loading components - medium speed
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Loading system components...",
-        color: "white",
-      }),
-    delay: 0.4,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Vue.js Framework",
-        color: "green",
-      }),
-    delay: 0.15,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Nuxt.js Runtime",
-        color: "green",
-      }),
-    delay: 0.15,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Three.js Engine",
-        color: "green",
-      }),
-    delay: 0.15,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → GSAP Animation Library",
-        color: "green",
-      }),
-    delay: 0.15,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → TresJS Integration",
-        color: "green",
-      }),
-    delay: 0.15,
-  },
-  { message: () => h("br"), delay: 0.2 },
-
-  // Initializing - slower for 3D stuff
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Initializing 3D Environment...",
-        color: "cyan",
-      }),
-    delay: 0.5,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Setting up WebGL context",
-        color: "white",
-      }),
-    delay: 0.3,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Loading GLTF models",
-        color: "white",
-      }),
-    delay: 0.6,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Compiling shaders",
-        color: "white",
-      }),
-    delay: 0.4,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Initializing post-processing",
-        color: "white",
-      }),
-    delay: 0.3,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Setting up lighting",
-        color: "white",
-      }),
-    delay: 0.2,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Configuring camera",
-        color: "white",
-      }),
-    delay: 0.2,
-  },
-  { message: () => h("br"), delay: 0.3 },
-
-  // Final checks - medium
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Running system diagnostics...",
-        color: "white",
-      }),
-    delay: 0.4,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Render pipeline: OK",
-        color: "green",
-      }),
-    delay: 0.2,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Animation system: OK",
-        color: "green",
-      }),
-    delay: 0.2,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "  → Asset loader: OK",
-        color: "green",
-      }),
-    delay: 0.2,
-  },
-  { message: () => h("br"), delay: 0.3 },
-
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "All systems operational.",
-        color: "green",
-        bold: true,
-      }),
-    delay: 0.5,
-  },
-  {
-    message: () =>
-      h(BootTextComponent, {
-        animate: true,
-        text: "Booting to home screen...",
-        color: "cyan",
-      }),
-    delay: 0.8,
-  },
+const cold: Step[] = [
+  { line: T("FABRAHAM BIOS v3.14.2025", "cyan", true), wait: 0.1 },
+  { line: T("Copyright (C) 2025, Fabraham Systems", "white"), wait: 0.3 },
+  { line: BR },
+  { line: T("Detecting hardware configuration...", "green"), wait: 0.25 },
+  { line: T("CPU: Neural Processing Unit @4.2GHz [OK]", "green"), wait: 0.12 },
+  { line: T("GPU: WebGL Rendering Engine v2.0 [OK]", "green"), wait: 0.12 },
+  { line: T("Memory: 32GB DDR5-6000 [OK]", "green"), wait: 0.15 },
+  { line: BR },
+  { line: memLine, enter: startMemTicker, wait: () => memDone.value },
+  { line: modelLine, wait: () => bootState.sceneReady },
+  { line: T("Compiling shaders [OK]", "green"), wait: 0.15 },
+  { line: BR },
+  { line: T("All systems operational.", "green", true), wait: 0.25 },
+  { line: T("Booting to home screen...", "cyan"), wait: 0.35 },
 ];
 
-const { gsap } = useGsap();
+const warm: Step[] = [
+  { line: T("FABRAHAM BIOS v3.14.2025", "cyan", true), wait: 0.1 },
+  { line: T("Resuming...", "green"), wait: 0.45 },
+];
 
-onMounted(() => {
-  if (import.meta.client) {
-    animateBootSequence();
+const MIN_ON_SCREEN_MS = { cold: 1600, warm: 600 };
 
-    // Add keyboard listener (check for DELETE key)
-    if (!DISABLE_SKIP) {
-      window.addEventListener("keydown", handleKeydown);
-      // Allow skipping with click
-      window.addEventListener("click", () => skipBootSequence());
-    } else {
-      // Even with skip disabled, still listen for DEL/F10
-      window.addEventListener("keydown", handleSpecialKeys);
+// ── Running it ────────────────────────────────────────────────────────────────
+const skipped = ref(false);
+let cancelled = false;
+const skipWaiters = new Set<() => void>();
+
+// A little unevenness between lines reads as hardware. Kept tiny — the old
+// 0.8 s jitter was most of the old boot's length.
+const jitter = () => (reducedMotion.value ? 0 : Math.random() * 0.1);
+
+const sleep = (seconds: number) =>
+  new Promise<void>((resolve) => {
+    if (skipped.value || seconds <= 0) return resolve();
+    const timer = setTimeout(done, seconds * 1000);
+    function done() {
+      clearTimeout(timer);
+      skipWaiters.delete(done);
+      resolve();
     }
-  }
-});
+    skipWaiters.add(done);
+  });
 
-onUnmounted(() => {
-  if (import.meta.client) {
-    window.removeEventListener("keydown", handleKeydown);
-    window.removeEventListener("keydown", handleSpecialKeys);
-    window.removeEventListener("click", () => skipBootSequence());
-  }
-});
+const until = (cond: () => boolean) =>
+  new Promise<void>((resolve) => {
+    if (cond() || skipped.value) return resolve();
+    const stop = watchEffect(() => {
+      if (cond() || skipped.value) {
+        resolve();
+        nextTick(stop);
+      }
+    });
+  });
 
-const handleKeydown = (e: KeyboardEvent) => {
-  skipBootSequence(e);
+const scrollToBottom = () =>
+  nextTick(() => {
+    if (containerRef.value) containerRef.value.scrollTop = containerRef.value.scrollHeight;
+  });
+
+const show = (line: Line) => {
+  visibleLines.value.push(line);
+  activeLineIndex.value = visibleLines.value.length - 1;
+  scrollToBottom();
 };
 
-const handleSpecialKeys = (e: KeyboardEvent) => {
-  // Only handle DEL and F10 when skip is disabled
-  if (e.key === "Delete" || e.key === "F10") {
-    skipBootSequence(e);
+const isWarm = () => {
+  if (props.mode !== "auto") return props.mode === "warm";
+  try {
+    return sessionStorage.getItem(BOOTED_SESSION_KEY) === "1";
+  } catch {
+    return false;
   }
 };
 
-const skipBootSequence = (e?: KeyboardEvent) => {
-  // Check for DELETE key - easter egg (BIOS)
-  if (e?.key === "Delete") {
-    if (bootTimeline) {
-      bootTimeline.kill();
-    }
+const run = async () => {
+  const warmBoot = isWarm();
+  const steps = warmBoot ? warm : cold;
+  const started = performance.now();
+
+  for (const step of steps) {
+    if (cancelled) return;
+    step.enter?.();
+    show(step.line);
+    if (skipped.value) continue;
+    if (typeof step.wait === "number") await sleep(step.wait + jitter());
+    else if (step.wait) await until(step.wait);
+  }
+  // On a skip the counter jumps to the end so the screen it leaves is complete.
+  memShown.value = MEM_STEPS.length - 1;
+
+  const left = MIN_ON_SCREEN_MS[warmBoot ? "warm" : "cold"] - (performance.now() - started);
+  if (!skipped.value && left > 0) await sleep(left / 1000);
+  if (!cancelled) emit("complete");
+};
+
+const skip = () => {
+  if (skipped.value) return;
+  skipped.value = true;
+  for (const done of skipWaiters) done();
+};
+
+const stop = () => {
+  cancelled = true;
+  if (memTicker) clearInterval(memTicker);
+  memTicker = null;
+};
+
+// ── Keys ──────────────────────────────────────────────────────────────────────
+const onKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Delete") {
+    stop();
     emit("easterEgg");
     return;
   }
-
-  // Check for F10 key - boot menu
-  if (e?.key === "F10") {
-    if (bootTimeline) {
-      bootTimeline.kill();
-    }
+  if (e.key === "F10") {
+    e.preventDefault();
+    stop();
     emit("bootMenu");
     return;
   }
-
-  // Normal skip behavior (any other key)
-  if (bootTimeline) {
-    bootTimeline.progress(1); // Jump to end
-  }
+  // A browser shortcut is not a request to skip.
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  skip();
 };
+const onPointer = () => skip();
 
-const animateBootSequence = () => {
-  bootTimeline = gsap.timeline({
-    onComplete: () => {
-      // Only emit complete if auto-boot is enabled
-      if (!DISABLE_AUTO_BOOT) {
-        console.log("🎬 Boot sequence complete - emitting complete event");
-        emit("complete");
-      } else {
-        console.log("⏸️ Boot sequence complete - auto-boot disabled");
-      }
-      // If auto-boot disabled, sequence just stops at the end
-    },
-  });
+onMounted(() => {
+  if (!import.meta.client) return;
+  run();
+  window.addEventListener("keydown", onKeydown);
+  window.addEventListener("pointerdown", onPointer);
+  window.addEventListener("wheel", onPointer, { passive: true });
+  window.addEventListener("touchmove", onPointer, { passive: true });
+});
 
-  // Add each line with variable timing for realism
-  let cumulativeDelay = 0;
-  bootMessages.forEach(({ message, delay }, messageIndex) => {
-    // Apply random variation to delay for more realistic timing
-    const randomizedDelay = getRandomDelay(delay);
-    cumulativeDelay += randomizedDelay * SPEED_MULTIPLIER; // Apply global speed multiplier
-    bootTimeline!.call(
-      () => {
-        visibleLines.value.push(message);
-        // Update active line index (only for BootText components, not <br>)
-        activeLineIndex.value = visibleLines.value.length - 1;
-
-        // Auto-scroll to bottom
-        nextTick(() => {
-          console.log("Auto-scrolling to bottom");
-          if (containerRef.value) {
-            containerRef.value.scrollTop = containerRef.value.scrollHeight;
-          }
-        });
-      },
-      [],
-      cumulativeDelay
-    );
-  });
-};
+onUnmounted(() => {
+  stop();
+  window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("pointerdown", onPointer);
+  window.removeEventListener("wheel", onPointer);
+  window.removeEventListener("touchmove", onPointer);
+});
 </script>

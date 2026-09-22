@@ -1,26 +1,28 @@
 <template>
-  <div class="relative h-screen">
-    <BootScreen v-if="!bootState.bootCompleted" />
+  <!-- Black behind the set: this page has no scene for the room to clear to. -->
+  <div class="relative h-screen bg-black">
+    <BootScreen v-if="!bootState.bootCompleted" :mode="mode" />
 
-    <div
-      v-else
-      class="flex items-center justify-center h-screen bg-gray-900 text-white"
-    >
+    <div v-else class="flex items-center justify-center h-screen bg-gray-900 text-white">
       <div class="text-center space-y-4">
         <h1 class="text-4xl font-bold">Boot Complete! ✅</h1>
-        <p class="text-gray-400">
-          The boot screen system is working correctly.
-        </p>
-        <button
-          @click="resetBoot"
-          class="mt-8 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
-        >
-          Replay Boot Sequence
-        </button>
+        <p class="text-gray-400">The boot screen system is working correctly.</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <button
+            class="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
+            @click="replay('cold')"
+          >
+            Replay cold boot
+          </button>
+          <button
+            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            @click="replay('warm')"
+          >
+            Replay warm boot
+          </button>
+        </div>
         <div class="mt-4">
-          <NuxtLink to="/" class="text-cyan-400 hover:underline">
-            ← Back to Home
-          </NuxtLink>
+          <NuxtLink to="/" class="text-cyan-400 hover:underline"> ← Back to Home </NuxtLink>
         </div>
       </div>
     </div>
@@ -30,17 +32,21 @@
 <script setup lang="ts">
 const bootState = useBootStateStore();
 
-// Reset boot state when component mounts to always show the boot screen
-onMounted(() => {
-  bootState.reset();
-  // Mark scene as ready since boot-demo doesn't have a 3D scene to load
-  bootState.markSceneReady();
-});
+// The demo always shows the full boot first; the session flag would otherwise
+// turn it warm after one run.
+const mode = ref<"cold" | "warm">("cold");
 
-const resetBoot = () => {
+// No model to load here, so the memory test counts on its own clock.
+const arm = () => {
   bootState.reset();
-  // Mark scene as ready again for the replay
   bootState.markSceneReady();
+};
+
+onMounted(arm);
+
+const replay = (which: "cold" | "warm") => {
+  mode.value = which;
+  arm();
 };
 
 useSeoMeta({

@@ -1,210 +1,164 @@
 <template>
   <div
     ref="screenRef"
-    class="fixed inset-0 z-50 bg-black text-green-400 overflow-hidden flex items-center justify-center boot-screen screen-flicker"
+    class="boot-root fixed inset-0 z-50"
+    :class="{ 'is-lit': bootState.sceneReady, 'no-motion': reducedMotion }"
   >
-    <!-- Comprehensive CRT Effect Layer -->
-    <BootCrtEffect />
+    <!-- The room. Black until the scene behind it is ready, then it clears so
+         the monitor is standing IN the scene rather than in front of it. -->
+    <div class="boot-backdrop" />
 
-    <!-- Content Container -->
-    <div
-      class="relative w-full h-full max-w-4xl max-h-screen p-8 overflow-hidden"
-      :class="{ 'pb-20': bootState.phase === 'booting' }"
-    >
-      <!-- Boot Sequence Phase -->
-      <div
-        v-if="bootState.phase === 'booting'"
-        ref="bootSequenceRef"
-        class="h-full"
-      >
-        <BootSequence
-          @complete="onBootSequenceComplete"
-          @easter-egg="onEasterEgg"
-          @boot-menu="onBootMenuRequested"
-        />
-      </div>
+    <!-- The monitor: a bezel, a tube, a picture on the tube. Power-on and
+         switch-off are the tube's own animations (boot.css). -->
+    <div class="monitor" :class="{ 'is-on': powered, 'is-off': switchingOff }">
+      <div class="bezel">
+        <div class="screen">
+          <div class="tube">
+            <div class="picture boot-screen screen-flicker text-green-400">
+              <!-- POST -->
+              <template v-if="bootState.phase === 'booting'">
+                <!-- The vendor badge, where AMI and Award put theirs. -->
+                <BrandMark class="bios-badge" :weight="2" />
+                <div ref="bootSequenceRef" class="h-full">
+                  <BootSequence
+                    :mode="mode"
+                    @complete="onBootSequenceComplete"
+                    @easter-egg="onEasterEgg"
+                    @boot-menu="onBootMenuRequested"
+                  />
+                </div>
+              </template>
 
-      <!-- Easter Egg Phase -->
-      <div v-else-if="bootState.phase === 'easter-egg'" ref="easterEggRef">
-        <BootEasterEgg
-          @exit="onEasterEggExit"
-          @continue="onEasterEggContinue"
-        />
-      </div>
+              <!-- DEL -->
+              <div
+                v-else-if="bootState.phase === 'easter-egg'"
+                ref="easterEggRef"
+                class="phase-scroll"
+              >
+                <BootEasterEgg @exit="onEasterEggExit" @continue="onEasterEggContinue" />
+              </div>
 
-      <!-- Menu Phase -->
-      <div v-else-if="bootState.phase === 'menu'" ref="menuRef">
-        <BootMenu @select="onMenuSelect" />
-      </div>
+              <!-- F10 -->
+              <div v-else-if="bootState.phase === 'menu'" ref="menuRef" class="phase-scroll">
+                <BootMenu @select="onMenuSelect" />
+              </div>
 
-      <!-- Loading Scene Phase - Minimal, scene should be ready soon -->
-      <div
-        v-else-if="bootState.phase === 'loading-scene'"
-        class="flex items-center justify-center min-h-[60vh]"
-      >
-        <div class="text-xs">
-          <BootText text="..." color="green" />
+              <!-- POST is done and the scene is not: the logo's own cursor, waiting. -->
+              <div
+                v-else-if="bootState.phase === 'loading-scene'"
+                class="h-full flex items-center justify-center"
+              >
+                <span class="block-cursor" role="status" aria-label="Loading" />
+              </div>
+            </div>
+            <BootCrtEffect />
+          </div>
         </div>
+        <span class="power-led" :class="{ 'is-on': powered }" aria-hidden="true" />
       </div>
-    </div>
 
-    <!-- Sticky footer with key hints (only during boot sequence) -->
-    <div
-      v-if="bootState.phase === 'booting'"
-      class="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-700 p-3 text-xs"
-    >
-      <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <!-- Key hints, under the set, only while POST runs -->
+      <div v-if="bootState.phase === 'booting'" class="hints">
         <BootText text="DEL: BIOS Setup" color="white" />
         <BootText text="F10: Boot Menu" color="white" />
+        <BootText text="Any key: Skip" color="white" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BOOTED_SESSION_KEY } from "~/stores/BootState";
+
+withDefaults(defineProps<{ mode?: "auto" | "cold" | "warm" }>(), { mode: "auto" });
+
 const bootState = useBootStateStore();
-const router = useRouter();
+const { reducedMotion } = usePreferences();
+const { gsap } = useGsap();
+
 const screenRef = ref<HTMLElement | null>(null);
 const bootSequenceRef = ref<HTMLElement | null>(null);
 const easterEggRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
 
-const { gsap } = useGsap();
+const powered = ref(false);
+const switchingOff = ref(false);
+let finishing = false;
 
-// Start boot sequence after mount
 onMounted(() => {
-  if (import.meta.client) {
-    setTimeout(() => {
-      bootState.setPhase("booting");
-    }, 100);
-  }
+  if (!import.meta.client) return;
+  // Power on first; POST starts once the picture has mostly opened.
+  requestAnimationFrame(() => {
+    powered.value = true;
+  });
+  setTimeout(() => bootState.setPhase("booting"), reducedMotion.value ? 50 : 300);
 });
 
-const onBootSequenceComplete = () => {
-  console.log("✅ Boot sequence complete event received!");
-  console.log("Scene ready?", bootState.sceneReady);
+const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const fade = (el: HTMLElement, duration: number) =>
+  gsap.to(el, { opacity: 0, duration: reducedMotion.value ? 0.1 : duration });
 
-  // Check if scene is already ready
-  if (bootState.sceneReady) {
-    // Scene loaded during boot - fade out immediately
-    console.log("→ Scene ready, fading out immediately");
-    fadeOutBootScreen();
-  } else {
-    // Scene still loading - show minimal loading state
-    console.log("→ Scene not ready, showing loading screen");
-    bootState.setPhase("loading-scene");
-
-    // Wait for scene to be ready before transitioning
-    const unwatch = watch(
-      () => bootState.sceneReady,
-      (isReady) => {
-        if (isReady) {
-          console.log("→ Scene became ready, fading out");
-          unwatch();
-          fadeOutBootScreen();
-        }
-      }
-    );
-  }
+// The scene is loaded behind the monitor while POST runs; if it is not there
+// yet the cursor waits for it.
+const whenSceneReady = (then: () => void) => {
+  if (bootState.sceneReady) return then();
+  bootState.setPhase("loading-scene");
+  const unwatch = watch(
+    () => bootState.sceneReady,
+    (ready) => {
+      if (!ready) return;
+      unwatch();
+      then();
+    }
+  );
 };
 
+const onBootSequenceComplete = () => whenSceneReady(switchOff);
+
 const onBootMenuRequested = async () => {
-  // F10 pressed - show boot menu
-  if (bootSequenceRef.value) {
-    await gsap.to(bootSequenceRef.value, {
-      opacity: 0,
-      duration: 0.3,
-    });
-  }
+  if (bootSequenceRef.value) await fade(bootSequenceRef.value, 0.3);
   bootState.setPhase("menu");
 };
 
 const onEasterEgg = async () => {
-  // Fade out boot sequence
-  if (bootSequenceRef.value) {
-    await gsap.to(bootSequenceRef.value, {
-      opacity: 0,
-      duration: 0.3,
-    });
-  }
+  if (bootSequenceRef.value) await fade(bootSequenceRef.value, 0.3);
   bootState.setPhase("easter-egg");
 };
 
 const onEasterEggExit = async () => {
-  // Return to boot sequence
-  if (easterEggRef.value) {
-    await gsap.to(easterEggRef.value, {
-      opacity: 0,
-      duration: 0.3,
-    });
-  }
+  if (easterEggRef.value) await fade(easterEggRef.value, 0.3);
   bootState.setPhase("booting");
 };
 
 const onEasterEggContinue = async () => {
-  // Skip to menu
-  if (easterEggRef.value) {
-    await gsap.to(easterEggRef.value, {
-      opacity: 0,
-      duration: 0.3,
-    });
-  }
+  if (easterEggRef.value) await fade(easterEggRef.value, 0.3);
   bootState.setPhase("menu");
 };
 
 const onMenuSelect = async (route: string) => {
-  // Fade out menu
-  if (menuRef.value) {
-    await gsap.to(menuRef.value, {
-      opacity: 0,
-      duration: 0.3,
-    });
-  }
-
-  // If going to home, show loading and wait for scene
+  if (menuRef.value) await fade(menuRef.value, 0.3);
   if (route === "/") {
-    if (bootState.sceneReady) {
-      fadeOutBootScreen();
-    } else {
-      bootState.setPhase("loading-scene");
-
-      // Wait for scene to be ready before transitioning
-      const unwatch = watch(
-        () => bootState.sceneReady,
-        (isReady) => {
-          if (isReady) {
-            unwatch();
-            fadeOutBootScreen();
-          }
-        }
-      );
-    }
+    whenSceneReady(switchOff);
   } else {
-    // For other routes, navigate immediately
     await navigateTo(route);
-    fadeOutBootScreen();
+    switchOff();
   }
 };
 
-const fadeOutBootScreen = async () => {
-  console.log("🌅 Starting fade out animation...");
-  if (screenRef.value) {
-    await gsap.to(screenRef.value, {
-      opacity: 0,
-      duration: 1,
-      ease: "power2.inOut",
-      onComplete: () => {
-        console.log("✨ Fade complete - calling completeBootSequence()");
-        bootState.completeBootSequence();
-        console.log("✅ bootCompleted is now:", bootState.bootCompleted);
-      },
-    });
+// Switch-off: the picture collapses to a line and a dot, the LED goes dark,
+// then the set fades and the page takes over.
+const switchOff = async () => {
+  if (finishing) return;
+  finishing = true;
+  switchingOff.value = true;
+  await sleepMs(reducedMotion.value ? 0 : 380);
+  powered.value = false;
+  if (screenRef.value) await fade(screenRef.value, 0.45);
+  try {
+    sessionStorage.setItem(BOOTED_SESSION_KEY, "1");
+  } catch {
+    // No storage (private mode): the next load boots cold, which is fine.
   }
+  bootState.completeBootSequence();
 };
 </script>
-
-<style scoped>
-.bg-gradient-radial {
-  background: radial-gradient(circle, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
-}
-</style>

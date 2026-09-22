@@ -3,9 +3,8 @@
     >{{ displayedText
     }}<span
       v-if="showCursor"
-      class="inline-block w-2 h-4 bg-green-400 ml-0.5 cursor-blink"
-    ></span
-  ></span>
+      class="inline-block w-[0.55em] h-[1em] align-text-bottom bg-green-400 ml-0.5 cursor-blink"
+  /></span>
 </template>
 
 <script setup lang="ts">
@@ -18,7 +17,7 @@ const props = defineProps<{
   color?: "green" | "white" | "cyan" | "yellow" | "red";
   bold?: boolean;
   animate?: boolean; // Allow disabling animation if needed
-  speed?: number; // Characters per second (default: 100)
+  speed?: number; // Characters per second (default: 1000)
   isActive?: boolean; // Whether this line is currently active (shows cursor)
 }>();
 
@@ -68,42 +67,60 @@ watch(
   }
 );
 
+const stopTyping = () => {
+  if (interval) {
+    clearInterval(interval);
+    interval = null;
+  }
+};
+
+// Typewriter: reveal `props.text` from `from` onwards, one character per tick.
+const typeFrom = (from: number) => {
+  stopTyping();
+  const chars = props.text.split("");
+  const msPerChar = 1000 / typewriterSpeed;
+  let currentIndex = from;
+  interval = setInterval(() => {
+    if (currentIndex < chars.length) {
+      displayedText.value += chars[currentIndex];
+      currentIndex++;
+    } else {
+      stopTyping();
+      // Keep cursor visible if still active, otherwise hide it
+      // The watch will handle hiding when another line becomes active
+    }
+  }, msPerChar);
+};
+
+// A line can be rewritten while it is on screen — the memory counter ticking
+// up, the model line getting its [OK]. Growth is typed, anything else is
+// swapped in place, which is exactly how a BIOS counter behaves.
+watch(
+  () => props.text,
+  (next) => {
+    if (props.animate === false) {
+      displayedText.value = next;
+      return;
+    }
+    if (next.startsWith(displayedText.value)) {
+      typeFrom(displayedText.value.length);
+    } else {
+      stopTyping();
+      displayedText.value = next;
+    }
+  }
+);
+
 onMounted(() => {
-  // console.log('BootText mounted:', props.text, 'animate:', props.animate, import.meta.client)
   if (import.meta.client && props.animate !== false) {
     // Show cursor only if this line is active
     showCursor.value = props.isActive === true;
-
-    // Typewriter effect - reveal text character by character
-    const chars = props.text.split("");
-    const msPerChar = 1000 / typewriterSpeed;
-
-    // console.log('Starting typewriter:', props.text, 'speed:', typewriterSpeed, 'msPerChar:', msPerChar)
-
-    let currentIndex = 0;
-    interval = setInterval(() => {
-      if (currentIndex < chars.length) {
-        displayedText.value += chars[currentIndex];
-        currentIndex++;
-      } else {
-        if (interval) {
-          clearInterval(interval);
-          interval = null;
-        }
-        // Keep cursor visible if still active, otherwise hide it
-        // The watch will handle hiding when another line becomes active
-      }
-    }, msPerChar);
+    typeFrom(0);
   } else {
     // No animation - show full text immediately
     displayedText.value = props.text;
   }
 });
 
-onUnmounted(() => {
-  if (interval) {
-    clearInterval(interval);
-    interval = null;
-  }
-});
+onUnmounted(stopTyping);
 </script>

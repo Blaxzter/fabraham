@@ -141,7 +141,31 @@ const glComposer = {
 // Load the head model. Textures are 1024² WebP (EXT_texture_webp); geometry is
 // ~10k verts uncompressed — no DRACO in the file, so no decoder is loaded
 // (`pnpm optimize:model` rebuilds this asset; see package.json).
-const { state: gltfModel } = await useGLTF("/models/head.glb");
+//
+// The bytes come down through `downloadWithProgress` first so the boot screen's
+// memory test can count them (stores/BootState.ts); the loader then parses from
+// memory. That also makes the `await` real — `useGLTF` itself returns at once —
+// so "scene ready" below means the model is actually here. If the fetch fails
+// the loader falls back to the plain path and the boot just loses its readout.
+const HEAD_GLB_PATH = "/models/head.glb";
+const HEAD_GLB_BYTES = 453_180; // the file's size as of this writing, for a missing Content-Length
+let headUrl = HEAD_GLB_PATH;
+if (import.meta.client) {
+  try {
+    headUrl = await downloadWithProgress(HEAD_GLB_PATH, bootState.setLoadProgress, HEAD_GLB_BYTES);
+  } catch {
+    headUrl = HEAD_GLB_PATH;
+  }
+}
+const { state: gltfModel } = await useGLTF(headUrl);
+// The blob URL has done its job once the model is parsed.
+if (headUrl.startsWith("blob:")) {
+  const stopRevoke = watch(gltfModel, (m) => {
+    if (!m) return;
+    URL.revokeObjectURL(headUrl);
+    stopRevoke();
+  });
+}
 
 // Extract the scene from the GLTF model
 const gltfScene = computed(() => gltfModel.value?.scene);
