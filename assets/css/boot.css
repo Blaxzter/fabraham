@@ -152,20 +152,25 @@
    the window, so the one opening in the black is the glass. At handover
    (`.is-through`) the glass turns clear and the scene behind is on the tube;
    BootScreen then zooms into it. The case is drawn OVER the room by `.shell`,
-   with the well cut out of it. */
+   with the well cut out of it.
+
+   This file is global, and the set's parts have ordinary names (.shell,
+   .lens, .screen...) that other components use for their own things, so
+   every rule here is under `.boot-root`. An unscoped `.shell` once gave the
+   vine's bud cards the monitor's case and its cut-out. */
 .boot-root {
   display: grid;
   place-items: center;
   padding: 16px;
   --room: #000;
 }
-.boot-defs {
+.boot-root .boot-defs {
   position: absolute;
   width: 0;
   height: 0;
 }
 
-.monitor {
+.boot-root .monitor {
   position: relative;
   /* As wide as the room allows, but never taller than it (short landscape). */
   width: min(92vw, 900px, calc((100dvh - 150px) * 4 / 3));
@@ -174,7 +179,7 @@
   justify-items: center;
 }
 
-.bezel {
+.boot-root .bezel {
   position: relative;
   width: 100%;
   --bezel-pad: clamp(14px, 3.2vw, 32px);
@@ -189,7 +194,7 @@
 /* The well: the slope from the case down to the glass. Transparent inside, so
    when the glass clears there is nothing between it and the scene; the slope
    itself is inset shadow, and the room is its outer spread. */
-.well {
+.boot-root .well {
   position: relative;
   padding: var(--gasket);
   border-radius: calc(var(--rx) + var(--gasket)) / calc(var(--ry) + var(--gasket));
@@ -198,11 +203,11 @@
     inset 0 0 16px var(--spill), inset 0 0 0 var(--gasket) #0d0d0c, 0 0 0 300vmax var(--room);
 }
 /* A lit tube lights its own surround. */
-.monitor.is-on .well {
+.boot-root .monitor.is-on .well {
   --spill: rgba(74, 222, 128, 0.09);
 }
 
-.screen {
+.boot-root .screen {
   position: relative;
   aspect-ratio: 4 / 3;
   border-radius: var(--rx) / var(--ry);
@@ -217,18 +222,18 @@
   box-shadow: none;
 }
 
-.tube {
+.boot-root .tube {
   position: absolute;
   inset: 0;
   transform-origin: 50% 50%;
 }
 
-.picture {
+.boot-root .picture {
   position: absolute;
   inset: 0;
   overflow: hidden;
 }
-.lens {
+.boot-root .lens {
   position: absolute;
   inset: 0;
   /* Opaque on purpose: the lens filter splits the guns, and on a transparent
@@ -243,7 +248,7 @@
 .boot-root.is-through .lens {
   visibility: hidden;
 }
-.phase-scroll {
+.boot-root .phase-scroll {
   height: 100%;
   overflow: auto;
   /* The menu and the easter egg can be taller than the tube; a stock grey
@@ -255,13 +260,13 @@
 /* The glass: scanlines, mask and vignette (BootCrtEffect), and the curved
    reflection of a room with one window in it. Kept over the scene when the
    glass clears, then faded during the zoom. */
-.glass {
+.boot-root .glass {
   position: absolute;
   inset: 0;
   z-index: 20;
   pointer-events: none;
 }
-.glass::after {
+.boot-root .glass::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -279,7 +284,7 @@
    sheet of light is what actually gets squashed into the line, and it burns
    off as the picture opens. The handover reuses it, shorter, as the blink of
    a set changing input. */
-.tube::after {
+.boot-root .tube::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -288,7 +293,7 @@
   background: radial-gradient(ellipse at center, #ffffff 0%, #e6ffe8 35%, #8ee79a 100%);
   opacity: 0;
 }
-.monitor.is-on .tube::after {
+.boot-root .monitor.is-on .tube::after {
   animation: crt-flash-on 0.5s ease-out both;
 }
 @keyframes crt-flash-on {
@@ -305,7 +310,7 @@
     opacity: 0;
   }
 }
-.monitor.is-tuning .tube::after {
+.boot-root .monitor.is-tuning .tube::after {
   animation: crt-flash-through 0.5s ease-out both;
 }
 @keyframes crt-flash-through {
@@ -321,7 +326,7 @@
 }
 
 /* The vendor badge, top-right of POST, in the same phosphor as the text. */
-.bios-badge {
+.boot-root .bios-badge {
   position: absolute;
   top: clamp(18px, 3.5vw, 28px);
   right: clamp(18px, 3.5vw, 28px);
@@ -338,7 +343,7 @@
    the content box (exactly where the well sits, since the padding matches),
    minus the hole, plus a quarter-ellipse back in each corner so the cut
    follows the well's rounding instead of leaving four black notches. */
-.shell {
+.boot-root .shell {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -368,7 +373,7 @@
 }
 
 /* The chin: badge, vents, LED and switch, set into the plastic. */
-.chin {
+.boot-root .chin {
   position: absolute;
   left: calc(var(--bezel-pad) + var(--gasket));
   right: calc(var(--bezel-pad) + var(--gasket));
@@ -381,7 +386,7 @@
   font-family: "Courier New", monospace;
   pointer-events: none;
 }
-.maker {
+.boot-root .maker {
   font-size: clamp(8px, 1.2vw, 11px);
   font-weight: 700;
   letter-spacing: 0.34em;
@@ -389,14 +394,14 @@
   /* Pressed into the plastic: dark above, a catch of light below. */
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.07);
 }
-.model {
+.boot-root .model {
   font-size: clamp(7px, 0.95vw, 9px);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #5c5a55;
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
 }
-.vents {
+.boot-root .vents {
   flex: 1;
   max-width: 180px;
   height: 40%;
@@ -411,16 +416,16 @@
   opacity: 0.8;
 }
 @media (max-width: 560px) {
-  .model,
-  .vents {
+  .boot-root .model,
+  .boot-root .vents {
     display: none;
   }
-  .power-led {
+  .boot-root .power-led {
     margin-left: auto;
   }
 }
 
-.power-led {
+.boot-root .power-led {
   flex: none;
   width: 7px;
   height: 7px;
@@ -429,11 +434,11 @@
   box-shadow: inset 0 0 2px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 0.2s, box-shadow 0.2s;
 }
-.power-led.is-on {
+.boot-root .power-led.is-on {
   background: #4ade80;
   box-shadow: 0 0 6px #4ade80, 0 0 14px rgba(74, 222, 128, 0.5);
 }
-.power-button {
+.boot-root .power-button {
   flex: none;
   width: clamp(18px, 2.6vw, 26px);
   height: clamp(9px, 1.3vw, 12px);
@@ -444,7 +449,7 @@
 }
 
 /* The underside: the case receding into the dark, so the set has depth. */
-.lip {
+.boot-root .lip {
   width: 86%;
   height: 10px;
   margin-top: -18px;
@@ -452,7 +457,7 @@
   background: linear-gradient(180deg, #151513 0%, #0a0a09 100%);
 }
 
-.hints {
+.boot-root .hints {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -463,20 +468,20 @@
   letter-spacing: 0.08em;
   transition: opacity 0.3s ease;
 }
-.hints.is-hidden {
+.boot-root .hints.is-hidden {
   opacity: 0;
   visibility: hidden;
 }
-.hints .text-white {
+.boot-root .hints .text-white {
   color: rgba(255, 255, 255, 0.45);
 }
 
 /* Power on: black, a white line, the line opens into the picture with a flare. */
-.monitor:not(.is-on) .tube {
+.boot-root .monitor:not(.is-on) .tube {
   transform: scale(0.3, 0.002);
   opacity: 0;
 }
-.monitor.is-on .tube {
+.boot-root .monitor.is-on .tube {
   animation: crt-power-on 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes crt-power-on {
@@ -501,7 +506,7 @@
 
 /* The wait between POST and the scene: the logo's block cursor, in its own
    proportions (37.64 : 66.84), blinking in steps like a real one. */
-.block-cursor {
+.boot-root .block-cursor {
   display: block;
   width: clamp(12px, 2.4vw, 18px);
   aspect-ratio: 37.64 / 66.84;
@@ -518,16 +523,16 @@
 /* No motion: the picture is simply there. The media query covers the OS
    setting, `.no-motion` the /setup override; BootScreen skips the zoom. */
 @media (prefers-reduced-motion: reduce) {
-  .monitor:not(.is-on) .tube,
-  .monitor.is-on .tube {
+  .boot-root .monitor:not(.is-on) .tube,
+  .boot-root .monitor.is-on .tube {
     animation: none;
     transform: none;
     opacity: 1;
   }
-  .screen-flicker,
-  .block-cursor,
-  .cursor-blink,
-  .tube::after {
+  .boot-root .screen-flicker,
+  .boot-root .block-cursor,
+  .boot-root .cursor-blink,
+  .boot-root .tube::after {
     animation: none;
   }
 }
