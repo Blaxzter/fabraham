@@ -2,14 +2,6 @@ import { defineStore } from 'pinia'
 
 export type BootPhase = 'init' | 'booting' | 'easter-egg' | 'menu' | 'loading-scene' | 'complete'
 
-/**
- * Set in sessionStorage once a boot has finished in this tab. The next load in
- * the same session boots WARM (header + "Resuming…") instead of running POST
- * again — a visitor who came back from /projects has seen it. The /setup
- * preference is the permanent opt-out; this is only "not twice in a row".
- */
-export const BOOTED_SESSION_KEY = 'fabraham:booted'
-
 export const useBootStateStore = defineStore('bootState', {
   state: () => ({
     phase: 'init' as BootPhase,

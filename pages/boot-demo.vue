@@ -1,7 +1,7 @@
 <template>
   <!-- Black behind the set: this page has no scene for the room to clear to. -->
   <div class="relative h-screen bg-black">
-    <BootScreen v-if="!bootState.bootCompleted" :mode="mode" />
+    <BootScreen v-if="!bootState.bootCompleted" />
 
     <div v-else class="flex items-center justify-center h-screen bg-gray-900 text-white">
       <div class="text-center space-y-4">
@@ -10,15 +10,9 @@
         <div class="mt-8 flex flex-wrap justify-center gap-3">
           <button
             class="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
-            @click="replay('cold')"
+            @click="arm"
           >
-            Replay cold boot
-          </button>
-          <button
-            class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-            @click="replay('warm')"
-          >
-            Replay warm boot
+            Replay boot
           </button>
         </div>
         <div class="mt-4">
@@ -32,10 +26,6 @@
 <script setup lang="ts">
 const bootState = useBootStateStore();
 
-// The demo always shows the full boot first; the session flag would otherwise
-// turn it warm after one run.
-const mode = ref<"cold" | "warm">("cold");
-
 // No model to load here, so the memory test counts on its own clock.
 const arm = () => {
   bootState.reset();
@@ -43,11 +33,6 @@ const arm = () => {
 };
 
 onMounted(arm);
-
-const replay = (which: "cold" | "warm") => {
-  mode.value = which;
-  arm();
-};
 
 useSeoMeta({
   title: "Boot Screen Demo",

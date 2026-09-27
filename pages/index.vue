@@ -2,7 +2,10 @@
   <div class="relative">
     <!-- Boot screen is client-only and skipped in dev for faster iteration. -->
     <ClientOnly>
-      <BootScreen v-if="bootEnabled && !bootState.bootCompleted && !skipBootIntro" />
+      <BootScreen
+        v-if="bootEnabled && !bootState.bootCompleted && !skipBootIntro"
+        :stage="sceneStage"
+      />
     </ClientOnly>
 
     <!-- Fixed 3D scene background. Client-only so the page stays SSG-compatible
@@ -15,6 +18,7 @@
            receives an event, which looks exactly like a frozen camera. -->
       <div
         v-if="shouldLoadScene"
+        ref="sceneStage"
         class="fixed inset-0 w-full h-screen"
         :class="orbitInspect ? 'pointer-events-auto' : 'pointer-events-none'"
       >
@@ -54,6 +58,10 @@
 
 <script setup lang="ts">
 const bootState = useBootStateStore();
+
+// The scene's layer, handed to the boot so it can shrink it onto the monitor's
+// tube and zoom out of the boot into it.
+const sceneStage = ref<HTMLElement | null>(null);
 
 // `import.meta.dev` is build-time constant — no hostname sniffing, no stale ref.
 const isDev = import.meta.dev;

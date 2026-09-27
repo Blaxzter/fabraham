@@ -147,74 +147,74 @@
 }
 
 /* ── The monitor ──────────────────────────────────────────────────────────────
-   The boot used to be eight CRT layers over the whole viewport — a filter, not
-   a thing. Now it is a set standing in a dark room: bezel, tube, picture. The
-   room clears once the 3D scene behind it is ready (`.is-lit`), so the monitor
-   ends up standing in the scene, and switch-off hands the page over. */
+   A set standing in a dark room: case, recessed well, curved tube, picture.
+   The room is not a backdrop. It is the well's own shadow, spread to cover
+   the window, so the one opening in the black is the glass. At handover
+   (`.is-through`) the glass turns clear and the scene behind is on the tube;
+   BootScreen then zooms into it. The case is drawn OVER the room by `.shell`,
+   with the well cut out of it. */
 .boot-root {
   display: grid;
   place-items: center;
   padding: 16px;
+  --room: #000;
 }
-
-.boot-backdrop {
+.boot-defs {
   position: absolute;
-  inset: 0;
-  background: #000;
-  transition: opacity 1.2s ease;
-}
-.boot-root.is-lit .boot-backdrop {
-  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
 .monitor {
   position: relative;
   /* As wide as the room allows, but never taller than it (short landscape). */
-  width: min(92vw, 900px, calc((100dvh - 120px) * 4 / 3));
+  width: min(92vw, 900px, calc((100dvh - 150px) * 4 / 3));
   display: grid;
-  gap: 14px;
+  gap: 18px;
   justify-items: center;
 }
 
 .bezel {
   position: relative;
   width: 100%;
-  /* Plastic: a slight top-lit gradient, a seam a hair inside the edge, and a
-     chin under the screen for the LED. */
-  --bezel-pad: clamp(14px, 3.4vw, 34px);
-  padding: var(--bezel-pad);
-  padding-bottom: calc(var(--bezel-pad) + 20px);
-  border-radius: clamp(12px, 2.2vw, 22px);
-  background: linear-gradient(165deg, #302f2d 0%, #232321 55%, #1a1a19 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.65),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.03), 0 30px 80px rgba(0, 0, 0, 0.65),
-    0 8px 24px rgba(0, 0, 0, 0.5);
+  --bezel-pad: clamp(14px, 3.2vw, 32px);
+  --chin: clamp(22px, 4.2vw, 40px);
+  --gasket: clamp(6px, 1vw, 10px);
+  --rx: clamp(8px, 2.4vw, 18px);
+  --ry: clamp(10px, 3vw, 22px);
+  padding: var(--bezel-pad) var(--bezel-pad) calc(var(--bezel-pad) + var(--chin));
+  border-radius: clamp(14px, 2.6vw, 26px);
+}
+
+/* The well: the slope from the case down to the glass. Transparent inside, so
+   when the glass clears there is nothing between it and the scene; the slope
+   itself is inset shadow, and the room is its outer spread. */
+.well {
+  position: relative;
+  padding: var(--gasket);
+  border-radius: calc(var(--rx) + var(--gasket)) / calc(var(--ry) + var(--gasket));
+  --spill: rgba(74, 222, 128, 0);
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.9), inset 0 -2px 1px rgba(255, 255, 255, 0.06),
+    inset 0 0 16px var(--spill), inset 0 0 0 var(--gasket) #0d0d0c, 0 0 0 300vmax var(--room);
+}
+/* A lit tube lights its own surround. */
+.monitor.is-on .well {
+  --spill: rgba(74, 222, 128, 0.09);
 }
 
 .screen {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: clamp(8px, 2.4vw, 18px) / clamp(10px, 3vw, 22px);
+  border-radius: var(--rx) / var(--ry);
   background: #030503;
   overflow: hidden;
-  /* The glass sits a little behind the bezel: a dark rim and a deep vignette. */
-  box-shadow: inset 0 0 0 2px #050505, inset 0 0 60px rgba(0, 0, 0, 0.9),
-    inset 0 0 6px rgba(0, 0, 0, 1);
+  /* A tube, not a pane: dark at the rim, the corners deepest. */
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 50px rgba(0, 0, 0, 0.85),
+    inset 0 0 8px rgba(0, 0, 0, 1);
 }
-/* The glass: one soft reflection over everything in the tube. */
-.screen::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0.07) 0%,
-    rgba(255, 255, 255, 0.02) 30%,
-    transparent 55%
-  );
+.boot-root.is-through .screen {
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .tube {
@@ -222,10 +222,63 @@
   inset: 0;
   transform-origin: 50% 50%;
 }
+
+.picture {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.lens {
+  position: absolute;
+  inset: 0;
+  /* Opaque on purpose: the lens filter splits the guns, and on a transparent
+     ground each would carry its own alpha and the text would bloom threefold. */
+  background: #030503;
+  /* Enough inset that the first line clears the tube's vignette on a phone. */
+  padding: clamp(20px, 3.5vw, 30px);
+  /* One size for every line, so the same script fits a phone-sized tube. */
+  font-size: clamp(11px, 1.55vw, 14px);
+  overflow: hidden;
+}
+.boot-root.is-through .lens {
+  visibility: hidden;
+}
+.phase-scroll {
+  height: 100%;
+  overflow: auto;
+  /* The menu and the easter egg can be taller than the tube; a stock grey
+     scrollbar on a phosphor screen is not a thing, so it goes thin and dark. */
+  scrollbar-width: thin;
+  scrollbar-color: #1f3b25 transparent;
+}
+
+/* The glass: scanlines, mask and vignette (BootCrtEffect), and the curved
+   reflection of a room with one window in it. Kept over the scene when the
+   glass clears, then faded during the zoom. */
+.glass {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      120% 80% at 28% 6%,
+      rgba(255, 255, 255, 0.085) 0%,
+      rgba(255, 255, 255, 0.025) 32%,
+      transparent 52%
+    ),
+    radial-gradient(70% 40% at 78% 104%, rgba(255, 255, 255, 0.035) 0%, transparent 60%);
+}
+
 /* The flash: what makes the power-on line white. The picture is nearly black
    when the set comes on, so a squashed picture alone is a faint smear; this
    sheet of light is what actually gets squashed into the line, and it burns
-   off as the picture opens. Same sheet, the other way round, at switch-off. */
+   off as the picture opens. The handover reuses it, shorter, as the blink of
+   a set changing input. */
 .tube::after {
   content: "";
   position: absolute;
@@ -252,37 +305,19 @@
     opacity: 0;
   }
 }
-.monitor.is-off .tube::after {
-  animation: crt-flash-off 0.38s ease-in forwards;
+.monitor.is-tuning .tube::after {
+  animation: crt-flash-through 0.5s ease-out both;
 }
-@keyframes crt-flash-off {
+@keyframes crt-flash-through {
   0% {
     opacity: 0;
   }
-  40% {
-    opacity: 0.85;
+  25% {
+    opacity: 0.75;
   }
   100% {
-    opacity: 1;
+    opacity: 0;
   }
-}
-
-.picture {
-  position: absolute;
-  inset: 0;
-  /* Enough inset that the first line clears the tube's vignette on a phone. */
-  padding: clamp(20px, 3.5vw, 28px);
-  /* One size for every line, so the same script fits a phone-sized tube. */
-  font-size: clamp(11px, 1.55vw, 14px);
-  overflow: hidden;
-}
-.phase-scroll {
-  height: 100%;
-  overflow: auto;
-  /* The menu and the easter egg can be taller than the tube; a stock grey
-     scrollbar on a phosphor screen is not a thing, so it goes thin and dark. */
-  scrollbar-width: thin;
-  scrollbar-color: #1f3b25 transparent;
 }
 
 /* The vendor badge, top-right of POST, in the same phosphor as the text. */
@@ -297,20 +332,124 @@
   filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.55));
 }
 
-.power-led {
+/* ── The case ─────────────────────────────────────────────────────────────────
+   Moulded plastic: lit from above, a hair of grain, a highlight along the top
+   edge and a shadow under the bottom one. The mask cuts the well out of it:
+   the content box (exactly where the well sits, since the padding matches),
+   minus the hole, plus a quarter-ellipse back in each corner so the cut
+   follows the well's rounding instead of leaving four black notches. */
+.shell {
   position: absolute;
-  right: clamp(18px, 4vw, 40px);
-  bottom: 9px;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: inherit;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/></filter><rect width="100%" height="100%" filter="url(%23n)"/></svg>'),
+    radial-gradient(140% 90% at 50% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, #34332f 0%, #292825 45%, #1f1e1c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(255, 255, 255, 0.03),
+    inset -1px 0 0 rgba(255, 255, 255, 0.03);
+  --cx: calc(var(--rx) + var(--gasket));
+  --cy: calc(var(--ry) + var(--gasket));
+  --corner: transparent calc(100% - 0.5px), #000 100%;
+  mask-image: radial-gradient(farthest-side at 100% 100%, var(--corner)),
+    radial-gradient(farthest-side at 0 100%, var(--corner)),
+    radial-gradient(farthest-side at 100% 0, var(--corner)),
+    radial-gradient(farthest-side at 0 0, var(--corner)), linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+  mask-origin: content-box, content-box, content-box, content-box, content-box, border-box;
+  mask-clip: border-box;
+  mask-size: var(--cx) var(--cy), var(--cx) var(--cy), var(--cx) var(--cy), var(--cx) var(--cy),
+    100% 100%, 100% 100%;
+  mask-position: left top, right top, left bottom, right bottom, 0 0, 0 0;
+  mask-repeat: no-repeat;
+  mask-composite: add, add, add, add, exclude, add;
+}
+
+/* The chin: badge, vents, LED and switch, set into the plastic. */
+.chin {
+  position: absolute;
+  left: calc(var(--bezel-pad) + var(--gasket));
+  right: calc(var(--bezel-pad) + var(--gasket));
+  bottom: 0;
+  height: calc(var(--bezel-pad) + var(--chin));
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.6vw, 16px);
+  padding-top: calc(var(--bezel-pad) * 0.35);
+  font-family: "Courier New", monospace;
+  pointer-events: none;
+}
+.maker {
+  font-size: clamp(8px, 1.2vw, 11px);
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  color: #8d8a82;
+  /* Pressed into the plastic: dark above, a catch of light below. */
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.model {
+  font-size: clamp(7px, 0.95vw, 9px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5c5a55;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
+}
+.vents {
+  flex: 1;
+  max-width: 180px;
+  height: 40%;
+  margin-left: auto;
+  background: repeating-linear-gradient(
+    90deg,
+    #121211 0 2px,
+    rgba(255, 255, 255, 0.04) 2px 3px,
+    transparent 3px 7px
+  );
+  border-radius: 2px;
+  opacity: 0.8;
+}
+@media (max-width: 560px) {
+  .model,
+  .vents {
+    display: none;
+  }
+  .power-led {
+    margin-left: auto;
+  }
+}
+
+.power-led {
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #1d2a1f;
-  box-shadow: inset 0 0 2px #000;
+  box-shadow: inset 0 0 2px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 0.2s, box-shadow 0.2s;
 }
 .power-led.is-on {
   background: #4ade80;
-  box-shadow: 0 0 6px #4ade80, 0 0 12px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 6px #4ade80, 0 0 14px rgba(74, 222, 128, 0.5);
+}
+.power-button {
+  flex: none;
+  width: clamp(18px, 2.6vw, 26px);
+  height: clamp(9px, 1.3vw, 12px);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #2c2b28, #1c1b19);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px #0b0b0a,
+    0 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* The underside: the case receding into the dark, so the set has depth. */
+.lip {
+  width: 86%;
+  height: 10px;
+  margin-top: -18px;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(180deg, #151513 0%, #0a0a09 100%);
 }
 
 .hints {
@@ -318,9 +457,15 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px clamp(12px, 4vw, 40px);
+  margin-top: -6px;
   font-family: "Courier New", monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
+  transition: opacity 0.3s ease;
+}
+.hints.is-hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 .hints .text-white {
   color: rgba(255, 255, 255, 0.45);
@@ -353,30 +498,6 @@
     filter: brightness(1);
   }
 }
-/* Switch off: the picture collapses to a line, then a dot. */
-.monitor.is-off .tube {
-  animation: crt-power-off 0.38s cubic-bezier(0.6, 0, 0.9, 0.4) forwards;
-}
-@keyframes crt-power-off {
-  0% {
-    transform: scale(1, 1);
-    filter: brightness(1);
-  }
-  45% {
-    transform: scale(1, 0.004);
-    filter: brightness(6);
-  }
-  80% {
-    transform: scale(0.02, 0.004);
-    filter: brightness(10);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0, 0.002);
-    filter: brightness(10);
-    opacity: 0;
-  }
-}
 
 /* The wait between POST and the scene: the logo's block cursor, in its own
    proportions (37.64 : 66.84), blinking in steps like a real one. */
@@ -394,8 +515,8 @@
   }
 }
 
-/* No motion: the picture is simply there, and simply gone. The media query
-   covers the OS setting, `.no-motion` the /setup override. */
+/* No motion: the picture is simply there. The media query covers the OS
+   setting, `.no-motion` the /setup override; BootScreen skips the zoom. */
 @media (prefers-reduced-motion: reduce) {
   .monitor:not(.is-on) .tube,
   .monitor.is-on .tube {
@@ -403,19 +524,11 @@
     transform: none;
     opacity: 1;
   }
-  .monitor.is-off .tube {
-    animation: none;
-    transform: none;
-    opacity: 0;
-  }
   .screen-flicker,
   .block-cursor,
   .cursor-blink,
   .tube::after {
     animation: none;
-  }
-  .boot-backdrop {
-    transition: none;
   }
 }
 .boot-root.no-motion .monitor:not(.is-on) .tube,
@@ -423,11 +536,6 @@
   animation: none;
   transform: none;
   opacity: 1;
-}
-.boot-root.no-motion .monitor.is-off .tube {
-  animation: none;
-  transform: none;
-  opacity: 0;
 }
 .boot-root.no-motion .screen-flicker,
 .boot-root.no-motion .block-cursor,
@@ -437,7 +545,4 @@
 .boot-root.no-motion .crt-phosphor-glow,
 .boot-root.no-motion .crt-scanlines::after {
   animation: none;
-}
-.boot-root.no-motion .boot-backdrop {
-  transition: none;
 }

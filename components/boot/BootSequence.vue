@@ -10,7 +10,6 @@
 
 <script setup lang="ts">
 import { h, resolveComponent, cloneVNode, type VNode } from "vue";
-import { BOOTED_SESSION_KEY } from "~/stores/BootState";
 
 /**
  * The POST screen. Eleven lines, and the length is set by the load, not a
@@ -18,14 +17,9 @@ import { BOOTED_SESSION_KEY } from "~/stores/BootState";
  * model line holds until the scene says it is ready. On a fast connection the
  * whole thing is about three seconds; on a slow one it stretches, and the
  * visitor can see why. A cached visit still gets `MIN_ON_SCREEN_MS` so it does
- * not flash. Any key, click, tap or scroll skips to the end.
- *
- * `mode`: "auto" reads the session flag (see BOOTED_SESSION_KEY) and boots warm
- * on a repeat load; the demo page forces one or the other.
+ * not flash. Any key, click, tap or scroll skips to the end. Every visit runs
+ * the whole script; the /setup preference is the way out of it.
  */
-const props = withDefaults(defineProps<{ mode?: "auto" | "cold" | "warm" }>(), {
-  mode: "auto",
-});
 
 const emit = defineEmits<{
   complete: [];
@@ -97,7 +91,7 @@ const startMemTicker = () => {
   }, MEM_STEP_MS);
 };
 
-const cold: Step[] = [
+const steps: Step[] = [
   { line: T("FABRAHAM BIOS v3.14.2025", "cyan", true), wait: 0.1 },
   { line: T("Copyright (C) 2025, Fabraham Systems", "white"), wait: 0.3 },
   { line: BR },
@@ -114,12 +108,7 @@ const cold: Step[] = [
   { line: T("Booting to home screen...", "cyan"), wait: 0.35 },
 ];
 
-const warm: Step[] = [
-  { line: T("FABRAHAM BIOS v3.14.2025", "cyan", true), wait: 0.1 },
-  { line: T("Resuming...", "green"), wait: 0.45 },
-];
-
-const MIN_ON_SCREEN_MS = { cold: 1600, warm: 600 };
+const MIN_ON_SCREEN_MS = 1600;
 
 // ── Running it ────────────────────────────────────────────────────────────────
 const skipped = ref(false);
@@ -164,18 +153,7 @@ const show = (line: Line) => {
   scrollToBottom();
 };
 
-const isWarm = () => {
-  if (props.mode !== "auto") return props.mode === "warm";
-  try {
-    return sessionStorage.getItem(BOOTED_SESSION_KEY) === "1";
-  } catch {
-    return false;
-  }
-};
-
 const run = async () => {
-  const warmBoot = isWarm();
-  const steps = warmBoot ? warm : cold;
   const started = performance.now();
 
   for (const step of steps) {
@@ -189,7 +167,7 @@ const run = async () => {
   // On a skip the counter jumps to the end so the screen it leaves is complete.
   memShown.value = MEM_STEPS.length - 1;
 
-  const left = MIN_ON_SCREEN_MS[warmBoot ? "warm" : "cold"] - (performance.now() - started);
+  const left = MIN_ON_SCREEN_MS - (performance.now() - started);
   if (!skipped.value && left > 0) await sleep(left / 1000);
   if (!cancelled) emit("complete");
 };
