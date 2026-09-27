@@ -10,6 +10,7 @@ import {
 } from "vue";
 import { useElementBounding, useMediaQuery } from "@vueuse/core";
 import type { Section } from "~/types/section";
+import { LIMITS, parseContact } from "~/worker/contact";
 
 // The finale: a CLI/terminal sign-off — and a real, typeable shell for the
 // versed visitor. The head (left) turns to look at this card (right) while the
@@ -17,7 +18,7 @@ import type { Section } from "~/types/section";
 //
 // Everything above the input is the static, crawlable session (headings + <a>
 // CTAs, SSG-ready) that types itself in. Below it, a live prompt accepts
-// commands (help, ls, cat, whoami, open …, + a few easter eggs). The typing/blink
+// commands (help, ls, cat, whoami, open, mail …, + a few easter eggs). The typing/blink
 // is CSS-only and reduced-motion aware. Pinned/right-aligned by SectionHost.
 const props = defineProps<{ section: Section; visible?: boolean }>();
 
@@ -74,7 +75,9 @@ watch(
 onBeforeUnmount(() => store.setContactAnchor(null));
 
 // ----- the little shell ------------------------------------------------------
-type Line = { kind: "in" | "out"; text?: string; html?: string };
+// `prompt` replaces the shell prompt on an echoed input line — `mail` asks its
+// questions with their own ("name:", "> ") the way mail(1) does.
+type Line = { kind: "in" | "out"; text?: string; html?: string; prompt?: string };
 
 const LINKS: Record<string, string> = {
   github: "https://github.com/Blaxzter",
@@ -85,7 +88,7 @@ const FILES: Record<string, string> = {
     "Senior fullest-stack dev in Berlin. Berlin → Maastricht → Berlin. I build systems that hold up under load and AI that ships.",
   "stack.txt":
     "TypeScript · Vue/Nuxt · Three.js · Python · embeddings · RAG · Postgres · Docker/k8s",
-  "contact.txt": "github.com/Blaxzter · respeak.io",
+  "contact.txt": "github.com/Blaxzter · respeak.io · or type 'mail' and write me from here.",
   "secret.txt": "you found it. now go build something that holds up. ✦",
 };
 
@@ -113,10 +116,10 @@ const HELP = [
   "  whoami          who you're talking to",
   "  ls / cat <f>    poke around the filesystem",
   "  stack           the toolbox",
-  "  contact         ways to reach me",
+  "  mail            write me a message, right here",
+  "  contact         other ways to reach me",
   "  open <where>    open github | respeak in a new tab",
   "  orbit           unclip the camera and fly the scene yourself",
-  "  hire            the only command that matters",
   "  clear           wipe the screen",
   "  …and a few you'll have to discover. (try 'sudo' something)",
 ];
@@ -130,10 +133,157 @@ const NOT_FOUND = [
 const notFound = (c: string) =>
   NOT_FOUND[Math.floor(Math.random() * NOT_FOUND.length)]!(c);
 
+// ----- mail: a message composed in the shell -----------------------------------
+// `mail` walks name → email → message → confirm, mail(1)-style: the message ends
+// with a lone "." and ctrl+c / esc abandons it. Sending runs the invisible
+// Turnstile challenge and POSTs to /api/contact (the Worker in prod, the logging
+// stub under `nuxt dev`). The same `parseContact` the server uses checks each
+// answer as it's given, so nothing the server would refuse gets as far as "send?".
+type Draft = { name: string; email: string; lines: string[] };
+type Step = "name" | "email" | "message" | "confirm" | "sending";
+const compose = ref<{ step: Step; draft: Draft } | null>(null);
+const turnstileEl = ref<HTMLElement | null>(null);
+const turnstile = useTurnstile(turnstileEl, "contact");
+
+const STEP_PROMPT: Record<Step, string> = {
+  name: "name:",
+  email: "email:",
+  message: ">",
+  confirm: "send? [y/n]",
+  sending: "…",
+};
+const promptLabel = computed(() => (compose.value ? STEP_PROMPT[compose.value.step] : null));
+
+const startCompose = () => {
+  compose.value = { step: "name", draft: { name: "", email: "", lines: [] } };
+  out(
+    "composing a message to frederic. ctrl+c or esc cancels.",
+    "who's writing?"
+  );
+  // Load the challenge while they type; a failure here resurfaces on send.
+  turnstile.prepare().catch(() => {});
+};
+
+const abortCompose = () => {
+  if (!compose.value || compose.value.step === "sending") return;
+  log.value.push({ kind: "in", prompt: STEP_PROMPT[compose.value.step], text: "^C" });
+  compose.value = null;
+  out("message discarded. nothing was sent.");
+  scrollToEnd();
+};
+
+const send = async (draft: Draft) => {
+  const msg = parseContact({
+    name: draft.name,
+    email: draft.email,
+    message: draft.lines.join("\n"),
+  });
+  if (!msg) {
+    compose.value = null;
+    out("that message doesn't parse — try 'mail' again?");
+    return;
+  }
+  out("→ transmitting…");
+  try {
+    const token = await turnstile.token();
+    const res = await $fetch<{ ok: boolean }>("/api/contact", {
+      method: "POST",
+      body: { ...msg, token },
+    });
+    if (!res.ok) throw new Error("rejected");
+    store.emitPulse();
+    flash();
+    out(`✓ delivered. I'll reply to ${msg.email}.`);
+  } catch {
+    out(
+      "✗ the transmission didn't make it. nothing was lost on your side —",
+      { html: `try again with 'mail', or find me on ${linkHtml(LINKS.github!)}.` }
+    );
+  } finally {
+    compose.value = null;
+    scrollToEnd();
+    // The field was disabled while sending, which drops focus.
+    nextTick(focusInput);
+  }
+};
+
+/** One line of input while a message is being written. Untrimmed on purpose:
+ *  blank lines and indentation are part of a message. */
+const composeInput = (line: string) => {
+  const c = compose.value!;
+  const t = line.trim();
+  log.value.push({ kind: "in", prompt: STEP_PROMPT[c.step], text: line });
+
+  switch (c.step) {
+    case "name":
+      if (!t) out("a name, or a handle — anything I can call you.");
+      else if (t.length > LIMITS.name) out(`that's a long name. ${LIMITS.name} characters, tops.`);
+      else {
+        c.draft.name = t;
+        c.step = "email";
+        out(`hi ${t}. where can I reply?`);
+      }
+      break;
+    case "email":
+      if (!parseContact({ name: "x", email: t, message: "x" }))
+        out("that doesn't look like an email address. once more?");
+      else {
+        c.draft.email = t;
+        c.step = "message";
+        out("go ahead. end with a single '.' on its own line.");
+      }
+      break;
+    case "message": {
+      if (t === ".") {
+        if (!c.draft.lines.join("").trim()) {
+          out("an empty message? keep typing — end with '.' when you're done.");
+          break;
+        }
+        c.step = "confirm";
+        out(`to: frederic · from: ${c.draft.name} <${c.draft.email}>`);
+        break;
+      }
+      const size = [...c.draft.lines, line].join("\n").length;
+      if (size > LIMITS.message)
+        out(`that line would take it past ${LIMITS.message} characters. finish with '.'?`);
+      else c.draft.lines.push(line);
+      break;
+    }
+    case "confirm":
+      if (/^y(es)?$/i.test(t)) {
+        c.step = "sending";
+        void send(c.draft);
+      } else if (/^n(o)?$/i.test(t)) {
+        compose.value = null;
+        out("message discarded. nothing was sent.");
+      } else out("y or n?");
+      break;
+    case "sending":
+      break;
+  }
+};
+
+const scrollToEnd = () =>
+  nextTick(() => {
+    bodyRef.value?.scrollTo({ top: bodyRef.value.scrollHeight });
+  });
+
 // Each branch pushes its own output (so `clear`/`open` can have side effects).
 // User input is only ever rendered as escaped text; the controlled link HTML
 // never contains user input.
 const run = () => {
+  if (compose.value) {
+    const line = cmd.value;
+    cmd.value = "";
+    if (line.trim()) {
+      store.emitPulse();
+      flash();
+    }
+    composeInput(line);
+    scrollToEnd();
+    return;
+  }
+
   const raw = cmd.value.trim();
   log.value.push({ kind: "in", text: raw });
   if (raw) past.value = [...past.value, raw];
@@ -180,8 +330,14 @@ const run = () => {
     case "contact":
       out(
         { html: `${linkHtml(LINKS.github!)} &nbsp; ${linkHtml(LINKS.respeak!)}` },
-        "↑ pick your poison."
+        "↑ pick your poison — or type 'mail' and write me from right here."
       );
+      break;
+    case "mail":
+    case "email":
+    case "write":
+    case "msg":
+      startCompose();
       break;
     case "open": {
       const where = (args[0] ?? "").toLowerCase();
@@ -223,11 +379,11 @@ const run = () => {
     case "sudo": {
       if (!arg) out("sudo what? absolute power needs an object.");
       else if (/^hire/.test(arg))
-        out({
-          html: `escalating privileges… ✅ granted. you may now email me — ${linkHtml(
-            LINKS.github!
-          )}`,
-        });
+        out(
+          "escalating privileges… ✅ granted.",
+          "…to a position that's already filled. happily, at Respeak.",
+          "'mail' still works for everything else."
+        );
       else if (arg.startsWith("rm")) out("🙅 not on my watch, not even with sudo.");
       else if (arg.includes("sandwich")) out("poof 🥪 you're a sandwich.");
       else
@@ -253,10 +409,13 @@ const run = () => {
       out("🟢 wake up… the head's been in the matrix this whole time.");
       break;
     case "hire":
+      out(
+        "flattered — but not looking. I'm happily building at Respeak.",
+        "a good problem is always welcome, though: 'mail' me about yours."
+      );
+      break;
     case "coffee":
-      out({
-        html: `excellent call. let's talk — ${linkHtml(LINKS.github!)} ☕`,
-      });
+      out("always. ☕ type 'mail' and tell me where.");
       break;
     case "sl":
       out("🚂 woo woo… (you typed it too fast, didn't you.)");
@@ -266,13 +425,11 @@ const run = () => {
   }
 
   if (log.value.length > 80) log.value = log.value.slice(-80);
-  nextTick(() => {
-    bodyRef.value?.scrollTo({ top: bodyRef.value.scrollHeight });
-  });
+  scrollToEnd();
 };
 
 const histPrev = () => {
-  if (!past.value.length) return;
+  if (compose.value || !past.value.length) return;
   histIdx.value =
     histIdx.value < 0 ? past.value.length - 1 : Math.max(0, histIdx.value - 1);
   cmd.value = past.value[histIdx.value] ?? "";
@@ -309,6 +466,23 @@ const narrow = useMediaQuery("(max-width: 768px)");
 const hint = computed(() =>
   mounted.value && narrow.value ? "try: help" : "type a command — try: help"
 );
+
+/** Ctrl+C cancels a message in progress, as in any shell. Outside `mail` it
+ *  stays the browser's copy shortcut. */
+const onCtrlC = (e: KeyboardEvent) => {
+  if (!compose.value) return;
+  e.preventDefault();
+  abortCompose();
+};
+
+const startFromLink = () => {
+  if (!compose.value) {
+    log.value.push({ kind: "in", text: "mail" });
+    startCompose();
+    scrollToEnd();
+  }
+  focusInput();
+};
 </script>
 
 <template>
@@ -362,17 +536,27 @@ const hint = computed(() =>
           rel="noopener"
           >[ respeak.io ]</a
         >
+        <button class="token" type="button" @click.stop="startFromLink">
+          [ mail ]
+        </button>
       </div>
 
       <!-- Live command log. -->
       <template v-for="(line, i) in log" :key="i">
-        <p v-if="line.kind === 'in'" class="log cmd">
+        <p v-if="line.kind === 'in' && line.prompt" class="log cmd">
+          <span class="prompt">{{ line.prompt }}</span> {{ line.text }}
+        </p>
+        <p v-else-if="line.kind === 'in'" class="log cmd">
           <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> {{ line.text }}
         </p>
         <!-- eslint-disable-next-line vue/no-v-html (controlled link markup only) -->
         <p v-else-if="line.html" class="log resp" v-html="line.html" />
         <p v-else class="log resp">{{ line.text }}</p>
       </template>
+
+      <!-- The invisible Turnstile widget. Empty unless Cloudflare wants an
+           actual click, in which case it shows up here, in the transcript. -->
+      <div ref="turnstileEl" class="term-turnstile" />
     </div>
 
     <!-- The live prompt — OUTSIDE `.term-body`, which is the scrolling one.
@@ -387,7 +571,8 @@ const hint = computed(() =>
          The card's bottom padding moved with it (see `.term-body` /
          `.term-prompt`), so the layout is otherwise what it was. -->
     <form class="t-line term-prompt" style="--i: 6" @submit.prevent="run">
-      <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span>
+      <span v-if="promptLabel" class="prompt">{{ promptLabel }}</span>
+      <span v-else class="prompt"><span class="p-host">frederic@berlin:</span>~$</span>
       <input
         ref="inputRef"
         v-model="cmd"
@@ -397,12 +582,16 @@ const hint = computed(() =>
         autocapitalize="off"
         autocorrect="off"
         spellcheck="false"
-        :placeholder="focused ? '' : hint"
+        :placeholder="focused || compose ? '' : hint"
+        :inputmode="compose?.step === 'email' ? 'email' : 'text'"
+        :disabled="compose?.step === 'sending'"
         aria-label="Terminal input — try typing help"
         @focus="focused = true"
         @blur="focused = false"
         @keydown.up.prevent="histPrev"
         @keydown.down.prevent="histNext"
+        @keydown.esc="abortCompose"
+        @keydown.ctrl.c="onCtrlC"
       />
       <span v-if="!focused && !cmd" class="cursor" aria-hidden="true" />
     </form>
@@ -585,9 +774,22 @@ const hint = computed(() =>
   padding: 0.25rem 0.05rem;
   transition: text-shadow 0.18s ease, transform 0.18s ease;
 }
+button.token {
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
 .token:hover {
   transform: translateY(-1px);
   text-shadow: 0 0 14px color-mix(in srgb, var(--accent, #00ff9c) 80%, transparent);
+}
+
+.term-turnstile:empty {
+  display: none;
+}
+.term-turnstile {
+  margin: 0.4rem 0 0.6rem;
 }
 
 /* Live log lines (no stagger; they appear as typed). */

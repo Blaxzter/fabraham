@@ -29,6 +29,16 @@ export default defineNuxtConfig({
         },
     },
 
+    runtimeConfig: {
+        public: {
+            // The contact terminal's invisible Turnstile widget ("fabraham.dev
+            // terminal", registered for fabraham.dev + www). Sitekeys are public.
+            // `nuxt dev` swaps in Cloudflare's always-passing test key instead,
+            // since this one refuses to run on localhost (see useTurnstile).
+            turnstileSiteKey: '0x4AAAAAAFFeDHc4OPLoFR_g',
+        },
+    },
+
     css: ['~/assets/css/tailwind.css', '~/assets/css/boot.css', '~/assets/css/vine-transition.css'],
     vite: {
         plugins: [tailwindcss()],

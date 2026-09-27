@@ -1,11 +1,30 @@
 {
-  // Static-assets-only deploy: `nuxt generate` prerenders the whole site to
-  // .output/public and `wrangler deploy` uploads it to Cloudflare's edge.
-  // There is no Worker script (no "main") and no D1 — the site is pure static
-  // files, so nothing runs server-side at request time.
+  // Static site plus one small Worker. `nuxt generate` prerenders the whole
+  // site to .output/public and `wrangler deploy` uploads it to Cloudflare's
+  // edge. The Worker (worker/index.ts) is the contact terminal's `mail`
+  // endpoint and nothing else: `run_worker_first` hands it `/api/*` only, so
+  // every page and asset is still served directly from the asset store.
+  // No D1.
   "name": "fabraham",
+  // Pinned so a deploy can't land on another account the login can see.
+  "account_id": "5bba05afbd252add74fdd4573c985080",
+  "main": "worker/index.ts",
   "compatibility_date": "2025-05-15",
   "assets": {
-    "directory": "./.output/public"
+    "directory": "./.output/public",
+    "run_worker_first": ["/api/*"]
+  },
+  "routes": [
+    { "pattern": "fabraham.dev", "custom_domain": true },
+    { "pattern": "www.fabraham.dev", "custom_domain": true }
+  ],
+  "vars": {
+    // The frontend hostnames siteverify must report. Production only, never
+    // localhost.
+    "TURNSTILE_HOSTNAMES": "fabraham.dev,www.fabraham.dev"
   }
+  // Secrets (`wrangler secret put …`), deliberately not in this file:
+  //   TURNSTILE_SECRET    the Turnstile widget's secret key
+  //   TELEGRAM_BOT_TOKEN  the bot's token, from @BotFather
+  //   TELEGRAM_CHAT_ID    the chat the bot writes to
 }
