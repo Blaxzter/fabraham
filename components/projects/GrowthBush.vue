@@ -143,7 +143,9 @@ function build() {
       const ang = (Math.atan2(p.y - q.y, p.x - q.x) * 180) / Math.PI;
       const cu = put("path", {
         class: "curl",
-        d: curl(p.x, p.y, ang, 4.5 + rnd() * 4, 1.05 + rnd() * 0.7, rnd() > 0.5 ? 1 : -1),
+        // `curl` returns a continuation (" L …"), so the tendril needs its own
+        // moveto at the strand's tip.
+        d: `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}${curl(p.x, p.y, ang, 4.5 + rnd() * 4, 1.05 + rnd() * 0.7, rnd() > 0.5 ? 1 : -1)}`,
         stroke: col,
       }) as SVGPathElement;
       cu.style.opacity = op;
