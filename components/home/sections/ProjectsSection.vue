@@ -31,6 +31,8 @@ import {
  * is opt-in, switched on only once the scene is actually driving them.
  */
 const props = defineProps<{ section?: Section; visible?: boolean }>();
+const { t, locale } = useI18n();
+const localePath = useLocalePath();
 
 const store = useSectionsStore();
 
@@ -57,7 +59,10 @@ const bySlug = computed(() => {
   return map;
 });
 const picks = computed(() =>
-  TEASERS.map((t) => ({ ...t, doc: bySlug.value.get(t.slug) }))
+  TEASERS.map((x) => {
+    const doc = bySlug.value.get(x.slug);
+    return { ...x, doc: doc && localizeProject(doc, locale.value) };
+  })
     .filter((p): p is typeof p & { doc: ProjectDoc } => !!p.doc)
     .slice(0, CARD_T.length)
 );
@@ -188,7 +193,7 @@ function onHandoff(e: MouseEvent) {
   if (reducedMotion.value || leaving.value) return;
   e.preventDefault();
   leaving.value = true;
-  setTimeout(() => router.push("/projects"), HANDOFF_MS);
+  setTimeout(() => router.push(localePath("/projects")), HANDOFF_MS);
 }
 
 onBeforeUnmount(() => {
@@ -209,8 +214,9 @@ const entered = computed(() => {
 <template>
   <div class="projects" :class="{ 'is-driven': driven }" :style="{ '--accent': accent }">
     <header class="head" :class="{ 'is-in': entered }">
-      <p v-if="section?.subtitle" class="eyebrow">{{ section.subtitle }}</p>
-      <h2 v-if="section?.title">{{ section.title }}</h2>
+      <p v-if="section?.subtitle" class="eyebrow">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
+      <h2 v-if="section?.title">{{ t(`home.sections.${section.id}.title`) }}</h2>
+      <p class="lede">{{ t("home.projects.lede") }}</p>
     </header>
 
     <div class="cards">
@@ -281,6 +287,14 @@ h2 {
   line-height: 1.05;
   color: #fff;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9), 0 0 44px rgba(0, 0, 0, 0.6);
+}
+.lede {
+  max-width: 34rem;
+  margin: 0.75rem 0 0;
+  font-size: clamp(0.95rem, 1.4vw, 1.1rem);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9), 0 0 22px rgba(0, 0, 0, 0.6);
 }
 
 /* ── Flow layout: what this is before the scene takes over ───────────────── */

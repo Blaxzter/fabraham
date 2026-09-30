@@ -1,6 +1,6 @@
 ---
-title: "The hymnal’s editing desk"
-description: "The editing desk behind the church hymnal — table of contents, an engraved-music carousel and change notes. The congregation tells me on Sunday morning when it breaks."
+title: "The hymnal’s editor"
+description: "The editing tool behind the church hymnal: table of contents, a carousel of engraved sheet music, and change notes."
 repo: "Blaxzter/gb-dashboard"
 url: "https://github.com/Blaxzter/gb-dashboard"
 date: "2024-02-15"
@@ -8,6 +8,11 @@ accent: "#ffd479"
 skin: "desk"
 emergent: "notes"
 spec: "Directus · Vue · Vuetify"
+# German wording of the fields above (see content.config.ts).
+de:
+  title: "Der Gesangbuch-Editor"
+  description: "Das Redaktions-Tool hinter dem Gesangbuch der Gemeinde: Inhaltsverzeichnis, ein Karussell mit gesetzten Noten und Änderungsnotizen."
+  spec: "Directus · Vue · Vuetify"
 # --- refreshed by scripts/fetch-github-projects.mjs; do not hand-edit ---
 pushed: "2026-09-19"
 stars: 1

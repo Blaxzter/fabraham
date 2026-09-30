@@ -1,0 +1,76 @@
+{
+  "projects": {
+    "meta": {
+      "title": "Projects {'|'} Frederic Abraham",
+      "description": "{count} public repositories on a timeline, newest first, with real GitHub activity: descriptions, commit subjects, stars and 52-week commit counts."
+    },
+    "home": "fabraham.dev, back to the home page",
+    "hero": {
+      "eyebrow": "Frederic Abraham · projects",
+      "title": "My public projects",
+      "lede": "{count} public repositories, newest first. The further you scroll, the further back it goes: past Respeak and the M.Sc., down to a genetic-algorithm library from the last year of the B.Sc.",
+      "countLoading": "Sixteen",
+      "stats": {
+        "repos": "Repositories",
+        "commits": "Commits · 52w",
+        "reachesBack": "Reaches back to"
+      }
+    },
+    "canopy": {
+      "title": "My weekly commits · every repository · last 52 weeks",
+      "before": "before",
+      "after": "after Claude Code",
+      "hint": "hover a card · or tap"
+    },
+    "chart": {
+      "peak": "{n} in the week of {week}",
+      "summary": "{total} commits over 52 weeks across {repos} repositories. {before} in the {weeksBefore} weeks before {marker}, {after} in the {weeksAfter} weeks after. Busiest week: {max}, week of {week}.",
+      "tip": "{n} commit · week of {week} | {n} commits · week of {week}"
+    },
+    "card": {
+      "live": "live",
+      "shared": "co-built",
+      "activity": "Recent activity",
+      "activityMine": "My commits here",
+      "window": "{n} commits · 52w",
+      "sparkAria": "{n} commits over the last 52 weeks",
+      "dormant": "Dormant, last pushed {since}. Still public because it's part of the history.",
+      "liveLink": "Live ↗"
+    },
+    "loading": "Loading projects…",
+    "foot": {
+      "lead": "About the data.",
+      "note": "{lead} {count} repositories across three accounts: {a1}, {a2} and {a3}. Everything is filtered by who actually wrote it. The chart and every sparkline count only my commits, and the two cards marked {shared} say so because I'm not their main author. By that test, {lm} (1 commit of 72), {recap} (none) and the {jj} sites (none) are other people's work and aren't listed, and {fa}'s three public repos are all forks. Repos with a flat bar really are dormant. The {marker} marker is dated from the first co-authored commit in this site's own git history ({date}). Refresh the GitHub data with {cmd}.",
+      "table": "The chart's numbers, by month",
+      "month": "Month",
+      "commits": "Commits",
+      "back": "← Back to the scene"
+    },
+    "eras": {
+      "claude": {
+        "when": "from {date}",
+        "title": "Claude Code lands",
+        "place": "first co-authored commit",
+        "note": "Everything above this line was built with it. The commit weeks jump from single digits to forty-plus, and four new projects start within four months."
+      },
+      "respeak": {
+        "when": "from {date}",
+        "title": "Back to Berlin: Respeak",
+        "place": "Tatort, then Experte",
+        "note": "First the SWR Tatort game, built for 100,000 concurrent players and launched with 18,000. Then tech lead on Experte, a RAG platform that cites every answer. Side projects kept going alongside."
+      },
+      "msc": {
+        "when": "from {date}",
+        "title": "M.Sc. Artificial Intelligence",
+        "place": "Maastricht",
+        "note": "Specialised in generative models and graduated with 8.25. Part-time alongside it at RWTH Aachen, just across the border, on identity-management apps for about 47,000 students and 9,000 staff."
+      },
+      "bsc": {
+        "when": "from {date}",
+        "title": "B.Sc. Computer Science",
+        "place": "TU Berlin",
+        "note": "Student developer at GT-ARC for most of the degree, working on multi-agent systems. Bachelor's thesis on genetic algorithms for shop scheduling."
+      }
+    }
+  }
+}

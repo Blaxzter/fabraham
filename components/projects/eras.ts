@@ -7,59 +7,30 @@
  * treating them as group headers, puts "Claude Code lands" above four projects
  * that are newer than it.
  *
- * Dates are the sort keys and nothing else reads them. The Claude Code one is
+ * The dates are the sort keys and the pills' dates. The Claude Code one is
  * not a guess: it is the first co-authored commit in this repository's own git
  * history.
  */
 export interface Era {
   id: string;
-  /** Sorts it into the timeline. */
+  /** Sorts it into the timeline, and is the date the pill shows. */
   date: string;
-  /** The pill. */
-  when: string;
-  title: string;
-  place: string;
+  /**
+   * How much of `date` the pill shows: the Claude Code marker is a known day,
+   * the others are only known to the month.
+   */
+  precision: "day" | "month";
   accent: string;
-  note: string;
 }
 
+// The wording (pill, title, place, note) lives in the locale files under
+// `projects.eras.<id>`, so it can be translated; this is only what the timeline
+// sorts and paints by.
 export const ERAS: Era[] = [
-  {
-    id: "claude",
-    date: "2026-06-05",
-    when: "from 5 Jun 2026",
-    title: "Claude Code lands",
-    place: "first co-authored commit",
-    accent: "#00ff9c",
-    note: "Everything above this line was built with it. The commit weeks jump from single digits to forty-plus, and four new projects start within four months.",
-  },
-  {
-    id: "respeak",
-    date: "2022-07-01",
-    when: "from 2022",
-    title: "Back to Berlin — Respeak",
-    place: "Tatort, then Experte",
-    accent: "#ff6b6b",
-    note: "A chat game contracted for 100k concurrent that went live at 18,000; then tech lead on a RAG platform that has to cite every answer it gives. The side projects never stopped.",
-  },
-  {
-    id: "msc",
-    date: "2020-09-01",
-    when: "from Sept 2020",
-    title: "M.Sc. Artificial Intelligence",
-    place: "Maastricht",
-    accent: "#c4a0ff",
-    note: "Two years to actually understand the machine learning I had been using on the side. Specialised in generative models; graduated at 8.25.",
-  },
-  {
-    id: "bsc",
-    date: "2016-10-01",
-    when: "from Oct 2016",
-    title: "B.Sc. Computer Science",
-    place: "TU Berlin",
-    accent: "#9ad1ff",
-    note: "Multi-agent systems at GT-ARC; the identity-management apps behind ~47,000 students and 9,000 staff at RWTH Aachen. The root of the whole thing.",
-  },
+  { id: "claude", date: "2026-06-05", precision: "day", accent: "#00ff9c" },
+  { id: "respeak", date: "2023-03-01", precision: "month", accent: "#ff6b6b" },
+  { id: "msc", date: "2020-09-01", precision: "month", accent: "#c4a0ff" },
+  { id: "bsc", date: "2016-10-01", precision: "month", accent: "#9ad1ff" },
 ];
 
 /**

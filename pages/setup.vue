@@ -3,13 +3,13 @@
     <div class="setup-card">
       <header class="setup-top">
         <span class="setup-tag">BIOS</span>
-        <h1 class="setup-title">SETUP · PREFERENCES</h1>
+        <h1 class="setup-title">{{ t("shell.setup.title") }}</h1>
       </header>
 
       <!-- Appearance / theme -->
       <section class="setup-sec">
-        <h2 class="setup-h">Appearance</h2>
-        <p class="setup-desc">Color theme for the site.</p>
+        <h2 class="setup-h">{{ t("shell.setup.appearance") }}</h2>
+        <p class="setup-desc">{{ t("shell.setup.appearanceDesc") }}</p>
         <div class="setup-seg">
           <button
             v-for="opt in themeOptions"
@@ -25,11 +25,8 @@
 
       <!-- Motion -->
       <section class="setup-sec">
-        <h2 class="setup-h">Motion</h2>
-        <p class="setup-desc">
-          Reduce animation in the 3D experience. “System” follows your OS
-          reduced-motion setting.
-        </p>
+        <h2 class="setup-h">{{ t("shell.setup.motion") }}</h2>
+        <p class="setup-desc">{{ t("shell.setup.motionDesc") }}</p>
         <div class="setup-seg">
           <button
             v-for="opt in motionOptions"
@@ -45,15 +42,15 @@
 
       <!-- Startup -->
       <section class="setup-sec">
-        <h2 class="setup-h">Startup</h2>
+        <h2 class="setup-h">{{ t("shell.setup.startup") }}</h2>
         <label class="setup-toggle">
           <input v-model="skipBootIntro" type="checkbox" />
-          <span>Skip the boot intro on load</span>
+          <span>{{ t("shell.setup.skipBoot") }}</span>
         </label>
       </section>
 
       <footer class="setup-foot">
-        <NuxtLink to="/" class="setup-link">← return to home</NuxtLink>
+        <NuxtLink :to="localePath('/')" class="setup-link">{{ t("shell.setup.back") }}</NuxtLink>
       </footer>
     </div>
   </div>
@@ -65,21 +62,26 @@ import type { MotionPref } from "~/composables/usePreferences";
 const colorMode = useColorMode();
 const { motion, skipBootIntro } = usePreferences();
 
-const themeOptions = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
+const { t } = useI18n();
+const localePath = useLocalePath();
 
-const motionOptions: { value: MotionPref; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "full", label: "Full" },
-  { value: "reduced", label: "Reduced" },
-];
+const themeOptions = computed(() =>
+  (["system", "light", "dark"] as const).map((value) => ({
+    value,
+    label: t(`shell.setup.opt.${value}`),
+  }))
+);
+
+const motionOptions = computed<{ value: MotionPref; label: string }[]>(() =>
+  (["system", "full", "reduced"] as const).map((value) => ({
+    value,
+    label: t(`shell.setup.opt.${value}`),
+  }))
+);
 
 useSeoMeta({
-  title: "Setup — Preferences | Frederic Abraham",
-  description: "Theme, motion, and startup preferences for the site.",
+  title: () => t("shell.setup.metaTitle"),
+  description: () => t("shell.setup.metaDescription"),
   robots: "noindex",
 });
 </script>

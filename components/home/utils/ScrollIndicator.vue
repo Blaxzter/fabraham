@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 
+const { t } = useI18n();
+
 // Props to control visibility
 interface Props {
   scrollProgress?: number;
@@ -34,7 +36,7 @@ const isVisible = computed(() => opacity.value > 0);
   \|/
    V
       </pre>
-      <p class="scroll-text">SCROLL</p>
+      <p class="scroll-text">{{ t("home.scroll") }}</p>
     </div>
   </div>
 </template>

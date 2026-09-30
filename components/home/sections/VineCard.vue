@@ -52,7 +52,11 @@ const props = defineProps<{
   leaving?: boolean;
 }>();
 
-/** What the sign says. The typing is measured in characters of this. */
+const { t } = useI18n();
+const localePath = useLocalePath();
+
+/** What the sign says. The typing is measured in characters of this. A
+ *  command, so it stays English in both languages. */
 const CMD = "cd projects";
 
 /**
@@ -193,8 +197,8 @@ const root = ref<HTMLAnchorElement | null>(null);
 const onKey = (e: KeyboardEvent) => {
   if (e.key !== "Enter" || e.repeat || e.defaultPrevented) return;
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  const t = e.target as HTMLElement | null;
-  if (t && (t.closest("input, textarea, select, button, [contenteditable]") || t.isContentEditable)) return;
+  const target = e.target as HTMLElement | null;
+  if (target && (target.closest("input, textarea, select, button, [contenteditable]") || target.isContentEditable)) return;
   const el = root.value;
   if (!el || props.leaving) return;
   const cs = getComputedStyle(el);
@@ -250,12 +254,12 @@ const DOLLAR =
     ref="root"
     class="label"
     :class="{ 'is-leaving': leaving }"
-    href="/projects"
+    :href="localePath('/projects')"
     :style="styleVars"
     :aria-label="
       from && to
-        ? `All ${count} projects, ${from} to ${to} — open the timeline`
-        : `All ${count} projects — open the timeline`
+        ? t('home.projects.aria', { count, from, to })
+        : t('home.projects.ariaNoRange', { count })
     "
   >
     <span class="swing">
@@ -329,7 +333,7 @@ const DOLLAR =
 
         <!-- Under the box, where the logo puts its wordmark. -->
         <span class="caption">
-          <b>{{ count }}</b> projects
+          <b>{{ count }}</b> {{ t("home.projects.caption") }}
           <template v-if="from && to"><i aria-hidden="true">·</i> {{ from }} — {{ to }}</template>
         </span>
 
@@ -341,7 +345,7 @@ const DOLLAR =
              thing to arrive. The key is real: see `onKey`. -->
         <span class="go">
           <i class="key" aria-hidden="true">↵</i>
-          open the timeline
+          {{ t("home.projects.go") }}
         </span>
       </span>
 

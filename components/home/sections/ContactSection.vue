@@ -23,6 +23,9 @@ import { LIMITS, parseContact } from "~/worker/contact";
 const props = defineProps<{ section: Section; visible?: boolean }>();
 
 const accent = computed(() => props.section.accent ?? "#00ff9c");
+const { t, tm, rt } = useI18n();
+/** A message that is an array of lines (help, multi-line replies). */
+const lines = (key: string) => (tm(key) as unknown as Parameters<typeof rt>[0][]).map((m) => rt(m));
 
 // Bridge to the 3D scene: each command fires a pulse the head receives, and
 // briefly flashes the terminal's own glow so the CLI and the rings read as one
@@ -83,13 +86,13 @@ const LINKS: Record<string, string> = {
   github: "https://github.com/Blaxzter",
   respeak: "https://respeak.io",
 };
-const FILES: Record<string, string> = {
-  "about.txt":
-    "Senior fullest-stack dev in Berlin. Berlin → Maastricht → Berlin. I build systems that hold up under load and AI that ships.",
-  "stack.txt":
-    "TypeScript · Vue/Nuxt · Three.js · Python · embeddings · RAG · Postgres · Docker/k8s",
-  "contact.txt": "github.com/Blaxzter · respeak.io · or type 'mail' and write me from here.",
-  "secret.txt": "you found it. now go build something that holds up. ✦",
+const STACK = "TypeScript · Vue/Nuxt · Three.js · Python · embeddings · RAG · Postgres · Docker/k8s";
+// Read at the moment `cat` runs, so a file prints in the current language.
+const FILES: Record<string, () => string> = {
+  "about.txt": () => t("home.contact.files.about"),
+  "stack.txt": () => STACK,
+  "contact.txt": () => t("home.contact.files.contact"),
+  "secret.txt": () => t("home.contact.files.secret"),
 };
 
 const cmd = ref("");
@@ -110,28 +113,11 @@ const out = (...lines: (string | { html: string })[]) => {
 const linkHtml = (url: string, label = url.replace(/^https?:\/\//, "")) =>
   `<a href="${url}" target="_blank" rel="noopener">${label}</a>`;
 
-const HELP = [
-  "available commands (they actually run):",
-  "  help            this list",
-  "  whoami          who you're talking to",
-  "  ls / cat <f>    poke around the filesystem",
-  "  stack           the toolbox",
-  "  mail            write me a message, right here",
-  "  contact         other ways to reach me",
-  "  open <where>    open github | respeak in a new tab",
-  "  orbit           unclip the camera and fly the scene yourself",
-  "  clear           wipe the screen",
-  "  …and a few you'll have to discover. (try 'sudo' something)",
-];
 
-const NOT_FOUND = [
-  (c: string) => `command not found: ${c}. (I only really know 'help'.)`,
-  (c: string) => `${c}? never heard of it. try 'help'.`,
-  (c: string) => `bash: ${c}: command not found — but I admire the confidence.`,
-  (c: string) => `nope. '${c}' isn't a thing here. 'help' is, though.`,
-];
-const notFound = (c: string) =>
-  NOT_FOUND[Math.floor(Math.random() * NOT_FOUND.length)]!(c);
+const notFound = (c: string) => {
+  const n = lines("home.contact.notFound").length;
+  return t(`home.contact.notFound.${Math.floor(Math.random() * n)}`, { c });
+};
 
 // ----- mail: a message composed in the shell -----------------------------------
 // `mail` walks name → email → message → confirm, mail(1)-style: the message ends
@@ -145,30 +131,27 @@ const compose = ref<{ step: Step; draft: Draft } | null>(null);
 const turnstileEl = ref<HTMLElement | null>(null);
 const turnstile = useTurnstile(turnstileEl, "contact");
 
-const STEP_PROMPT: Record<Step, string> = {
-  name: "name:",
-  email: "email:",
-  message: ">",
-  confirm: "send? [y/n]",
-  sending: "…",
+const STEP_PROMPT: Record<Step, () => string> = {
+  name: () => "name:",
+  email: () => "email:",
+  message: () => ">",
+  confirm: () => t("home.contact.confirmPrompt"),
+  sending: () => "…",
 };
-const promptLabel = computed(() => (compose.value ? STEP_PROMPT[compose.value.step] : null));
+const promptLabel = computed(() => (compose.value ? STEP_PROMPT[compose.value.step]() : null));
 
 const startCompose = () => {
   compose.value = { step: "name", draft: { name: "", email: "", lines: [] } };
-  out(
-    "composing a message to frederic. ctrl+c or esc cancels.",
-    "who's writing?"
-  );
+  out(t("home.contact.compose.start"), t("home.contact.compose.who"));
   // Load the challenge while they type; a failure here resurfaces on send.
   turnstile.prepare().catch(() => {});
 };
 
 const abortCompose = () => {
   if (!compose.value || compose.value.step === "sending") return;
-  log.value.push({ kind: "in", prompt: STEP_PROMPT[compose.value.step], text: "^C" });
+  log.value.push({ kind: "in", prompt: STEP_PROMPT[compose.value.step](), text: "^C" });
   compose.value = null;
-  out("message discarded. nothing was sent.");
+  out(t("home.contact.compose.discarded"));
   scrollToEnd();
 };
 
@@ -180,10 +163,10 @@ const send = async (draft: Draft) => {
   });
   if (!msg) {
     compose.value = null;
-    out("that message doesn't parse — try 'mail' again?");
+    out(t("home.contact.compose.parseFail"));
     return;
   }
-  out("→ transmitting…");
+  out(t("home.contact.compose.transmitting"));
   try {
     const token = await turnstile.token();
     const res = await $fetch<{ ok: boolean }>("/api/contact", {
@@ -193,12 +176,11 @@ const send = async (draft: Draft) => {
     if (!res.ok) throw new Error("rejected");
     store.emitPulse();
     flash();
-    out(`✓ delivered. I'll reply to ${msg.email}.`);
+    out(t("home.contact.compose.delivered", { email: msg.email }));
   } catch {
-    out(
-      "✗ the transmission didn't make it. nothing was lost on your side —",
-      { html: `try again with 'mail', or find me on ${linkHtml(LINKS.github!)}.` }
-    );
+    out(t("home.contact.compose.failed"), {
+      html: t("home.contact.compose.failedRetry", { link: linkHtml(LINKS.github!) }),
+    });
   } finally {
     compose.value = null;
     scrollToEnd();
@@ -211,52 +193,53 @@ const send = async (draft: Draft) => {
  *  blank lines and indentation are part of a message. */
 const composeInput = (line: string) => {
   const c = compose.value!;
-  const t = line.trim();
-  log.value.push({ kind: "in", prompt: STEP_PROMPT[c.step], text: line });
+  const v = line.trim();
+  log.value.push({ kind: "in", prompt: STEP_PROMPT[c.step](), text: line });
 
   switch (c.step) {
     case "name":
-      if (!t) out("a name, or a handle — anything I can call you.");
-      else if (t.length > LIMITS.name) out(`that's a long name. ${LIMITS.name} characters, tops.`);
+      if (!v) out(t("home.contact.compose.nameEmpty"));
+      else if (v.length > LIMITS.name) out(t("home.contact.compose.nameLong", { max: LIMITS.name }));
       else {
-        c.draft.name = t;
+        c.draft.name = v;
         c.step = "email";
-        out(`hi ${t}. where can I reply?`);
+        out(t("home.contact.compose.hi", { name: v }));
       }
       break;
     case "email":
-      if (!parseContact({ name: "x", email: t, message: "x" }))
-        out("that doesn't look like an email address. once more?");
+      if (!parseContact({ name: "x", email: v, message: "x" }))
+        out(t("home.contact.compose.emailBad"));
       else {
-        c.draft.email = t;
+        c.draft.email = v;
         c.step = "message";
-        out("go ahead. end with a single '.' on its own line.");
+        out(t("home.contact.compose.goAhead"));
       }
       break;
     case "message": {
-      if (t === ".") {
+      if (v === ".") {
         if (!c.draft.lines.join("").trim()) {
-          out("an empty message? keep typing — end with '.' when you're done.");
+          out(t("home.contact.compose.empty"));
           break;
         }
         c.step = "confirm";
-        out(`to: frederic · from: ${c.draft.name} <${c.draft.email}>`);
+        out(t("home.contact.compose.summary", { name: c.draft.name, email: c.draft.email }));
         break;
       }
       const size = [...c.draft.lines, line].join("\n").length;
       if (size > LIMITS.message)
-        out(`that line would take it past ${LIMITS.message} characters. finish with '.'?`);
+        out(t("home.contact.compose.tooLong", { max: LIMITS.message }));
       else c.draft.lines.push(line);
       break;
     }
     case "confirm":
-      if (/^y(es)?$/i.test(t)) {
+      // y/yes, and j/ja for the German prompt; both work in either language.
+      if (/^(y(es)?|ja?)$/i.test(v)) {
         c.step = "sending";
         void send(c.draft);
-      } else if (/^n(o)?$/i.test(t)) {
+      } else if (/^n(o|ein)?$/i.test(v)) {
         compose.value = null;
-        out("message discarded. nothing was sent.");
-      } else out("y or n?");
+        out(t("home.contact.compose.discarded"));
+      } else out(t("home.contact.compose.yn"));
       break;
     case "sending":
       break;
@@ -304,13 +287,10 @@ const run = () => {
     case "help":
     case "?":
     case "man":
-      out(...HELP);
+      out(...lines("home.contact.help"));
       break;
     case "whoami":
-      out(
-        "frederic — senior fullest-stack dev, Berlin.",
-        "you: a person of evidently excellent taste."
-      );
+      out(...lines("home.contact.out.whoami"));
       break;
     case "ls":
     case "dir":
@@ -318,19 +298,19 @@ const run = () => {
       break;
     case "cat": {
       const f = args[0] ?? "";
-      if (!f) out("cat: i need something to read. try 'ls' first.");
+      if (!f) out(t("home.contact.out.catEmpty"));
       else if (f === "respeak/" || f === "github/")
-        out(`cat: ${f}: is a directory — try 'open ${f.replace("/", "")}'.`);
-      else out(FILES[f] ?? `cat: ${f}: No such file (try 'ls').`);
+        out(t("home.contact.out.catDir", { f, name: f.replace("/", "") }));
+      else out(FILES[f]?.() ?? t("home.contact.out.catMissing", { f }));
       break;
     }
     case "stack":
-      out(FILES["stack.txt"]!, "…plus a frankly concerning amount of YAML.");
+      out(STACK, t("home.contact.out.stackExtra"));
       break;
     case "contact":
       out(
         { html: `${linkHtml(LINKS.github!)} &nbsp; ${linkHtml(LINKS.respeak!)}` },
-        "↑ pick your poison — or type 'mail' and write me from right here."
+        t("home.contact.out.contactPick")
       );
       break;
     case "mail":
@@ -342,21 +322,17 @@ const run = () => {
     case "open": {
       const where = (args[0] ?? "").toLowerCase();
       if (LINKS[where]) {
-        out(`→ opening ${LINKS[where]!.replace(/^https?:\/\//, "")} …`);
+        out(t("home.contact.out.opening", { url: LINKS[where]!.replace(/^https?:\/\//, "") }));
         window.open(LINKS[where], "_blank", "noopener");
       } else {
-        out("open: try 'open github' or 'open respeak'.");
+        out(t("home.contact.out.openHelp"));
       }
       break;
     }
     case "orbit":
     case "explore":
     case "scene":
-      out(
-        "detaching camera from scroll rails…",
-        "drag to orbit, wheel to zoom. the bar at the bottom scrubs the whole run.",
-        "esc — or 'return to scroll' — brings you back where you left off."
-      );
+      out(...lines("home.contact.out.orbit"));
       enterExplore();
       break;
     case "clear":
@@ -370,55 +346,44 @@ const run = () => {
       out("/home/frederic/berlin");
       break;
     case "ping":
-      out("PONG. latency: Berlin → you. let's lower it — say hi.");
+      out(t("home.contact.out.ping"));
       break;
     case "date":
-      out(new Date().toString(), "(best time to reach out: now.)");
+      out(new Date().toString(), t("home.contact.out.dateNote"));
       break;
     // --- easter eggs: something funny for the curious ---
     case "sudo": {
-      if (!arg) out("sudo what? absolute power needs an object.");
+      if (!arg) out(t("home.contact.out.sudoEmpty"));
       else if (/^hire/.test(arg))
-        out(
-          "escalating privileges… ✅ granted.",
-          "…to a position that's already filled. happily, at Respeak.",
-          "'mail' still works for everything else."
-        );
-      else if (arg.startsWith("rm")) out("🙅 not on my watch, not even with sudo.");
-      else if (arg.includes("sandwich")) out("poof 🥪 you're a sandwich.");
-      else
-        out(
-          "[sudo] password for visitor: ********",
-          "nope — you already have root over your own career. 😉"
-        );
+        out(...lines("home.contact.out.sudoHire"));
+      else if (arg.startsWith("rm")) out(t("home.contact.out.sudoRm"));
+      else if (arg.includes("sandwich")) out(t("home.contact.out.sandwich"));
+      else out(...lines("home.contact.out.sudoOther"));
       break;
     }
     case "rm":
-      out("🙅 nice try — everything here is load-bearing.");
+      out(t("home.contact.out.rm"));
       break;
     case "vim":
     case "vi":
-      out("you're in vim now. (jk — :q worked, unlike for most people.)");
+      out(t("home.contact.out.vim"));
       break;
     case "exit":
     case "quit":
     case "q":
-      out("there is no exit — only scroll. (the window's X works, though.)");
+      out(t("home.contact.out.exit"));
       break;
     case "matrix":
-      out("🟢 wake up… the head's been in the matrix this whole time.");
+      out(t("home.contact.out.matrix"));
       break;
     case "hire":
-      out(
-        "flattered — but not looking. I'm happily building at Respeak.",
-        "a good problem is always welcome, though: 'mail' me about yours."
-      );
+      out(...lines("home.contact.out.hire"));
       break;
     case "coffee":
-      out("always. ☕ type 'mail' and tell me where.");
+      out(t("home.contact.out.coffee"));
       break;
     case "sl":
-      out("🚂 woo woo… (you typed it too fast, didn't you.)");
+      out(t("home.contact.out.sl"));
       break;
     default:
       out(notFound(name ?? ""));
@@ -464,7 +429,7 @@ const mounted = ref(false);
 onMounted(() => (mounted.value = true));
 const narrow = useMediaQuery("(max-width: 768px)");
 const hint = computed(() =>
-  mounted.value && narrow.value ? "try: help" : "type a command — try: help"
+  mounted.value && narrow.value ? t("home.contact.hintShort") : t("home.contact.hint")
 );
 
 /** Ctrl+C cancels a message in progress, as in any shell. Outside `mail` it
@@ -491,14 +456,14 @@ const startFromLink = () => {
     class="terminal"
     :class="{ 'is-visible': visible, sending }"
     :style="{ '--accent': accent }"
-    aria-label="Contact"
+    :aria-label="t('home.sections.contact.subtitle')"
     @click="focusInput"
   >
     <header class="term-bar">
       <span class="term-dot" />
       <span class="term-dot" />
       <span class="term-dot" />
-      <span class="term-title">frederic@berlin — contact</span>
+      <span class="term-title">frederic@berlin — {{ t("home.contact.titleWord") }}</span>
     </header>
 
     <div ref="bodyRef" class="term-body">
@@ -506,17 +471,15 @@ const startFromLink = () => {
       <p class="t-line cmd" style="--i: 0">
         <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> whoami
       </p>
-      <p class="t-line out" style="--i: 1">systems that scale · AI that ships</p>
+      <p class="t-line out" style="--i: 1">{{ t("home.contact.whoamiOut") }}</p>
 
-      <h2 class="t-line headline" style="--i: 2">{{ section.title }}</h2>
-      <p class="t-line prose" style="--i: 3">
-        The thread runs straight through: a lattice of weights learning to
-        generate, embedding spaces measuring meaning, systems that stay up when the
-        load arrives. I'm still at
-        <a href="https://respeak.io" target="_blank" rel="noopener">Respeak</a>,
-        most useful where <strong>systems that scale</strong> meet
-        <strong>AI that ships</strong>.
-      </p>
+      <h2 class="t-line headline" style="--i: 2">{{ t(`home.sections.${section.id}.title`) }}</h2>
+      <i18n-t keypath="home.contact.prose" tag="p" class="t-line prose" style="--i: 3" scope="global">
+        <template #respeak>
+          <a href="https://respeak.io" target="_blank" rel="noopener">Respeak</a>
+        </template>
+        <template #mail><strong>mail</strong></template>
+      </i18n-t>
 
       <p class="t-line cmd" style="--i: 4">
         <span class="prompt"><span class="p-host">frederic@berlin:</span>~$</span> contact --open
@@ -585,7 +548,7 @@ const startFromLink = () => {
         :placeholder="focused || compose ? '' : hint"
         :inputmode="compose?.step === 'email' ? 'email' : 'text'"
         :disabled="compose?.step === 'sending'"
-        aria-label="Terminal input — try typing help"
+        :aria-label="t('home.contact.inputAria')"
         @focus="focused = true"
         @blur="focused = false"
         @keydown.up.prevent="histPrev"

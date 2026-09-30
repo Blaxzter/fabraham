@@ -8,6 +8,11 @@ accent: "#7fe7ff"
 skin: "week"
 emergent: "rooms"
 spec: "self-hosted · most-starred repo"
+# German wording of the fields above (see content.config.ts).
+de:
+  title: "Raumbuchung, selbst gehostet"
+  description: "Raum- und Ressourcenbuchung zum Selbsthosten. Die statischen Seiten werden beim Build vorgerendert und direkt ins Frontend-Image eingebaut."
+  spec: "selbst gehostet · Repo mit den meisten Sternen"
 # --- refreshed by scripts/fetch-github-projects.mjs; do not hand-edit ---
 pushed: "2026-06-17"
 stars: 5

@@ -1,0 +1,6 @@
+{
+  "common": {
+    "lang": { "label": "Sprache" },
+    "kind": { "study": "Studium", "work": "Arbeit", "volunteer": "Ehrenamt" }
+  }
+}

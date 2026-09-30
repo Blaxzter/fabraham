@@ -47,10 +47,13 @@ const getLineWithActiveState = (line: Line, index: number) => {
 
 const BootTextComponent = resolveComponent("BootText");
 type Color = "green" | "white" | "cyan" | "yellow" | "red";
+const { t } = useI18n();
+// Takes a message KEY, resolved inside the render function rather than once
+// here, so the line follows the current locale.
 const T =
-  (text: string, color: Color, bold = false): Line =>
+  (key: string, color: Color, bold = false): Line =>
   () =>
-    h(BootTextComponent, { animate: true, text, color, bold });
+    h(BootTextComponent, { animate: true, text: t(key), color, bold });
 const BR: Line = () => h("br");
 
 // ── The two honest lines ──────────────────────────────────────────────────────
@@ -69,13 +72,13 @@ const memDone = computed(
 const memLine: Line = () =>
   h(BootTextComponent, {
     animate: true,
-    text: `Testing memory: ${MEM_STEPS[memShown.value]}${memDone.value ? " [OK]" : ""}`,
+    text: `${t("shell.boot.memTest", { size: MEM_STEPS[memShown.value] })}${memDone.value ? " [OK]" : ""}`,
     color: "green",
   });
 const modelLine: Line = () =>
   h(BootTextComponent, {
     animate: true,
-    text: `Loading GLTF models...${bootState.sceneReady ? " [OK]" : ""}`,
+    text: `${t("shell.boot.models")}${bootState.sceneReady ? " [OK]" : ""}`,
     color: "green",
   });
 
@@ -92,20 +95,20 @@ const startMemTicker = () => {
 };
 
 const steps: Step[] = [
-  { line: T("FABRAHAM BIOS v3.14.2025", "cyan", true), wait: 0.1 },
-  { line: T("Copyright (C) 2025, Fabraham Systems", "white"), wait: 0.3 },
+  { line: T("shell.boot.bios", "cyan", true), wait: 0.1 },
+  { line: T("shell.boot.copyright", "white"), wait: 0.3 },
   { line: BR },
-  { line: T("Detecting hardware configuration...", "green"), wait: 0.25 },
-  { line: T("CPU: Neural Processing Unit @4.2GHz [OK]", "green"), wait: 0.12 },
-  { line: T("GPU: WebGL Rendering Engine v2.0 [OK]", "green"), wait: 0.12 },
-  { line: T("Memory: 32GB DDR5-6000 [OK]", "green"), wait: 0.15 },
+  { line: T("shell.boot.detecting", "green"), wait: 0.25 },
+  { line: T("shell.boot.cpu", "green"), wait: 0.12 },
+  { line: T("shell.boot.gpu", "green"), wait: 0.12 },
+  { line: T("shell.boot.memory", "green"), wait: 0.15 },
   { line: BR },
   { line: memLine, enter: startMemTicker, wait: () => memDone.value },
   { line: modelLine, wait: () => bootState.sceneReady },
-  { line: T("Compiling shaders [OK]", "green"), wait: 0.15 },
+  { line: T("shell.boot.shaders", "green"), wait: 0.15 },
   { line: BR },
-  { line: T("All systems operational.", "green", true), wait: 0.25 },
-  { line: T("Booting to home screen...", "cyan"), wait: 0.35 },
+  { line: T("shell.boot.operational", "green", true), wait: 0.25 },
+  { line: T("shell.boot.booting", "cyan"), wait: 0.35 },
 ];
 
 const MIN_ON_SCREEN_MS = 1600;

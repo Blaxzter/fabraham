@@ -1,0 +1,145 @@
+{
+  "home": {
+    "meta": {
+      "title": "Frederic Abraham · Fullest-Stack-Entwickler",
+      "description": "Der Werdegang von Frederic Abraham als scrollbare 3D-Timeline: B.Sc. an der TU Berlin, M.Sc. in KI in Maastricht und KI-Produkte bei Respeak in Berlin. GANs, Embeddings und RAG.",
+      "ogDescription": "Eine biografische 3D-Timeline: Berlin → Maastricht → Berlin. Generative KI, Embeddings im großen Maßstab und Retrieval-Augmented Generation."
+    },
+    "sections": {
+      "identity": { "title": "Frederic Abraham", "subtitle": "Fullest-Stack-Entwickler" },
+      "reveal": { "title": "Das Gesicht", "subtitle": "" },
+      "projects": { "title": "Was ich zuletzt gebaut habe", "subtitle": "Aktuelle Projekte" },
+      "biography": { "title": "Studium und Arbeit", "subtitle": "Berlin → Maastricht → Berlin · 2016 bis heute" },
+      "skills": { "title": "Womit ich arbeite", "subtitle": "Stack" },
+      "contact": { "title": "Schreib mir", "subtitle": "Kontakt" },
+      "outro": { "title": "Erkunde die Szene", "subtitle": "Freie Kamera" }
+    },
+    "hero": {
+      "sr": "Senior-Entwickler bei Respeak in Berlin. Ich arbeite im ganzen Stack, und bei den meisten meiner Projekte geht es um KI: generative Modelle im Master, Sentence-Embeddings für ein Spiel mit 18.000 gleichzeitigen Spielern und heute eine Plattform für Retrieval-Augmented Generation.",
+      "pos": "Adj.",
+      "noun": "Entwickler",
+      "def": "jemand, der auf die Frage, an welchem Teil des Stacks er arbeitet, mit „ja“ antwortet."
+    },
+    "projects": {
+      "lede": "Die drei Projekte, an denen ich zuletzt gearbeitet habe. Jede Karte öffnet das Projekt, weiter unten geht es zu allen.",
+      "aria": "Alle {count} Projekte, {from} bis {to}. Timeline öffnen",
+      "ariaNoRange": "Alle {count} Projekte. Timeline öffnen",
+      "caption": "Projekte",
+      "go": "Timeline öffnen"
+    },
+    "skills": {
+      "clusters": { "backend": "Backend", "frontend": "Frontend", "ai": "KI / LLM", "infra": "Infra" }
+    },
+    "contact": {
+      "titleWord": "kontakt",
+      "whoamiOut": "frederic abraham · entwickler bei respeak, berlin",
+      "prose": "Ich bin Senior-Entwickler bei {respeak} in Berlin. Wenn du eine Frage oder eine Idee hast oder einfach Hallo sagen willst, tipp unten {mail} und schreib mir direkt von hier, oder nimm einen der Links.",
+      "inputAria": "Terminal-Eingabe, tipp help",
+      "hint": "tipp einen Befehl, z. B. help",
+      "hintShort": "tipp: help",
+      "files": {
+        "about": "Senior-Fullest-Stack-Entwickler bei Respeak in Berlin. Studiert in Berlin und Maastricht. Baue gerade eine RAG-Plattform für die öffentliche Verwaltung.",
+        "contact": "github.com/Blaxzter · respeak.io · oder tipp 'mail' und schreib mir direkt von hier.",
+        "secret": "gefunden. mehr ist hier nicht drin, aber danke fürs Suchen. ✦"
+      },
+      "help": [
+        "verfügbare Befehle (die laufen wirklich):",
+        "  help            diese Liste",
+        "  whoami          mit wem du redest",
+        "  ls / cat {'<'}f{'>'}    im Dateisystem stöbern",
+        "  stack           der Werkzeugkasten",
+        "  mail            schreib mir eine Nachricht, direkt hier",
+        "  contact         andere Wege zu mir",
+        "  open {'<'}ziel{'>'}     github {'|'} respeak in neuem Tab öffnen",
+        "  orbit           Kamera lösen und selbst durch die Szene fliegen",
+        "  clear           Bildschirm leeren",
+        "  …und ein paar, die du selbst finden musst. (versuch mal 'sudo' irgendwas)"
+      ],
+      "notFound": [
+        "Befehl nicht gefunden: {c}. (Ich kenne eigentlich nur 'help'.)",
+        "{c}? nie gehört. versuch 'help'.",
+        "bash: {c}: Befehl nicht gefunden. Das Selbstbewusstsein gefällt mir trotzdem.",
+        "nee. '{c}' gibt's hier nicht. 'help' schon."
+      ],
+      "confirmPrompt": "senden? [j/n]",
+      "compose": {
+        "start": "neue Nachricht an frederic. ctrl+c oder esc bricht ab.",
+        "who": "wer schreibt?",
+        "discarded": "Nachricht verworfen. Es wurde nichts gesendet.",
+        "parseFail": "mit der Nachricht stimmt etwas nicht. nochmal mit 'mail'?",
+        "transmitting": "→ wird gesendet…",
+        "delivered": "✓ angekommen. Ich antworte an {email}.",
+        "failed": "✗ die Übertragung hat nicht geklappt. Bei dir ist nichts verloren gegangen.",
+        "failedRetry": "versuch's nochmal mit 'mail' oder finde mich auf {link}.",
+        "nameEmpty": "ein Name oder ein Handle, irgendwas, womit ich dich ansprechen kann.",
+        "nameLong": "langer Name. höchstens {max} Zeichen.",
+        "hi": "hi {name}. wohin soll ich antworten?",
+        "emailBad": "das sieht nicht nach einer E-Mail-Adresse aus. nochmal?",
+        "goAhead": "leg los. zum Beenden ein einzelnes '.' in eine eigene Zeile.",
+        "empty": "eine leere Nachricht? schreib weiter und beende mit '.', wenn du fertig bist.",
+        "summary": "an: frederic · von: {name} <{email}>",
+        "tooLong": "mit der Zeile wären es mehr als {max} Zeichen. mit '.' abschließen?",
+        "yn": "j oder n?"
+      },
+      "out": {
+        "whoami": ["frederic, Senior-Fullest-Stack-Dev in Berlin.", "du: jemand mit offensichtlich hervorragendem Geschmack."],
+        "catEmpty": "cat: ich brauche etwas zum Lesen. versuch zuerst 'ls'.",
+        "catDir": "cat: {f}: ist ein Verzeichnis. versuch 'open {name}'.",
+        "catMissing": "cat: {f}: Datei nicht gefunden (versuch 'ls').",
+        "stackExtra": "…plus eine ehrlich gesagt besorgniserregende Menge YAML.",
+        "contactPick": "↑ such dir was aus, oder tipp 'mail' und schreib mir direkt von hier.",
+        "opening": "→ öffne {url} …",
+        "openHelp": "open: versuch 'open github' oder 'open respeak'.",
+        "orbit": [
+          "Kamera wird von den Scroll-Schienen gelöst…",
+          "ziehen zum Drehen, Mausrad zum Zoomen. Die Leiste unten spult durch den ganzen Lauf.",
+          "esc oder 'zurück zum Scrollen' bringt dich dahin zurück, wo du warst."
+        ],
+        "ping": "PONG. Latenz: Berlin → du. Lass sie uns senken und sag hallo.",
+        "dateNote": "(beste Zeit, sich zu melden: jetzt.)",
+        "sudoEmpty": "sudo was? absolute Macht braucht ein Objekt.",
+        "sudoHire": [
+          "Rechte werden erweitert… ✅ gewährt.",
+          "…für eine Stelle, die schon besetzt ist. Gern, bei Respeak.",
+          "für alles andere funktioniert 'mail' weiterhin."
+        ],
+        "sudoRm": "🙅 nicht mit mir, auch nicht mit sudo.",
+        "sandwich": "puff 🥪 du bist ein Sandwich.",
+        "sudoOther": ["[sudo] Passwort für besucher: ********", "nö. über deine eigene Karriere hast du doch längst Root-Rechte. 😉"],
+        "rm": "🙅 netter Versuch, aber hier ist alles tragend.",
+        "vim": "du bist jetzt in vim. (Spaß. :q hat funktioniert, anders als bei den meisten.)",
+        "exit": "es gibt keinen Ausgang, nur Scrollen. (das X am Fenster geht aber.)",
+        "matrix": "🟢 wach auf… der Kopf war die ganze Zeit in der Matrix.",
+        "hire": [
+          "danke, aber ich suche gerade nicht. Ich baue gern bei Respeak.",
+          "ein gutes Problem ist trotzdem immer willkommen: erzähl mir per 'mail' davon."
+        ],
+        "coffee": "immer. ☕ tipp 'mail' und sag mir, wo.",
+        "sl": "🚂 tschu tschu… (zu schnell getippt, oder?)"
+      }
+    },
+    "outro": {
+      "prose": "Alles, was du gerade durchgescrollt hast, ist eine einzige 3D-Szene. Mit der freien Kamera verlässt du den Scroll-Pfad, schaust sie dir aus jedem Winkel an und spulst durch die ganze Timeline.",
+      "cta": "Freie Kamera öffnen",
+      "note": "freie Kamera · ziehen zum Drehen · durch die ganze Timeline spulen · esc für zurück"
+    },
+    "explore": {
+      "badge": "freie Kamera",
+      "keys": {
+        "drag": "ziehen", "orbit": "drehen", "wheel": "Mausrad", "zoom": "zoomen",
+        "rightDrag": "rechts ziehen", "pan": "schwenken", "esc": "esc", "exit": "beenden"
+      },
+      "back": "zurück zum Scrollen",
+      "pause": "Tour pausieren",
+      "play": "Tour abspielen",
+      "prev": "Vorheriges Kapitel",
+      "next": "Nächstes Kapitel",
+      "scrub": "Durch die Szene spulen",
+      "seg": {
+        "identity": "name", "reveal": "gesicht", "projects": "projekte", "biography": "werdegang",
+        "skills": "stack", "contact": "kontakt", "outro": "outro"
+      }
+    },
+    "scroll": "SCROLLEN"
+  }
+}

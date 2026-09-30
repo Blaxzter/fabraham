@@ -57,6 +57,13 @@
 </template>
 
 <script setup lang="ts">
+import { scrollToTopUnlessLocaleSwitch } from "~/utils/localeSwitch";
+
+// Fixed key + no scroll reset: `/` and `/de` are two routes, and without this a
+// language switch remounts the page, which rebuilds the whole 3D scene and
+// throws the visitor back to the top of the scroll.
+definePageMeta({ key: "home", scrollToTop: scrollToTopUnlessLocaleSwitch });
+
 const bootState = useBootStateStore();
 
 // The scene's layer, handed to the boot so it can shrink it onto the monitor's
@@ -104,13 +111,12 @@ const shouldLoadScene = computed(
 );
 
 // Meta data
+const { t } = useI18n();
 useSeoMeta({
-  title: "Frederic Abraham — Fullest-Stack Developer",
-  description:
-    "The career of Frederic Abraham as a scroll-driven 3D timeline: TU Berlin (B.Sc.), an M.Sc. in AI at Maastricht, and scaling AI products at Respeak in Berlin — GANs, embeddings, and RAG.",
-  ogTitle: "Frederic Abraham — Fullest-Stack Developer",
-  ogDescription:
-    "A biographical 3D timeline: Berlin → Maastricht → Berlin. Generative AI, embeddings at scale, and retrieval-augmented generation.",
+  title: () => t("home.meta.title"),
+  description: () => t("home.meta.description"),
+  ogTitle: () => t("home.meta.title"),
+  ogDescription: () => t("home.meta.ogDescription"),
   ogType: "website",
   // The logo as the social card (public/og.png, built by scripts/build-icons.cjs
   // from public/logo.svg). Absolute on purpose: scrapers do not resolve

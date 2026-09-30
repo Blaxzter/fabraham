@@ -5,6 +5,7 @@ import GrowthBush from "~/components/projects/GrowthBush.vue";
 import ProjectsTimeline from "~/components/projects/ProjectsTimeline.vue";
 import TimelineSkeleton from "~/components/projects/TimelineSkeleton.vue";
 import { INK_LIVE, INK_PAST, WEEK_ZERO } from "~/components/projects/eras";
+import { scrollToTopUnlessLocaleSwitch } from "~/utils/localeSwitch";
 
 /**
  * Public work, as one vine.
@@ -21,7 +22,13 @@ import { INK_LIVE, INK_PAST, WEEK_ZERO } from "~/components/projects/eras";
 // The handoff from the home page's chapter — see assets/css/vine-transition.css.
 // `out-in` matters: this page opens by DRAWING its vine, and that draw has to be
 // the first motion on screen, not something happening under an outgoing page.
-definePageMeta({ pageTransition: { name: "vine", mode: "out-in" } });
+// Fixed key + no scroll reset: switching language patches the timeline in
+// place instead of replaying the transition and starting from the top.
+definePageMeta({
+  key: "projects",
+  scrollToTop: scrollToTopUnlessLocaleSwitch,
+  pageTransition: { name: "vine", mode: "out-in" },
+});
 
 const { rows, weekly, totalCommits, repoCount, reachesBack, pending } = useProjectTimeline();
 
@@ -30,25 +37,29 @@ const { rows, weekly, totalCommits, repoCount, reachesBack, pending } = useProje
 const loading = computed(() => pending.value && !rows.value.length);
 const stat = (v: number | string) => (loading.value ? "\u2014" : v);
 
-useHead({
-  title: "Projects — Frederic Abraham",
+const { t } = useI18n();
+const localePath = useLocalePath();
+const dates = useProjectDates();
+const claudeDay = computed(() => dates.day(new Date(Date.UTC(2026, 5, 5))));
+
+useHead(() => ({
+  title: t("projects.meta.title"),
   meta: [
     {
       name: "description",
-      content:
-        "Sixteen public repositories on a timeline, newest first, with real GitHub activity: descriptions, commit subjects, stars and 52-week commit counts.",
+      content: t("projects.meta.description", {
+        count: repoCount.value || t("projects.hero.countLoading"),
+      }),
     },
   ],
-});
-
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+}));
 
 /** The chart's numbers by month — a table view, so the figures are readable. */
 const monthly = computed(() => {
   const out: { key: string; v: number }[] = [];
   weekly.value.forEach((v, i) => {
     const d = new Date(WEEK_ZERO + i * 604800000);
-    const key = `${MON[d.getUTCMonth()]} ’${String(d.getUTCFullYear()).slice(2)}`;
+    const key = dates.monthShort(d);
     const last = out[out.length - 1];
     if (last && last.key === key) last.v += v;
     else out.push({ key, v });
@@ -64,36 +75,33 @@ const monthly = computed(() => {
         <!-- The way home. This page has no site header, so the mark is it:
              the same mark as the favicon, at the top-left where a wordmark
              would sit, and a real link back to the front page. -->
-        <NuxtLink to="/" class="home-mark" aria-label="fabraham.dev — home">
+        <NuxtLink :to="localePath('/')" class="home-mark" :aria-label="t('projects.home')">
           <BrandMark :weight="2.5" />
         </NuxtLink>
         <div class="hero-top">
           <div class="hero-id">
-            <p class="eyebrow">Frederic Abraham · public work</p>
-            <h1>Everything I have <em>grown</em> in public.</h1>
+            <p class="eyebrow">{{ t("projects.hero.eyebrow") }}</p>
+            <h1>{{ t("projects.hero.title") }}</h1>
             <p class="lede">
-              {{ loading ? "Sixteen" : repoCount }} public repositories, newest first. Scroll, and the
-              vine digs back
-              through the work — past Respeak, past the M.Sc. — down to a genetic-algorithm
-              library from the last year of the B.Sc.
+              {{ t("projects.hero.lede", { count: loading ? t("projects.hero.countLoading") : repoCount }) }}
             </p>
           </div>
           <dl class="hero-stats">
-            <div><dt>Repositories</dt><dd>{{ stat(repoCount) }}</dd></div>
-            <div><dt>Commits · 52w</dt><dd>{{ stat(totalCommits) }}</dd></div>
-            <div><dt>Reaches back</dt><dd>{{ stat(reachesBack) }}</dd></div>
+            <div><dt>{{ t("projects.hero.stats.repos") }}</dt><dd>{{ stat(repoCount) }}</dd></div>
+            <div><dt>{{ t("projects.hero.stats.commits") }}</dt><dd>{{ stat(totalCommits) }}</dd></div>
+            <div><dt>{{ t("projects.hero.stats.reachesBack") }}</dt><dd>{{ stat(reachesBack) }}</dd></div>
           </dl>
         </div>
 
         <figure class="canopy">
           <figcaption>
-            <h2>My weekly commits · every repository · last 52 weeks</h2>
+            <h2>{{ t("projects.canopy.title") }}</h2>
             <div class="canopy-tools">
               <p class="canopy-key">
-                <span><i :style="{ background: INK_PAST }" />before</span>
-                <span><i :style="{ background: INK_LIVE }" />after Claude Code</span>
+                <span><i :style="{ background: INK_PAST }" />{{ t("projects.canopy.before") }}</span>
+                <span><i :style="{ background: INK_LIVE }" />{{ t("projects.canopy.after") }}</span>
               </p>
-              <span class="hint">hover a card · or tap</span>
+              <span class="hint">{{ t("projects.canopy.hint") }}</span>
             </div>
           </figcaption>
           <CommitChart
@@ -117,30 +125,33 @@ const monthly = computed(() => {
       <ProjectsTimeline v-else :rows="rows" />
 
       <footer class="foot">
-        <p>
-          <strong>Note on the data.</strong> {{ repoCount }} repositories across three accounts —
-          <code>Blaxzter</code>, <code>johkirche</code> and <code>respeak-io</code>. Everything is
-          filtered by who actually wrote it: the chart and every sparkline count <em>my</em> commits
-          only, and the two cards marked <em>co-built</em> say so because I am not their main
-          author. On that test, <code>lucide-motion-vue</code> (1 commit of 72),
-          <code>recap</code> (none) and the <code>JJBGF</code> sites (none) are other people's work
-          and are not here, and <code>FAbrahamDev</code>'s three public repos are all forks. Repos
-          with a flat bar are genuinely dormant. The <em>Claude Code lands</em> marker is dated from
-          the first co-authored commit in this site's own git history (<code>5 Jun 2026</code>).
-          Refresh the GitHub half with <code>node scripts/fetch-github-projects.mjs</code>.
-        </p>
+        <i18n-t keypath="projects.foot.note" tag="p" scope="global">
+          <template #lead><strong>{{ t("projects.foot.lead") }}</strong></template>
+          <template #count>{{ repoCount }}</template>
+          <template #a1><code>Blaxzter</code></template>
+          <template #a2><code>johkirche</code></template>
+          <template #a3><code>respeak-io</code></template>
+          <template #shared><em>{{ t("projects.card.shared") }}</em></template>
+          <template #lm><code>lucide-motion-vue</code></template>
+          <template #recap><code>recap</code></template>
+          <template #jj><code>JJBGF</code></template>
+          <template #fa><code>FAbrahamDev</code></template>
+          <template #marker><em>{{ t("projects.eras.claude.title") }}</em></template>
+          <template #date><code>{{ claudeDay }}</code></template>
+          <template #cmd><code>node scripts/fetch-github-projects.mjs</code></template>
+        </i18n-t>
         <details class="canopy-data">
-          <summary>The chart's numbers, by month</summary>
+          <summary>{{ t("projects.foot.table") }}</summary>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Month</th><th>Commits</th></tr></thead>
+              <thead><tr><th>{{ t("projects.foot.month") }}</th><th>{{ t("projects.foot.commits") }}</th></tr></thead>
               <tbody>
                 <tr v-for="m in monthly" :key="m.key"><td>{{ m.key }}</td><td>{{ m.v }}</td></tr>
               </tbody>
             </table>
           </div>
         </details>
-        <NuxtLink to="/" class="back">← Back to the scene</NuxtLink>
+        <NuxtLink :to="localePath('/')" class="back">{{ t("projects.foot.back") }}</NuxtLink>
       </footer>
     </div>
   </div>
@@ -258,7 +269,6 @@ h1 {
   text-wrap: balance;
   max-width: 15ch;
 }
-h1 em { font-style: normal; color: #00ff9c; }
 .lede { margin: 0; max-width: 54ch; color: var(--vp-ink-2); font-size: 0.97rem; }
 
 .hero-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; }

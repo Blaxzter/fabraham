@@ -57,7 +57,7 @@ export default defineNuxtConfig({
             // Crawl from these entry routes and follow links so every project
             // page (/projects/*) is emitted as a static HTML file.
             crawlLinks: true,
-            routes: ['/', '/projects'],
+            routes: ['/', '/projects', '/de', '/de/projects'],
         },
         // Dev-only fs mount at the project root, used by server/api/_tuning.post.ts
         // so the dev tuning panel can write tuning.config.json. Not present in the
@@ -75,7 +75,46 @@ export default defineNuxtConfig({
         '@nuxt/image',
         '@nuxtjs/color-mode',
         '@pinia/nuxt',
+        '@nuxtjs/i18n',
     ],
+
+    // English at `/`, German at `/de/…`. Both are prerendered, so each language
+    // is a real static page with hreflang links to the other (useLocaleHead in
+    // app.vue). A first visit to `/` from a German browser is sent to `/de`
+    // (client-side: the site is static); after that the choice lives in a cookie
+    // set by the switch, and nothing redirects again.
+    //
+    // Pinned to 10.2.1: 10.2.4+ depends on vue-router 5 and would install a
+    // second router next to Nuxt 4.2's vue-router 4.
+    //
+    // Messages are split per area (i18n/locales/<code>/*.json), each file with
+    // one top-level namespace of the same name, so the files never collide when
+    // vue-i18n merges them.
+    i18n: {
+        strategy: 'prefix_except_default',
+        defaultLocale: 'en',
+        baseUrl: 'https://fabraham.dev',
+        locales: [
+            {
+                code: 'en',
+                language: 'en-US',
+                name: 'English',
+                files: ['en/common.json', 'en/home.json', 'en/shell.json', 'en/projects.json'],
+            },
+            {
+                code: 'de',
+                language: 'de-DE',
+                name: 'Deutsch',
+                files: ['de/common.json', 'de/home.json', 'de/shell.json', 'de/projects.json'],
+            },
+        ],
+        detectBrowserLanguage: {
+            useCookie: true,
+            cookieKey: 'i18n_locale',
+            redirectOn: 'root',
+            fallbackLocale: 'en',
+        },
+    },
 
     shadcn: {
         /**

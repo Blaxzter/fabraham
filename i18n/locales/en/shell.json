@@ -1,0 +1,86 @@
+{
+  "shell": {
+    "boot": {
+      "bios": "FABRAHAM BIOS v3.14.2025",
+      "copyright": "Copyright (C) 2025, Fabraham Systems",
+      "detecting": "Detecting hardware configuration...",
+      "cpu": "CPU: Neural Processing Unit {'@'}4.2GHz [OK]",
+      "gpu": "GPU: WebGL Rendering Engine v2.0 [OK]",
+      "memory": "Memory: 32GB DDR5-6000 [OK]",
+      "memTest": "Testing memory: {size}",
+      "models": "Loading GLTF models...",
+      "shaders": "Compiling shaders [OK]",
+      "operational": "All systems operational.",
+      "booting": "Booting to home screen...",
+      "loading": "Loading"
+    },
+    "hints": {
+      "booting": ["DEL: BIOS Setup", "F10: Boot Menu", "Any key: Skip"],
+      "easterEgg": ["ESC: Back to boot", "ENTER: Boot Menu"],
+      "menu": ["◄ ►: Select", "ENTER: Boot", "1-3: Quick select"]
+    },
+    "menu": {
+      "title": "BOOT MANAGER",
+      "subtitle": "SELECT BOOT DEVICE",
+      "selected": "► SELECTED ◄",
+      "home": { "title": "HOME SCREEN", "description": "3D Portfolio & Interactive Experience" },
+      "projects": { "title": "PROJECTS", "description": "Browse Project Archive & Timeline" },
+      "setup": { "title": "SETUP", "description": "Configuration & Preferences" },
+      "instructions": "◄ ► Arrow Keys or Mouse to Select  {'|'}  ENTER or Click to Boot  {'|'}  1-3 Quick Select",
+      "instructionsTouch1": "▲ ▼ Arrow Keys or Tap to Select",
+      "instructionsTouch2": "ENTER or Tap to Boot"
+    },
+    "egg": {
+      "header": "⚠ DEVELOPER MODE ACTIVATED ⚠",
+      "warning": "WARNING: You have entered a restricted area.",
+      "warningSub": "Only authorized personnel should be here. But since you found it...",
+      "diagnostics": "=== SYSTEM DIAGNOSTICS ===",
+      "stats": [
+        "Boot Attempts: 42,069",
+        "Coffee Consumed: ∞",
+        "Bugs Fixed: 127",
+        "Bugs Created: 128",
+        "Code Quality: Questionable",
+        "Deadline Status: What deadline?"
+      ],
+      "profile": "=== DEVELOPER PROFILE ===",
+      "stack": "=== TECH STACK DETECTED ===",
+      "caffeine": "✓ Caffeine: Maximum",
+      "facts": "=== RANDOM FACTS ===",
+      "factList": [
+        "• This easter egg was found!",
+        "• You're a curious one",
+        "• Made with ❤ and ☕",
+        "• No AI was harmed",
+        "• Retro vibes only",
+        "• DEL key = best key"
+      ],
+      "esc": "Press ESC to return to boot sequence",
+      "enter": "Press ENTER to continue to boot menu"
+    },
+    "setup": {
+      "metaTitle": "Setup — Preferences {'|'} Frederic Abraham",
+      "metaDescription": "Theme, motion, and startup preferences for the site.",
+      "title": "SETUP · PREFERENCES",
+      "appearance": "Appearance",
+      "appearanceDesc": "Color theme for the site.",
+      "motion": "Motion",
+      "motionDesc": "Reduce animation in the 3D experience. “System” follows your OS reduced-motion setting.",
+      "startup": "Startup",
+      "skipBoot": "Skip the boot intro on load",
+      "back": "← return to home",
+      "opt": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark",
+        "full": "Full",
+        "reduced": "Reduced"
+      }
+    },
+    "theme": {
+      "toDark": "Switch to dark mode",
+      "toLight": "Switch to light mode",
+      "toggle": "Toggle theme"
+    }
+  }
+}

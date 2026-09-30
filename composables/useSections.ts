@@ -41,11 +41,40 @@ export function useSections() {
  * biography section). Pure content — does not feed the camera store.
  */
 export function useBiographyMilestones() {
+  // Not `useI18n()`: SceneSetPieces calls this from inside the TresCanvas, which
+  // is its own Vue app without the main app's provides, so vue-i18n's injection
+  // is missing there. The Nuxt app (which useAsyncData below also goes through)
+  // is reachable from both sides and holds the same global composer.
+  const locale = useNuxtApp().$i18n.locale;
   const { data, pending, error } = useAsyncData("biography-milestones", () =>
     queryCollection("biography").order("order", "ASC").all()
   );
+  // The German wording, fetched alongside rather than on switch (six small
+  // docs), so changing language never waits on a query.
+  const { data: german } = useAsyncData("biography-milestones-de", () =>
+    queryCollection("biography_de").all()
+  );
 
-  const docs = computed(() => data.value ?? []);
+  // English files are the spine: order, side, set-pieces, and the `path` every
+  // milestone id is built from, so the scene's choreography is identical in both
+  // languages. A German file with the same name replaces only the words.
+  const stem = (p?: string) => p?.split("/").pop();
+  const docs = computed(() => {
+    const base = data.value ?? [];
+    if (locale.value !== "de") return base;
+    const byStem = new Map((german.value ?? []).map((d) => [stem(d.path), d]));
+    return base.map((d) => {
+      const t = byStem.get(stem(d.path));
+      if (!t) return d;
+      return {
+        ...d,
+        title: t.title,
+        subtitle: t.subtitle ?? d.subtitle,
+        location: t.location ?? d.location,
+        body: t.body,
+      };
+    });
+  });
 
   const milestones = computed<BiographyMilestone[]>(() =>
     docs.value.map((doc) => ({
@@ -54,6 +83,7 @@ export function useBiographyMilestones() {
       title: doc.title ?? "",
       subtitle: doc.subtitle,
       location: doc.location,
+      kind: doc.kind,
       accent: doc.accent,
       side: (doc.side as "left" | "right" | "auto") ?? "auto",
       offset: doc.offset ?? undefined,

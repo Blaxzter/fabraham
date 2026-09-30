@@ -32,6 +32,7 @@ import {
 // (issue #4). The flight maths live in ./skills.ts because the head's gaze
 // keyframes are generated from the very same formula.
 const props = defineProps<{ section?: Section; visible?: boolean }>();
+const { t } = useI18n();
 
 const store = useSectionsStore();
 const { reducedMotion } = usePreferences();
@@ -71,8 +72,8 @@ const entered = computed(
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smoothstep = (v: number) => {
-  const t = clamp01(v);
-  return t * t * (3 - 2 * t);
+  const x = clamp01(v);
+  return x * x * (3 - 2 * x);
 };
 
 /** Position within this section, 0..1. */
@@ -308,8 +309,8 @@ const beamHelper = computed(() => {
   <div class="skills" :style="{ '--accent': accent }">
     <div class="skills-stage" :class="{ 'is-static': still }" :style="stageStyle">
       <header class="skills-heading" :class="{ 'is-visible': entered }">
-        <p v-if="section?.subtitle" class="skills-kicker">{{ section.subtitle }}</p>
-        <h2 v-if="section?.title" class="skills-title">{{ section.title }}</h2>
+        <p v-if="section?.subtitle" class="skills-kicker">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
+        <h2 v-if="section?.title" class="skills-title">{{ t(`home.sections.${section.id}.title`) }}</h2>
       </header>
 
       <!-- The gaze cone: apex on the face, swinging out to the card on the mark. -->
@@ -379,7 +380,7 @@ const beamHelper = computed(() => {
         >
           <article class="skill-card" :style="card.cardStyle">
             <p class="skill-num">{{ card.num }}</p>
-            <h3 class="skill-label">{{ card.label }}</h3>
+            <h3 class="skill-label">{{ t(`home.skills.clusters.${card.id}`) }}</h3>
             <ul class="skill-chips">
               <li v-for="chip in card.chips" :key="chip.label">
                 <!-- Decorative: the label carries the meaning. Tinted via

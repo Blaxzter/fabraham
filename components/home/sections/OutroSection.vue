@@ -14,6 +14,7 @@ import type { Section } from "~/types/section";
 // pose past the last keyframe), so this reads as the end of the piece rather
 // than as a page footer.
 const props = defineProps<{ section: Section; visible?: boolean }>();
+const { t } = useI18n();
 
 const accent = computed(() => props.section.accent ?? "#00ff9c");
 
@@ -36,22 +37,16 @@ const enterExplore = () => {
       <span class="og-lens" />
     </div>
 
-    <p class="outro-kicker">{{ section.subtitle }}</p>
-    <h2 class="outro-title">{{ section.title }}</h2>
-    <p class="outro-prose">
-      Everything you just scrolled through is one 3D scene on a fixed lens. Take
-      the camera off its rails and look at it from anywhere — the whole run is on
-      a scrubber.
-    </p>
+    <p class="outro-kicker">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
+    <h2 class="outro-title">{{ t(`home.sections.${section.id}.title`) }}</h2>
+    <p class="outro-prose">{{ t("home.outro.prose") }}</p>
 
     <button class="outro-cta" type="button" @click="enterExplore">
-      <span class="oc-label">Fly the scene yourself</span>
+      <span class="oc-label">{{ t("home.outro.cta") }}</span>
       <span class="oc-arrow" aria-hidden="true">↗</span>
     </button>
 
-    <p class="outro-note">
-      free camera · drag to orbit · scrub the whole timeline · esc to come back
-    </p>
+    <p class="outro-note">{{ t("home.outro.note") }}</p>
   </div>
 </template>
 

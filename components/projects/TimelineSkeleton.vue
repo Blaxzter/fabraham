@@ -36,7 +36,7 @@ defineProps<{ rows?: number }>();
         </div>
       </div>
     </div>
-    <p class="sr">Loading projects…</p>
+    <p class="sr">{{ $t("projects.loading") }}</p>
   </div>
 </template>
 

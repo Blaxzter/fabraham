@@ -28,12 +28,12 @@ import { CLAUDE_INDEX, CLAUDE_WEEK, WEEK_ZERO } from "./eras";
  */
 const props = defineProps<{ weekly: number[]; total: number; repos: number }>();
 
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const { t } = useI18n();
+const dates = useProjectDates();
 const weekDate = (i: number) => new Date(WEEK_ZERO + i * 604800000);
-const weekLabel = (i: number) => {
-  const d = weekDate(i);
-  return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-};
+const weekLabel = (i: number) => dates.day(weekDate(i));
+/** The Claude Code marker's day, in the page's language. */
+const markerDay = computed(() => dates.day(new Date(Date.UTC(2026, 5, 5))));
 
 const max = computed(() => Math.max(1, ...props.weekly));
 const peak = computed(() => props.weekly.indexOf(max.value));
@@ -56,7 +56,7 @@ const ticks = computed(() =>
       left: `${((i + 0.5) / 52) * 100}%`,
       // The outer two anchor to the edges so they cannot run off it.
       edge: k === 0 ? "start" : k === 4 ? "end" : "mid",
-      label: `${MON[d.getUTCMonth()]} ’${String(d.getUTCFullYear()).slice(2)}`,
+      label: dates.monthShort(d),
     };
   })
 );
@@ -64,7 +64,17 @@ const ticks = computed(() =>
 const summary = computed(() => {
   const before = props.weekly.slice(0, CLAUDE_INDEX).reduce((a, b) => a + b, 0);
   const after = props.weekly.slice(CLAUDE_INDEX).reduce((a, b) => a + b, 0);
-  return `${props.total} commits over 52 weeks across ${props.repos} repositories. ${before} in the ${CLAUDE_INDEX} weeks before 5 June 2026, ${after} in the ${52 - CLAUDE_INDEX} weeks after. Busiest week: ${max.value}, week of ${weekLabel(peak.value)}.`;
+  return t("projects.chart.summary", {
+    total: props.total,
+    repos: props.repos,
+    before,
+    weeksBefore: CLAUDE_INDEX,
+    marker: markerDay.value,
+    after,
+    weeksAfter: 52 - CLAUDE_INDEX,
+    max: max.value,
+    week: weekLabel(peak.value),
+  });
 });
 
 const hover = ref(-1);
@@ -72,7 +82,7 @@ const tipText = computed(() => {
   const i = hover.value;
   if (i < 0) return "";
   const v = props.weekly[i]!;
-  return `${v} commit${v === 1 ? "" : "s"} · week of ${weekLabel(i)}`;
+  return t("projects.chart.tip", { n: v, week: weekLabel(i) }, v);
 });
 // Past the two-thirds mark the tooltip would hang off the right edge.
 const tipFlip = computed(() => hover.value > 34);
@@ -80,11 +90,11 @@ const tipFlip = computed(() => hover.value > 34);
 
 <template>
   <div class="plot">
-    <p class="peak-label">{{ max }} in the week of {{ weekLabel(peak) }}</p>
+    <p class="peak-label">{{ t("projects.chart.peak", { n: max, week: weekLabel(peak) }) }}</p>
 
     <!-- Solid, because it is an annotation, not a gridline. -->
     <div class="marker" :style="{ left: markerLeft }">
-      <span>5 Jun 2026</span>
+      <span>{{ markerDay }}</span>
     </div>
 
     <div class="bars" role="img" :aria-label="summary" @pointerleave="hover = -1">

@@ -36,6 +36,7 @@ const scrubbing = ref(false);
 
 const pct = computed(() => store.progress * 100);
 const active = computed(() => store.sections[store.activeIndex]);
+const { t } = useI18n();
 const accent = computed(() => active.value?.accent ?? "#00ff9c");
 
 /**
@@ -211,14 +212,16 @@ onBeforeUnmount(() => {
       <!-- Top: what mode you are in, how to fly it, and the way out. -->
       <div class="xpl-top">
         <p class="xpl-badge">
-          <span class="xpl-dot" />free camera
+          <span class="xpl-dot" />{{ t("home.explore.badge") }}
         </p>
         <p class="xpl-hint">
-          <span>drag</span> orbit <i>·</i> <span>wheel</span> zoom <i>·</i>
-          <span>right-drag</span> pan <i>·</i> <span>esc</span> exit
+          <span>{{ t("home.explore.keys.drag") }}</span> {{ t("home.explore.keys.orbit") }} <i>·</i>
+          <span>{{ t("home.explore.keys.wheel") }}</span> {{ t("home.explore.keys.zoom") }} <i>·</i>
+          <span>{{ t("home.explore.keys.rightDrag") }}</span> {{ t("home.explore.keys.pan") }} <i>·</i>
+          <span>{{ t("home.explore.keys.esc") }}</span> {{ t("home.explore.keys.exit") }}
         </p>
         <button class="xpl-exit" type="button" @click="exit">
-          return to scroll <span aria-hidden="true">✕</span>
+          {{ t("home.explore.back") }} <span aria-hidden="true">✕</span>
         </button>
       </div>
 
@@ -228,7 +231,7 @@ onBeforeUnmount(() => {
           <button
             class="xpl-play"
             type="button"
-            :aria-label="playing ? 'Pause the tour' : 'Play the tour'"
+            :aria-label="playing ? t('home.explore.pause') : t('home.explore.play')"
             @click="togglePlay"
           >
             <span aria-hidden="true">{{ playing ? "❚❚" : "▶" }}</span>
@@ -236,7 +239,7 @@ onBeforeUnmount(() => {
           <button
             class="xpl-skip"
             type="button"
-            aria-label="Previous chapter"
+            :aria-label="t('home.explore.prev')"
             @click="step(-1)"
           >
             <span aria-hidden="true">⟨</span>
@@ -244,12 +247,12 @@ onBeforeUnmount(() => {
           <button
             class="xpl-skip"
             type="button"
-            aria-label="Next chapter"
+            :aria-label="t('home.explore.next')"
             @click="step(1)"
           >
             <span aria-hidden="true">⟩</span>
           </button>
-          <p class="xpl-chapter">{{ active?.title || "—" }}</p>
+          <p class="xpl-chapter">{{ active ? t(`home.sections.${active.id}.title`) : "—" }}</p>
           <p class="xpl-pct">{{ pct.toFixed(1) }}%</p>
         </div>
 
@@ -259,7 +262,7 @@ onBeforeUnmount(() => {
           :class="{ 'is-scrubbing': scrubbing }"
           role="slider"
           tabindex="0"
-          aria-label="Scrub the scene"
+          :aria-label="t('home.explore.scrub')"
           :aria-valuenow="Math.round(pct)"
           aria-valuemin="0"
           aria-valuemax="100"
@@ -302,7 +305,7 @@ onBeforeUnmount(() => {
             class="xpl-label"
             :class="{ 'is-active': seg.active }"
             :style="{ left: `${seg.left}%`, width: `${seg.width}%`, '--seg': seg.accent }"
-            >{{ seg.key }}</span
+            >{{ t(`home.explore.seg.${seg.key}`) }}</span
           >
         </div>
       </div>

@@ -1,0 +1,86 @@
+{
+  "shell": {
+    "boot": {
+      "bios": "FABRAHAM BIOS v3.14.2025",
+      "copyright": "Copyright (C) 2025, Fabraham Systems",
+      "detecting": "Hardwarekonfiguration wird erkannt...",
+      "cpu": "CPU: Neural Processing Unit {'@'}4.2GHz [OK]",
+      "gpu": "GPU: WebGL Rendering Engine v2.0 [OK]",
+      "memory": "Arbeitsspeicher: 32GB DDR5-6000 [OK]",
+      "memTest": "Speichertest: {size}",
+      "models": "GLTF-Modelle werden geladen...",
+      "shaders": "Shader werden kompiliert [OK]",
+      "operational": "Alle Systeme betriebsbereit.",
+      "booting": "Starte Startbildschirm...",
+      "loading": "Wird geladen"
+    },
+    "hints": {
+      "booting": ["ENTF: BIOS-Setup", "F10: Bootmenü", "Beliebige Taste: Überspringen"],
+      "easterEgg": ["ESC: Zurück zum Boot", "ENTER: Bootmenü"],
+      "menu": ["◄ ►: Auswählen", "ENTER: Starten", "1-3: Schnellwahl"]
+    },
+    "menu": {
+      "title": "BOOT-MANAGER",
+      "subtitle": "STARTGERÄT AUSWÄHLEN",
+      "selected": "► AUSGEWÄHLT ◄",
+      "home": { "title": "STARTSEITE", "description": "3D-Portfolio & interaktive Tour" },
+      "projects": { "title": "PROJEKTE", "description": "Projektarchiv & Zeitleiste" },
+      "setup": { "title": "SETUP", "description": "Konfiguration & Einstellungen" },
+      "instructions": "◄ ► Pfeiltasten oder Maus zum Auswählen  {'|'}  ENTER oder Klick zum Starten  {'|'}  1-3 Schnellwahl",
+      "instructionsTouch1": "▲ ▼ Pfeiltasten oder Tippen zum Auswählen",
+      "instructionsTouch2": "ENTER oder Tippen zum Starten"
+    },
+    "egg": {
+      "header": "⚠ ENTWICKLERMODUS AKTIVIERT ⚠",
+      "warning": "WARNUNG: Du hast einen gesperrten Bereich betreten.",
+      "warningSub": "Hier sollte nur autorisiertes Personal sein. Aber wo du es schon gefunden hast...",
+      "diagnostics": "=== SYSTEMDIAGNOSE ===",
+      "stats": [
+        "Bootversuche: 42.069",
+        "Kaffeeverbrauch: ∞",
+        "Behobene Bugs: 127",
+        "Erzeugte Bugs: 128",
+        "Codequalität: Fragwürdig",
+        "Deadline-Status: Welche Deadline?"
+      ],
+      "profile": "=== ENTWICKLERPROFIL ===",
+      "stack": "=== TECH-STACK ERKANNT ===",
+      "caffeine": "✓ Koffein: Maximum",
+      "facts": "=== ZUFÄLLIGE FAKTEN ===",
+      "factList": [
+        "• Dieses Easter Egg wurde gefunden!",
+        "• Du bist ganz schön neugierig",
+        "• Gemacht mit ❤ und ☕",
+        "• Keine KI kam zu Schaden",
+        "• Nur Retro-Vibes",
+        "• ENTF-Taste = beste Taste"
+      ],
+      "esc": "ESC drücken, um zur Bootsequenz zurückzukehren",
+      "enter": "ENTER drücken, um zum Bootmenü zu gelangen"
+    },
+    "setup": {
+      "metaTitle": "Einstellungen {'|'} Frederic Abraham",
+      "metaDescription": "Theme, Animationen und Starteinstellungen für die Seite.",
+      "title": "SETUP · EINSTELLUNGEN",
+      "appearance": "Darstellung",
+      "appearanceDesc": "Farbschema der Seite.",
+      "motion": "Animation",
+      "motionDesc": "Weniger Animation in der 3D-Ansicht. „System“ folgt der Einstellung für reduzierte Bewegung in deinem Betriebssystem.",
+      "startup": "Start",
+      "skipBoot": "Boot-Intro beim Laden überspringen",
+      "back": "← zurück zur Startseite",
+      "opt": {
+        "system": "System",
+        "light": "Hell",
+        "dark": "Dunkel",
+        "full": "Voll",
+        "reduced": "Reduziert"
+      }
+    },
+    "theme": {
+      "toDark": "Zum dunklen Modus wechseln",
+      "toLight": "Zum hellen Modus wechseln",
+      "toggle": "Theme wechseln"
+    }
+  }
+}

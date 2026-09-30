@@ -1,16 +1,18 @@
 ---
-title: "Gesangbuch PWA — volunteer work"
+title: "Gesangbuch PWA (volunteer)"
 subtitle: "Open source · for my church"
 order: 60
 location: "Berlin"
+kind: "volunteer"
 accent: "#ffd479"
 side: "auto"
 setPiece: ["staffLines"]
 ---
 
-## Community
+## Gesangbuch
 
-Away from paid work I maintain a **Gesangbuch PWA** for my church: a German
-hymnal as an offline-capable web app, in German and English, open source on
-GitHub. It has a congregation who will tell me on Sunday morning when it breaks,
-which is the shortest feedback loop I have anywhere.
+Outside of work I build a hymnal app for my church. It's a PWA that works
+offline, shows sheet music that reflows to fit the screen, and can page along
+with the order of service. The code is open source
+[on GitHub](https://github.com/johkirche). People use it during Sunday services,
+so I hear about bugs quickly.

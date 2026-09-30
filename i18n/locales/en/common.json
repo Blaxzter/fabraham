@@ -1,0 +1,6 @@
+{
+  "common": {
+    "lang": { "label": "Language" },
+    "kind": { "study": "Study", "work": "Work", "volunteer": "Volunteer" }
+  }
+}

@@ -5,10 +5,11 @@ import type { Section } from "~/types/section";
 // background 3D set-pieces bloom. Renders at most a faint eyebrow label. Also the
 // dispatcher fallback for not-yet-implemented section types.
 defineProps<{ section: Section; visible?: boolean }>();
+const { t } = useI18n();
 </script>
 
 <template>
-  <p v-if="section.subtitle" class="interlude-eyebrow">{{ section.subtitle }}</p>
+  <p v-if="section.subtitle" class="interlude-eyebrow">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
 </template>
 
 <style scoped>

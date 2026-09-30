@@ -6,10 +6,10 @@
       <!-- Menu Header -->
       <div class="text-center">
         <div class="inline-block border-2 border-cyan-400 px-8 py-4 mb-2">
-          <BootText text="BOOT MANAGER" color="cyan" bold />
+          <BootText :text="t('shell.menu.title')" color="cyan" bold />
         </div>
         <div class="text-xs mt-4">
-          <BootText text="SELECT BOOT DEVICE" color="white" />
+          <BootText :text="t('shell.menu.subtitle')" color="white" />
         </div>
       </div>
 
@@ -40,7 +40,7 @@
               v-if="selectedIndex === index" 
               class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-black px-3 py-1 border border-cyan-400 whitespace-nowrap"
             >
-              <BootText text="► SELECTED ◄" color="cyan" bold />
+              <BootText :text="t('shell.menu.selected')" color="cyan" bold />
             </div>
 
             <!-- Icon/Number -->
@@ -79,11 +79,11 @@
       <!-- Instructions -->
       <div class="text-center mt-8 pt-6 border-t border-gray-700 text-xs space-y-1">
         <div class="hidden md:block">
-          <BootText text="◄ ► Arrow Keys or Mouse to Select  |  ENTER or Click to Boot  |  1-3 Quick Select" color="yellow" />
+          <BootText :text="t('shell.menu.instructions')" color="yellow" />
         </div>
         <div class="md:hidden space-y-1">
-          <div><BootText text="▲ ▼ Arrow Keys or Tap to Select" color="yellow" /></div>
-          <div><BootText text="ENTER or Tap to Boot" color="yellow" /></div>
+          <div><BootText :text="t('shell.menu.instructionsTouch1')" color="yellow" /></div>
+          <div><BootText :text="t('shell.menu.instructionsTouch2')" color="yellow" /></div>
         </div>
       </div>
     </div>
@@ -98,26 +98,17 @@ const emit = defineEmits<{
 const selectedIndex = ref(0)
 const optionRefs = ref<HTMLElement[]>([])
 
-const menuOptions = [
-  { 
-    id: 'home', 
-    title: 'HOME SCREEN',
-    description: '3D Portfolio & Interactive Experience', 
-    route: '/' 
-  },
-  { 
-    id: 'projects', 
-    title: 'PROJECTS',
-    description: 'Browse Project Archive & Timeline', 
-    route: '/projects' 
-  },
-  { 
-    id: 'setup', 
-    title: 'SETUP',
-    description: 'Configuration & Preferences', 
-    route: '/setup' 
-  },
-]
+const { t } = useI18n()
+
+// `route` is the unprefixed path; BootScreen localizes it when it navigates.
+const menuOptions = computed(() =>
+  (['home', 'projects', 'setup'] as const).map((id) => ({
+    id,
+    title: t(`shell.menu.${id}.title`),
+    description: t(`shell.menu.${id}.description`),
+    route: id === 'home' ? '/' : `/${id}`,
+  }))
+)
 
 const { gsap } = useGsap()
 
@@ -127,7 +118,7 @@ const selectOption = (index: number) => {
 }
 
 const bootToOption = () => {
-  const selected = menuOptions[selectedIndex.value]
+  const selected = menuOptions.value[selectedIndex.value]
   if (!selected) return
   emit('select', selected.route)
 }
@@ -180,7 +171,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     case 'ArrowRight':
       e.preventDefault()
       e.stopPropagation()
-      selectedIndex.value = Math.min(menuOptions.length - 1, selectedIndex.value + 1)
+      selectedIndex.value = Math.min(menuOptions.value.length - 1, selectedIndex.value + 1)
       break
     case 'Enter':
       e.preventDefault()

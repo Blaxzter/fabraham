@@ -5,8 +5,8 @@
         class="relative"
         :title="
             colorMode.value === 'light'
-                ? 'Switch to dark mode'
-                : 'Switch to light mode'
+                ? t('shell.theme.toDark')
+                : t('shell.theme.toLight')
         "
         @click="toggleColorMode"
     >
@@ -16,7 +16,7 @@
         <Moon
             class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
         />
-        <span class="sr-only">Toggle theme</span>
+        <span class="sr-only">{{ t("shell.theme.toggle") }}</span>
     </Button>
 </template>
 
@@ -24,6 +24,7 @@
 import { Sun, Moon } from "lucide-vue-next";
 
 const colorMode = useColorMode();
+const { t } = useI18n();
 
 const toggleColorMode = () => {
     colorMode.preference = colorMode.value === "light" ? "dark" : "light";

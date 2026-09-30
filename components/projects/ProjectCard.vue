@@ -14,19 +14,30 @@ const sum = computed(() => props.doc.spark.reduce((a, b) => a + b, 0));
 const items = computed(() => EMERGENTS[props.doc.emergent] ?? []);
 const mark = computed(() => MARKS[props.doc.skin] ?? "");
 
-// "Aug 2026" from an ISO date, without pulling in a formatter.
+const { t } = useI18n();
+const dates = useProjectDates();
+
+// "Aug 2026" / "Aug. 2026" from the repo's ISO creation date.
+const created = computed(() => dates.month(new Date(`${props.doc.date}T00:00:00Z`)));
+
+// The commit dates arrive from GitHub pre-formatted as "15 Sep" (see
+// scripts/fetch-github-projects.mjs). Re-read and re-say them in the page's
+// language; anything that does not parse is shown as it came.
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const created = computed(() => {
-  const [y, m] = props.doc.date.split("-");
-  return `${MON[Number(m) - 1]} ${y}`;
-});
+const commitDate = (s: string) => {
+  const [d, m] = s.split(" ");
+  const mi = MON.indexOf(m ?? "");
+  if (mi < 0 || !Number(d)) return s;
+  return dates.format(new Date(Date.UTC(2000, mi, Number(d))), { day: "numeric", month: "short" });
+};
 
 /** A dormant repo says so in words rather than showing an unexplained flat bar. */
 const dormantSince = computed(() => {
   const then = Date.parse(`${props.doc.pushed}T00:00:00Z`);
   const months = Math.round((Date.now() - then) / (30.44 * 86400000));
-  if (months < 18) return `${months} months ago`;
-  return `${(months / 12).toFixed(1).replace(".0", "")} years ago`;
+  const rel = new Intl.RelativeTimeFormat(dates.tag.value, { numeric: "always" });
+  if (months < 18) return rel.format(-months, "month");
+  return rel.format(-Number((months / 12).toFixed(1)), "year");
 });
 
 const spark = computed(() => {
@@ -76,8 +87,8 @@ const spark = computed(() => {
         <span class="card-when">{{ created }}</span>
         <h3>
           {{ doc.title }}
-          <span v-if="doc.home" class="pill-live">live</span>
-          <span v-if="doc.shared" class="pill-shared">co-built</span>
+          <span v-if="doc.home" class="pill-live">{{ t("projects.card.live") }}</span>
+          <span v-if="doc.shared" class="pill-shared">{{ t("projects.card.shared") }}</span>
         </h3>
         <p class="spec">{{ doc.spec }}</p>
         <div class="card-mark" :style="{ color: doc.accent }" aria-hidden="true" v-html="mark" />
@@ -91,15 +102,15 @@ const spark = computed(() => {
 
         <div class="activity">
           <div class="act-head">
-            <span>{{ doc.shared ? "My commits here" : "Recent activity" }}</span>
-            <b>{{ sum }} commits · 52w</b>
+            <span>{{ t(doc.shared ? "projects.card.activityMine" : "projects.card.activity") }}</span>
+            <b>{{ t("projects.card.window", { n: sum }) }}</b>
           </div>
           <svg
             class="spark"
             :viewBox="spark.viewBox"
             preserveAspectRatio="none"
             role="img"
-            :aria-label="`${sum} commits over the last 52 weeks`"
+            :aria-label="t('projects.card.sparkAria', { n: sum })"
           >
             <rect
               v-for="(b, i) in spark.bars"
@@ -112,12 +123,12 @@ const spark = computed(() => {
           <ul class="commits">
             <template v-if="doc.commits.length">
               <li v-for="(c, i) in doc.commits" :key="i">
-                <time>{{ c.date }}</time><span>{{ c.message }}</span>
+                <time>{{ commitDate(c.date) }}</time><span>{{ c.message }}</span>
               </li>
             </template>
             <li v-else-if="!doc.note" class="li-dormant">
               <span class="dormant">
-                Dormant — last pushed {{ dormantSince }}. Kept public because it is part of the path.
+                {{ t("projects.card.dormant", { since: dormantSince }) }}
               </span>
             </li>
           </ul>
@@ -127,7 +138,7 @@ const spark = computed(() => {
           <a class="ghost slug" :href="doc.url" target="_blank" rel="noopener" :title="doc.repo">
             {{ doc.repo }} ↗
           </a>
-          <a v-if="doc.home" class="ghost" :href="doc.home" target="_blank" rel="noopener">Live ↗</a>
+          <a v-if="doc.home" class="ghost" :href="doc.home" target="_blank" rel="noopener">{{ t("projects.card.liveLink") }}</a>
           <span class="stars" :class="{ has: doc.stars > 0 }">★ {{ doc.stars }}</span>
         </div>
       </div>

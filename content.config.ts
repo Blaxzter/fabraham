@@ -47,6 +47,18 @@ export default defineContentConfig({
                     'ascii', 'archive', 'clips', 'rooms', 'paper', 'blocks', 'event', 'dna',
                 ]),
                 spec: z.string(),
+                // The German wording of the authored fields above. Lives in the
+                // same file (above the fence) so a project is still one file;
+                // anything missing falls back to the English.
+                de: z
+                    .object({
+                        title: z.string(),
+                        description: z.string(),
+                        spec: z.string(),
+                        note: z.string(),
+                    })
+                    .partial()
+                    .optional(),
                 // True when the repo is not mine alone: the card says so, and its
                 // activity block counts only my commits.
                 shared: z.boolean().optional(),
@@ -80,6 +92,10 @@ export default defineContentConfig({
                 subtitle: z.string().optional(),
                 order: z.number(),
                 location: z.string().optional(),
+                // What the card is mainly about, shown as a tag in its header.
+                // Omitted for transitions (the move). A job held during a degree
+                // is not a second card: it is a `::bio-work` block in the prose.
+                kind: z.enum(['study', 'work', 'volunteer']).optional(),
                 accent: z.string().optional(),
                 // Which side of the connector line the card sits on.
                 side: z.enum(['left', 'right', 'auto']).default('auto'),
@@ -90,6 +106,21 @@ export default defineContentConfig({
                 // The line backdrop(s) that bloom in 3D as this milestone centers.
                 setPiece: z.array(setPieceEnum).optional(),
                 setPieceVariant: z.string().optional(),
+            }),
+        }),
+
+        // The German wording of the milestones above, one file per English file
+        // with the SAME name. Only the words: order, side, accent and set-pieces
+        // stay in the English file and are merged in by file name
+        // (`useBiographyMilestones`), so the two languages cannot drift apart on
+        // anything the scene reads.
+        biography_de: defineCollection({
+            source: 'de/biography/*.md',
+            type: 'page',
+            schema: z.object({
+                title: z.string(),
+                subtitle: z.string().optional(),
+                location: z.string().optional(),
             }),
         }),
     },

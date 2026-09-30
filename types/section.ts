@@ -148,6 +148,8 @@ export interface BiographyMilestone {
   title: string;
   subtitle?: string;
   location?: string;
+  /** Study / work / volunteer tag in the card header; none for a transition. */
+  kind?: "study" | "work" | "volunteer";
   accent?: string;
   side: "left" | "right" | "auto";
   offset?: { x?: number; y?: number };

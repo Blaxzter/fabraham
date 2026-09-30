@@ -1,0 +1,76 @@
+{
+  "projects": {
+    "meta": {
+      "title": "Projekte {'|'} Frederic Abraham",
+      "description": "{count} öffentliche Repositories auf einer Zeitleiste, die neuesten zuerst, mit echter GitHub-Aktivität: Beschreibungen, Commit-Nachrichten, Sterne und Commits der letzten 52 Wochen."
+    },
+    "home": "fabraham.dev, zurück zur Startseite",
+    "hero": {
+      "eyebrow": "Frederic Abraham · Projekte",
+      "title": "Meine öffentlichen Projekte",
+      "lede": "{count} öffentliche Repositories, die neuesten zuerst. Je weiter du scrollst, desto weiter geht es zurück: an Respeak und dem Master vorbei bis zu einer Bibliothek für genetische Algorithmen aus dem letzten Jahr des Bachelors.",
+      "countLoading": "Sechzehn",
+      "stats": {
+        "repos": "Repositories",
+        "commits": "Commits · 52 Wo.",
+        "reachesBack": "Reicht zurück bis"
+      }
+    },
+    "canopy": {
+      "title": "Meine Commits pro Woche · alle Repositories · letzte 52 Wochen",
+      "before": "vorher",
+      "after": "mit Claude Code",
+      "hint": "Maus über eine Karte · oder antippen"
+    },
+    "chart": {
+      "peak": "{n} in der Woche vom {week}",
+      "summary": "{total} Commits in 52 Wochen über {repos} Repositories. {before} in den {weeksBefore} Wochen vor dem {marker}, {after} in den {weeksAfter} Wochen danach. Stärkste Woche: {max}, Woche vom {week}.",
+      "tip": "{n} Commit · Woche vom {week} | {n} Commits · Woche vom {week}"
+    },
+    "card": {
+      "live": "live",
+      "shared": "gemeinsam",
+      "activity": "Letzte Aktivität",
+      "activityMine": "Meine Commits hier",
+      "window": "{n} Commits · 52 Wo.",
+      "sparkAria": "{n} Commits in den letzten 52 Wochen",
+      "dormant": "Ruht, letzter Push {since}. Bleibt öffentlich, weil es Teil der Geschichte ist.",
+      "liveLink": "Live ↗"
+    },
+    "loading": "Projekte werden geladen…",
+    "foot": {
+      "lead": "Zu den Daten.",
+      "note": "{lead} {count} Repositories aus drei Accounts: {a1}, {a2} und {a3}. Alles ist danach gefiltert, wer den Code tatsächlich geschrieben hat. Das Diagramm und jede Sparkline zählen nur meine Commits, und die zwei Karten mit {shared} sagen das, weil ich dort nicht der Hauptautor bin. Nach diesem Maßstab sind {lm} (1 von 72 Commits), {recap} (keiner) und die {jj}-Seiten (keiner) die Arbeit anderer und fehlen hier, und die drei öffentlichen Repos von {fa} sind alles Forks. Repos mit flachem Balken ruhen wirklich. Die Markierung {marker} ist auf den ersten Co-Authored-Commit in der Git-History dieser Seite datiert ({date}). Die GitHub-Daten aktualisierst du mit {cmd}.",
+      "table": "Die Zahlen des Diagramms, nach Monat",
+      "month": "Monat",
+      "commits": "Commits",
+      "back": "← Zurück zur Szene"
+    },
+    "eras": {
+      "claude": {
+        "when": "ab {date}",
+        "title": "Claude Code kommt dazu",
+        "place": "erster Co-Authored-Commit",
+        "note": "Alles oberhalb dieser Linie ist damit entstanden. Die Commits pro Woche springen von einstelligen Zahlen auf über vierzig, und innerhalb von vier Monaten starten vier neue Projekte."
+      },
+      "respeak": {
+        "when": "ab {date}",
+        "title": "Zurück in Berlin: Respeak",
+        "place": "Tatort, dann Experte",
+        "note": "Zuerst das Tatort-Spiel des SWR, gebaut für 100.000 gleichzeitige Spieler und gestartet mit 18.000. Danach Tech Lead bei Experte, einer RAG-Plattform, die jede Antwort mit einer Quelle belegt. Die eigenen Projekte liefen nebenher weiter."
+      },
+      "msc": {
+        "when": "ab {date}",
+        "title": "M.Sc. Artificial Intelligence",
+        "place": "Maastricht",
+        "note": "Schwerpunkt generative Modelle, abgeschlossen mit 8,25. Nebenher studentische Hilfskraft an der RWTH Aachen, direkt hinter der Grenze, an Identity-Management-Anwendungen für rund 47.000 Studierende und 9.000 Beschäftigte."
+      },
+      "bsc": {
+        "when": "ab {date}",
+        "title": "B.Sc. Informatik",
+        "place": "TU Berlin",
+        "note": "Den größten Teil des Studiums studentische Hilfskraft bei GT-ARC, mit Fokus auf Multi-Agenten-Systeme. Bachelorarbeit über genetische Algorithmen für Shop Scheduling."
+      }
+    }
+  }
+}

@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import type { Section } from "~/types/section";
 
+const { t } = useI18n();
+
 // The hero section (mode "bare"), which is now half of a two-part treatment.
 //
 // The NAME lives in the 3D scene (`HeroGlyphs` + `HeroAscii`): one quad per
@@ -103,12 +105,7 @@ const defStyle = computed(() => ({
        wrong. -->
   <div class="sr-only">
     <h1>Frederic Abraham</h1>
-    <p>
-      Senior fullest-stack developer in Berlin. I build systems that have to hold
-      up under real load, and I bet on semantic AI early — generative models, then
-      embeddings, now retrieval. Scroll to follow the path: Berlin → Maastricht →
-      Berlin.
-    </p>
+    <p>{{ t("home.hero.sr") }}</p>
   </div>
 
   <!-- The entry, under the name the scene is assembling above it. -->
@@ -136,12 +133,11 @@ const defStyle = computed(() => ({
     <p class="he-headword" :style="entryStyle">
       <span class="hw-word">fullest-stack</span><wbr>
       <span class="hw-pron">/ˈfʊl.ɪst stak/</span><wbr>
-      <span class="hw-pos">adj.</span><wbr>
-      <span class="hw-word hw-noun">developer</span>
+      <span class="hw-pos">{{ t("home.hero.pos") }}</span><wbr>
+      <span class="hw-word hw-noun">{{ t("home.hero.noun") }}</span>
     </p>
     <p class="he-def" :style="defStyle">
-      all the way down — the model, the retrieval, the migration, and the Monday
-      morning after the release.
+      {{ t("home.hero.def") }}
     </p>
   </div>
 </template>

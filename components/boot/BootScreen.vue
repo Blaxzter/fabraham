@@ -100,7 +100,7 @@
                     v-else-if="bootState.phase === 'loading-scene'"
                     class="h-full flex items-center justify-center"
                   >
-                    <span class="block-cursor" role="status" aria-label="Loading" />
+                    <span class="block-cursor" role="status" :aria-label="t('shell.boot.loading')" />
                   </div>
                 </div>
               </div>
@@ -154,12 +154,18 @@ const bootSequenceRef = ref<HTMLElement | null>(null);
 const easterEggRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
 
-const HINTS: Partial<Record<string, string[]>> = {
-  booting: ["DEL: BIOS Setup", "F10: Boot Menu", "Any key: Skip"],
-  "easter-egg": ["ESC: Back to boot", "ENTER: Boot Menu"],
-  menu: ["◄ ►: Select", "ENTER: Boot", "1-3: Quick select"],
+// Message keys per phase; the lists themselves live in i18n/locales/*/shell.json.
+const HINTS: Partial<Record<string, string>> = {
+  booting: "shell.hints.booting",
+  "easter-egg": "shell.hints.easterEgg",
+  menu: "shell.hints.menu",
 };
-const hints = computed(() => HINTS[bootState.phase] ?? []);
+const { t, tm, rt } = useI18n();
+const localePath = useLocalePath();
+const hints = computed(() => {
+  const key = HINTS[bootState.phase];
+  return key ? (tm(key) as unknown[]).map((m) => rt(m as Parameters<typeof rt>[0])) : [];
+});
 
 const powered = ref(false);
 const tuning = ref(false);
@@ -294,7 +300,7 @@ const onMenuSelect = async (route: string) => {
     whenSceneReady(handover);
   } else {
     // Leaving the page takes the monitor with it; nothing to zoom into.
-    await navigateTo(route);
+    await navigateTo(localePath(route));
     bootState.completeBootSequence();
   }
 };

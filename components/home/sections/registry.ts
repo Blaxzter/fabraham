@@ -182,8 +182,8 @@ export const SECTION_DEFS: SectionDef[] = [
     // heading is sticky inside the section — neither a pinned card nor a bare
     // spacer. Same mode the biography cluster uses, for the same reason.
     mode: "flow",
-    title: "What I have been growing",
-    subtitle: "Public work",
+    title: "What I've been building",
+    subtitle: "Recent projects",
     /**
      * THE pace lever for this chapter. The vine assembles across the whole
      * section (it is `PROGRESS_DRIVEN`), and each card opens as the drawing tip
@@ -267,7 +267,7 @@ export const SECTION_DEFS: SectionDef[] = [
     type: "biography",
     component: markRaw(BiographySection),
     mode: "flow",
-    title: "How I got here",
+    title: "Studies and work",
     subtitle: "Berlin → Maastricht → Berlin · 2016–now",
     // THE pace lever for this chapter (see the skills note below for the same
     // idea): every beat here — a card's window, its set-piece's assembly, the
@@ -303,8 +303,8 @@ export const SECTION_DEFS: SectionDef[] = [
     // "bare": the component owns a sticky, full-viewport stage the cards fly
     // through — it can't be a pinned card, and it isn't a flowing cluster.
     mode: "bare",
-    title: "What I bring",
-    subtitle: "The toolbox",
+    title: "What I work with",
+    subtitle: "Stack",
     // Every beat in this chapter — card flight, mark draw-on, gaze, light — is a
     // fraction of this, so it is the single lever for the chapter's PACE. At
     // weight 3 a mark drew itself in over ~150px of scroll, roughly one notch of
@@ -337,8 +337,8 @@ export const SECTION_DEFS: SectionDef[] = [
     type: "contact",
     component: markRaw(ContactSection),
     mode: "pinned",
-    title: "Let's build something that holds up",
-    subtitle: "Berlin → Maastricht → Berlin · and onward",
+    title: "Get in touch",
+    subtitle: "Contact",
     weight: 1.5,
     accent: "#00ff9c",
     setPiece: ["signalField"],
@@ -356,8 +356,8 @@ export const SECTION_DEFS: SectionDef[] = [
     type: "outro",
     component: markRaw(OutroSection),
     mode: "pinned",
-    title: "Now take the camera",
-    subtitle: "One more thing",
+    title: "Explore the scene",
+    subtitle: "Free camera",
     // Short: it is a single call to action, not a chapter. Long enough that it
     // arrives on its own screen rather than crowding the terminal.
     weight: 1,

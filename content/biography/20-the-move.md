@@ -10,6 +10,8 @@ setPiece: ["routeArc"]
 
 ## The move
 
-In 2020 I left Berlin for **Maastricht** and an M.Sc. in Artificial Intelligence.
-I had been using machine learning without properly understanding it, and wanted
-two years to fix that rather than keep reading about it on the side.
+In 2020 I moved to Maastricht for a master's in artificial intelligence. GT-ARC
+works closely with TU Berlin's [DAI-Labor](https://dai-labor.de), the
+Distributed Artificial Intelligence lab, so most of my student work had already
+involved AI in some form, and I wanted to understand it properly. I also had a
+feeling it would play a much bigger role in a few years.

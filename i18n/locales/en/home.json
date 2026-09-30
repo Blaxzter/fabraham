@@ -1,0 +1,145 @@
+{
+  "home": {
+    "meta": {
+      "title": "Frederic Abraham — Fullest-Stack Developer",
+      "description": "The career of Frederic Abraham as a scroll-driven 3D timeline: TU Berlin (B.Sc.), an M.Sc. in AI at Maastricht, and scaling AI products at Respeak in Berlin — GANs, embeddings, and RAG.",
+      "ogDescription": "A biographical 3D timeline: Berlin → Maastricht → Berlin. Generative AI, embeddings at scale, and retrieval-augmented generation."
+    },
+    "sections": {
+      "identity": { "title": "Frederic Abraham", "subtitle": "Fullest-Stack Developer" },
+      "reveal": { "title": "The face", "subtitle": "" },
+      "projects": { "title": "What I've been building", "subtitle": "Recent projects" },
+      "biography": { "title": "Studies and work", "subtitle": "Berlin → Maastricht → Berlin · 2016–now" },
+      "skills": { "title": "What I work with", "subtitle": "Stack" },
+      "contact": { "title": "Get in touch", "subtitle": "Contact" },
+      "outro": { "title": "Explore the scene", "subtitle": "Free camera" }
+    },
+    "hero": {
+      "sr": "Senior developer at Respeak in Berlin. I work across the whole stack, and most of my work involves AI: generative models in my master's, sentence embeddings for a game with 18,000 concurrent players, and now a retrieval-augmented generation platform.",
+      "pos": "adj.",
+      "noun": "developer",
+      "def": "someone who, asked which part of the stack they work on, answers “yes”."
+    },
+    "projects": {
+      "lede": "The three projects I worked on most recently. Each card opens the live project; further down is the way to all of them.",
+      "aria": "All {count} projects, {from} to {to} — open the timeline",
+      "ariaNoRange": "All {count} projects — open the timeline",
+      "caption": "projects",
+      "go": "open the timeline"
+    },
+    "skills": {
+      "clusters": { "backend": "Backend", "frontend": "Frontend", "ai": "AI / LLM", "infra": "Infra" }
+    },
+    "contact": {
+      "titleWord": "contact",
+      "whoamiOut": "frederic abraham · developer at respeak, berlin",
+      "prose": "I'm a senior developer at {respeak} in Berlin. If you have a question, an idea, or just want to say hello, type {mail} below and write me from here, or use one of the links.",
+      "inputAria": "Terminal input — try typing help",
+      "hint": "type a command — try: help",
+      "hintShort": "try: help",
+      "files": {
+        "about": "Senior fullest-stack dev at Respeak in Berlin. Studied in Berlin and Maastricht. Currently building a RAG platform for public administration.",
+        "contact": "github.com/Blaxzter · respeak.io · or type 'mail' and write me from here.",
+        "secret": "you found it. there's nothing else in here, but thanks for looking. ✦"
+      },
+      "help": [
+        "available commands (they actually run):",
+        "  help            this list",
+        "  whoami          who you're talking to",
+        "  ls / cat {'<'}f{'>'}    poke around the filesystem",
+        "  stack           the toolbox",
+        "  mail            write me a message, right here",
+        "  contact         other ways to reach me",
+        "  open {'<'}where{'>'}    open github {'|'} respeak in a new tab",
+        "  orbit           unclip the camera and fly the scene yourself",
+        "  clear           wipe the screen",
+        "  …and a few you'll have to discover. (try 'sudo' something)"
+      ],
+      "notFound": [
+        "command not found: {c}. (I only really know 'help'.)",
+        "{c}? never heard of it. try 'help'.",
+        "bash: {c}: command not found — but I admire the confidence.",
+        "nope. '{c}' isn't a thing here. 'help' is, though."
+      ],
+      "confirmPrompt": "send? [y/n]",
+      "compose": {
+        "start": "composing a message to frederic. ctrl+c or esc cancels.",
+        "who": "who's writing?",
+        "discarded": "message discarded. nothing was sent.",
+        "parseFail": "that message doesn't parse — try 'mail' again?",
+        "transmitting": "→ transmitting…",
+        "delivered": "✓ delivered. I'll reply to {email}.",
+        "failed": "✗ the transmission didn't make it. nothing was lost on your side —",
+        "failedRetry": "try again with 'mail', or find me on {link}.",
+        "nameEmpty": "a name, or a handle — anything I can call you.",
+        "nameLong": "that's a long name. {max} characters, tops.",
+        "hi": "hi {name}. where can I reply?",
+        "emailBad": "that doesn't look like an email address. once more?",
+        "goAhead": "go ahead. end with a single '.' on its own line.",
+        "empty": "an empty message? keep typing — end with '.' when you're done.",
+        "summary": "to: frederic · from: {name} <{email}>",
+        "tooLong": "that line would take it past {max} characters. finish with '.'?",
+        "yn": "y or n?"
+      },
+      "out": {
+        "whoami": ["frederic — senior fullest-stack dev, Berlin.", "you: a person of evidently excellent taste."],
+        "catEmpty": "cat: i need something to read. try 'ls' first.",
+        "catDir": "cat: {f}: is a directory — try 'open {name}'.",
+        "catMissing": "cat: {f}: No such file (try 'ls').",
+        "stackExtra": "…plus a frankly concerning amount of YAML.",
+        "contactPick": "↑ pick your poison — or type 'mail' and write me from right here.",
+        "opening": "→ opening {url} …",
+        "openHelp": "open: try 'open github' or 'open respeak'.",
+        "orbit": [
+          "detaching camera from scroll rails…",
+          "drag to orbit, wheel to zoom. the bar at the bottom scrubs the whole run.",
+          "esc — or 'return to scroll' — brings you back where you left off."
+        ],
+        "ping": "PONG. latency: Berlin → you. let's lower it — say hi.",
+        "dateNote": "(best time to reach out: now.)",
+        "sudoEmpty": "sudo what? absolute power needs an object.",
+        "sudoHire": [
+          "escalating privileges… ✅ granted.",
+          "…to a position that's already filled. happily, at Respeak.",
+          "'mail' still works for everything else."
+        ],
+        "sudoRm": "🙅 not on my watch, not even with sudo.",
+        "sandwich": "poof 🥪 you're a sandwich.",
+        "sudoOther": ["[sudo] password for visitor: ********", "nope — you already have root over your own career. 😉"],
+        "rm": "🙅 nice try — everything here is load-bearing.",
+        "vim": "you're in vim now. (jk — :q worked, unlike for most people.)",
+        "exit": "there is no exit — only scroll. (the window's X works, though.)",
+        "matrix": "🟢 wake up… the head's been in the matrix this whole time.",
+        "hire": [
+          "flattered — but not looking. I'm happily building at Respeak.",
+          "a good problem is always welcome, though: 'mail' me about yours."
+        ],
+        "coffee": "always. ☕ type 'mail' and tell me where.",
+        "sl": "🚂 woo woo… (you typed it too fast, didn't you.)"
+      }
+    },
+    "outro": {
+      "prose": "Everything you just scrolled through is a single 3D scene. The free camera lets you leave the scroll path, look at it from any angle, and scrub through the whole timeline.",
+      "cta": "Open the free camera",
+      "note": "free camera · drag to orbit · scrub the whole timeline · esc to come back"
+    },
+    "explore": {
+      "badge": "free camera",
+      "keys": {
+        "drag": "drag", "orbit": "orbit", "wheel": "wheel", "zoom": "zoom",
+        "rightDrag": "right-drag", "pan": "pan", "esc": "esc", "exit": "exit"
+      },
+      "back": "return to scroll",
+      "pause": "Pause the tour",
+      "play": "Play the tour",
+      "prev": "Previous chapter",
+      "next": "Next chapter",
+      "scrub": "Scrub the scene",
+      "seg": {
+        "identity": "identity", "reveal": "reveal", "projects": "projects", "biography": "biography",
+        "skills": "skills", "contact": "contact", "outro": "outro"
+      }
+    },
+    "scroll": "SCROLL"
+  }
+}

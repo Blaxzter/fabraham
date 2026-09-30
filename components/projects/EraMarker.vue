@@ -1,18 +1,27 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { Era } from "./eras";
 
 // A moment on the line, not a heading above a group: the marker sits at its own
 // date, and the era it opens runs UPWARD from it (forward in time) to the next
 // marker — which is why the pill reads "from …".
-defineProps<{ era: Era }>();
+const props = defineProps<{ era: Era }>();
+
+const { t } = useI18n();
+const dates = useProjectDates();
+const key = (field: string) => `projects.eras.${props.era.id}.${field}`;
+const when = computed(() => {
+  const d = new Date(`${props.era.date}T00:00:00Z`);
+  return t(key("when"), { date: props.era.precision === "day" ? dates.day(d) : dates.month(d) });
+});
 </script>
 
 <template>
   <div class="era-inner" :style="{ '--era': era.accent }">
-    <span class="era-when">{{ era.when }}</span>
-    <h2>{{ era.title }}</h2>
-    <p class="era-place">{{ era.place }}</p>
-    <p class="era-note">{{ era.note }}</p>
+    <span class="era-when">{{ when }}</span>
+    <h2>{{ t(key("title")) }}</h2>
+    <p class="era-place">{{ t(key("place")) }}</p>
+    <p class="era-note">{{ t(key("note")) }}</p>
   </div>
 </template>
 

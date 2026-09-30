@@ -1,6 +1,6 @@
 ---
 title: "LogoLab"
-description: "Preview, clean up, vectorize and export your logo — 100% in your browser. No uploads, no sign-up. Background removal runs on WebGPU."
+description: "Preview, clean up, vectorize and export your logo, entirely in your browser. No uploads, no sign-up. Background removal runs on WebGPU."
 repo: "Blaxzter/LogoLab"
 url: "https://github.com/Blaxzter/LogoLab"
 home: "https://logolab.fabraham.dev"
@@ -9,6 +9,11 @@ accent: "#00ff9c"
 skin: "alpha"
 emergent: "vectors"
 spec: "WebGPU · transformers.js · no upload"
+# German wording of the fields above (see content.config.ts).
+de:
+  title: "LogoLab"
+  description: "Vorschau, Bereinigung, Vektorisierung und Export deines Logos, komplett im Browser. Keine Uploads, keine Anmeldung. Die Hintergrundentfernung läuft auf WebGPU."
+  spec: "WebGPU · transformers.js · kein Upload"
 # --- refreshed by scripts/fetch-github-projects.mjs; do not hand-edit ---
 pushed: "2026-09-19"
 stars: 0

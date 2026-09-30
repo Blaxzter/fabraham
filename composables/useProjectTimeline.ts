@@ -42,6 +42,8 @@ export interface ProjectDoc {
   spec: string;
   shared?: boolean;
   note?: string;
+  /** German wording of the authored fields; see `localizeProject`. */
+  de?: { title?: string; description?: string; spec?: string; note?: string } | null;
   pushed: string;
   stars: number;
   langs: string[];
@@ -49,15 +51,42 @@ export interface ProjectDoc {
   commits: { date: string; message: string }[];
 }
 
+/**
+ * Dates on /projects, in the page's language: British order in English
+ * ("5 Jun 2026"), German in German ("5. Juni 2026"). Always UTC, because every
+ * date here is a calendar date (a repo's creation day, a GitHub week bucket),
+ * not a moment, and a local timezone would shift it by a day.
+ */
+export function useProjectDates() {
+  const { locale } = useI18n();
+  const tag = computed(() => (locale.value === "de" ? "de-DE" : "en-GB"));
+  const format = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(tag.value, { timeZone: "UTC", ...opts }).format(d);
+  return {
+    tag,
+    /** "5 Jun 2026" / "5. Juni 2026". */
+    day: (d: Date) => format(d, { day: "numeric", month: "short", year: "numeric" }),
+    /** "Aug 2026" / "Aug. 2026". */
+    month: (d: Date) => format(d, { month: "short", year: "numeric" }),
+    /** "Mar ’26" / "März ’26": the chart's axis and its month table. */
+    monthShort: (d: Date) =>
+      `${format(d, { month: "short" })} ’${String(d.getUTCFullYear()).slice(2)}`,
+    format,
+  };
+}
+
 export function useProjectTimeline() {
+  const { locale } = useI18n();
   const { data, pending, error } = useAsyncData("projects-timeline", () =>
     queryCollection("projects").all()
   );
 
+  // Localised here, once, so every card, the chart and the hero read the same
+  // wording. Only the authored fields change; the GitHub half is shared.
   const projects = computed<ProjectDoc[]>(() =>
-    [...((data.value ?? []) as unknown as ProjectDoc[])].sort((a, b) =>
-      b.date.localeCompare(a.date)
-    )
+    [...((data.value ?? []) as unknown as ProjectDoc[])]
+      .map((doc) => localizeProject(doc, locale.value))
+      .sort((a, b) => b.date.localeCompare(a.date))
   );
 
   const rows = computed<TimelineRow[]>(() => {

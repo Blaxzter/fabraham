@@ -14,6 +14,7 @@ import BiographyCard from "./BiographyCard.vue";
 // to the top of the section so the cluster reads as a clearly labeled chapter
 // as you scroll through it.
 const props = defineProps<{ section?: Section; visible?: boolean }>();
+const { t } = useI18n();
 
 const store = useSectionsStore();
 const { docs, milestones } = useBiographyMilestones();
@@ -101,8 +102,8 @@ const cardStyle = (item: { ax: number; ay: number; sideSign: number }) => ({
     :class="{ 'is-visible': entered }"
     :style="{ '--accent': accent }"
   >
-    <p v-if="section?.subtitle" class="bio-route">{{ section.subtitle }}</p>
-    <h2 v-if="section?.title" class="bio-title">{{ section.title }}</h2>
+    <p v-if="section?.subtitle" class="bio-route">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
+    <h2 v-if="section?.title" class="bio-title">{{ t(`home.sections.${section.id}.title`) }}</h2>
   </header>
 
   <div class="bio" :style="{ '--accent': accent }">
