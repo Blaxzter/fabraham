@@ -8,6 +8,28 @@ import Lenis from "lenis";
 let lenis: Lenis | null = null;
 let tickerFn: ((time: number) => void) | null = null;
 
+// Who wants the page held still. More than one thing can (the free camera, the
+// boot covering the page), and one letting go must not release the other's.
+// Kept apart from `lenis` because the boot takes its lock before the content
+// below it has mounted and started Lenis.
+const scrollLocks = new Set<string>();
+const applyScrollLock = () => {
+  if (!lenis) return;
+  if (scrollLocks.size) lenis.stop();
+  else lenis.start();
+};
+
+/**
+ * Hold the page's scroll (`on`) or let go of it, under a name. While any lock
+ * is held, Lenis swallows the wheel and touch outright, except inside elements
+ * marked `data-lenis-prevent`, which scroll natively.
+ */
+export const setScrollLock = (key: string, on: boolean) => {
+  if (on) scrollLocks.add(key);
+  else scrollLocks.delete(key);
+  applyScrollLock();
+};
+
 const startSmoothScroll = () => {
   if (lenis) return;
   gsap.registerPlugin(ScrollTrigger);
@@ -21,6 +43,7 @@ const startSmoothScroll = () => {
   tickerFn = (time: number) => lenis?.raf(time * 1000);
   gsap.ticker.add(tickerFn);
   gsap.ticker.lagSmoothing(0);
+  applyScrollLock();
 };
 
 /**
@@ -111,10 +134,7 @@ export function useScrollTimeline() {
     // wheel listener still reaches OrbitControls. Resume on return to scroll mode.
     stopOrbitLock = watch(
       () => sceneControl.cameraControlMode,
-      (mode) => {
-        if (mode === "orbit") lenis?.stop();
-        else lenis?.start();
-      },
+      (mode) => setScrollLock("orbit", mode === "orbit"),
       { immediate: true }
     );
   });

@@ -251,6 +251,8 @@
 .boot-root .phase-scroll {
   height: 100%;
   overflow: auto;
+  /* At either end the wheel stops here, rather than scrolling the page. */
+  overscroll-behavior: contain;
   /* The menu and the easter egg can be taller than the tube; a stock grey
      scrollbar on a phosphor screen is not a thing, so it goes thin and dark. */
   scrollbar-width: thin;

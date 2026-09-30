@@ -80,12 +80,18 @@
                     v-else-if="bootState.phase === 'easter-egg'"
                     ref="easterEggRef"
                     class="phase-scroll"
+                    data-lenis-prevent
                   >
                     <BootEasterEgg @exit="onEasterEggExit" @continue="onEasterEggContinue" />
                   </div>
 
                   <!-- F10 -->
-                  <div v-else-if="bootState.phase === 'menu'" ref="menuRef" class="phase-scroll">
+                  <div
+                    v-else-if="bootState.phase === 'menu'"
+                    ref="menuRef"
+                    class="phase-scroll"
+                    data-lenis-prevent
+                  >
                     <BootMenu @select="onMenuSelect" />
                   </div>
 
@@ -117,11 +123,10 @@
       </div>
       <div class="lip" aria-hidden="true" />
 
-      <!-- Key hints, under the set, only while POST runs -->
-      <div class="hints" :class="{ 'is-hidden': bootState.phase !== 'booting' || through }">
-        <BootText text="DEL: BIOS Setup" color="white" />
-        <BootText text="F10: Boot Menu" color="white" />
-        <BootText text="Any key: Skip" color="white" />
+      <!-- Key hints, under the set, for whatever the tube is showing. The
+           screens' own footers can be scrolled out of view; these cannot. -->
+      <div class="hints" :class="{ 'is-hidden': !hints.length || through }">
+        <BootText v-for="hint in hints" :key="hint" :text="hint" color="white" />
       </div>
     </div>
   </div>
@@ -148,6 +153,13 @@ const glassRef = ref<HTMLElement | null>(null);
 const bootSequenceRef = ref<HTMLElement | null>(null);
 const easterEggRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
+
+const HINTS: Partial<Record<string, string[]>> = {
+  booting: ["DEL: BIOS Setup", "F10: Boot Menu", "Any key: Skip"],
+  "easter-egg": ["ESC: Back to boot", "ENTER: Boot Menu"],
+  menu: ["◄ ►: Select", "ENTER: Boot", "1-3: Quick select"],
+};
+const hints = computed(() => HINTS[bootState.phase] ?? []);
 
 const powered = ref(false);
 const tuning = ref(false);
@@ -208,6 +220,9 @@ let lensObserver: ResizeObserver | null = null;
 
 onMounted(() => {
   if (!import.meta.client) return;
+  // The page is under the set and must not scroll behind it; the tube's own
+  // scrolling screens are `data-lenis-prevent`, so they still do.
+  setScrollLock("boot", true);
   const lens = lensRef.value;
   if (lens) {
     // offset* is the padded box, untouched by the power-on's scale transform.
@@ -226,7 +241,10 @@ onMounted(() => {
   setTimeout(() => bootState.setPhase("booting"), reducedMotion.value ? 50 : 300);
 });
 
-onUnmounted(() => lensObserver?.disconnect());
+onUnmounted(() => {
+  lensObserver?.disconnect();
+  setScrollLock("boot", false);
+});
 
 // ── Phases ────────────────────────────────────────────────────────────────────
 const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
