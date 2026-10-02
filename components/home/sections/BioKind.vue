@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * The study / work / volunteer tag on the biography cards. Outlined for study
- * and volunteer, filled for work, so "this was a job" reads the same whether it
- * heads a whole card or a block inside one (`::bio-work` in the markdown).
+ * The study / work / volunteer tag on each entry of a biography card's
+ * timeline (`::bio-row` in the markdown). Outlined for study and volunteer,
+ * filled for work, so the jobs stand out in a card that mixes both.
  */
 export type BioKindName = "study" | "work" | "volunteer";
 

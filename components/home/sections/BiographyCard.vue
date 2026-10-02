@@ -2,7 +2,6 @@
 import { computed, ref } from "vue";
 import { useElementVisibility } from "@vueuse/core";
 import type { BiographyMilestone } from "~/types/section";
-import BioKind from "./BioKind.vue";
 
 // One milestone in the biography cluster. Owns its own staggered fade-in
 // (IntersectionObserver — no rAF) and its own LIGHTING: while it is the card the
@@ -58,11 +57,12 @@ const accentStyle = computed(() =>
     }"
     :style="accentStyle"
   >
-    <p v-if="milestone.location || milestone.kind" class="bio-head">
-      <BioKind v-if="milestone.kind" :kind="milestone.kind" />
-      <span v-if="milestone.location" class="bio-loc">{{ milestone.location }}</span>
-    </p>
-    <p v-if="milestone.subtitle" class="bio-sub">{{ milestone.subtitle }}</p>
+    <!-- The heading is the card's one place-and-time line; everything else is
+         the `::bio-row` timeline in the markdown body. -->
+    <header class="bio-top">
+      <h3 class="bio-title">{{ milestone.title }}</h3>
+      <span v-if="milestone.period" class="bio-period">{{ milestone.period }}</span>
+    </header>
     <div class="bio-prose">
       <ContentRenderer v-if="doc" :value="doc" />
     </div>
@@ -128,17 +128,13 @@ const accentStyle = computed(() =>
      right: the key comes from the right. */
   --lit-dir: 1;
   border-right-width: 3px;
-  text-align: right;
-  /* Read by the flex rows inside the card (the header, `::bio-work`), which
-     text-align does not reach. */
-  --bio-align: flex-end;
+  /* Left-aligned on both sides: the card is a timeline with its rail on the
+     left, and ragged-left paragraphs were hard to read. */
   transform: translateX(-24px);
 }
 .bio-card.right {
   --lit-dir: -1;
   border-left-width: 3px;
-  text-align: left;
-  --bio-align: flex-start;
   transform: translateX(24px);
 }
 .bio-card.is-visible {
@@ -256,38 +252,31 @@ const accentStyle = computed(() =>
   opacity: 1;
 }
 
-.bio-head {
+.bio-top {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  justify-content: var(--bio-align, flex-start);
-  margin: 0 0 0.35rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.85rem;
 }
-.bio-loc {
+.bio-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.bio-period {
+  flex-shrink: 0;
   font-family: "Courier New", monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
   color: var(--accent, #00ff9c);
   /* Zero-blur placeholder so the lit state has something to interpolate from. */
   text-shadow: 0 0 0 color-mix(in srgb, var(--accent, #00ff9c) 0%, transparent);
   transition: text-shadow 0.6s ease;
 }
-.bio-card.is-lit .bio-loc {
+.bio-card.is-lit .bio-period {
   text-shadow: 0 0 14px color-mix(in srgb, var(--accent, #00ff9c) 45%, transparent);
-}
-.bio-sub {
-  font-size: 0.82rem;
-  opacity: 0.7;
-  margin: 0 0 0.5rem;
-  transition: opacity 0.5s ease;
-}
-.bio-prose :deep(h2),
-.bio-prose :deep(h1) {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-  line-height: 1.2;
 }
 .bio-prose :deep(p) {
   font-size: 0.9rem;
@@ -299,17 +288,14 @@ const accentStyle = computed(() =>
 .bio-prose :deep(p:last-child) {
   margin-bottom: 0;
 }
-/* Accent-coloured, so bold is a highlight, not emphasis. The rule for the
-   biography markdown: bold only an organisation Frederic worked for, and only on
-   its first mention (GT-ARC, RWTH Aachen, Respeak). Nothing else gets it, so a
-   skim of the cards reads as the list of employers. */
+/* Accent-coloured, so bold is a highlight, not emphasis. Places and employers
+   are the row names now (`::bio-row`), so prose rarely needs it. */
 .bio-prose :deep(strong) {
   color: var(--accent, #00ff9c);
   font-weight: 700;
 }
-/* Links to what a card mentions (a lab, a repo, the paper). Underlined so they
-   read as links without competing with the bold employer names; a linked
-   employer is both, and keeps the accent. */
+/* Links to what a card mentions (a lab, a repo, the paper): underlined in the
+   card's accent. */
 .bio-prose :deep(a) {
   color: inherit;
   text-decoration: underline;
@@ -322,17 +308,7 @@ const accentStyle = computed(() =>
 .bio-prose :deep(a:focus-visible) {
   text-decoration-color: var(--accent, #00ff9c);
 }
-/* Nuxt Content wraps every heading in a `#slug` anchor. That is not a link
-   anyone needs here, and it must not look like one. */
-.bio-prose :deep(h1 a),
-.bio-prose :deep(h2 a) {
-  text-decoration: none;
-  pointer-events: none;
-}
 /* The lit card is also the readable one: the light lands on its prose too. */
-.bio-card.is-lit .bio-sub {
-  opacity: 0.9;
-}
 .bio-card.is-lit .bio-prose :deep(p) {
   opacity: 1;
 }
@@ -362,7 +338,6 @@ const accentStyle = computed(() =>
   .bio-card.left {
     --lit-dir: -1;
     text-align: left;
-    --bio-align: flex-start;
     border-right-width: 0;
     border-left-width: 3px;
   }

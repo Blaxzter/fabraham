@@ -247,6 +247,55 @@ const depthOnlyMat = new MeshBasicMaterial({ colorWrite: false });
 const { scene, camera, renderer } = useTresContext();
 const setPiecesRoot = shallowRef<Group | null>(null);
 
+// three.js recomputes the world matrix of EVERY object on every `render()`,
+// visible or not: `Object3D.updateMatrixWorld` recurses into all children and
+// has no flag to prune a subtree. All the set-pieces live in the scene at once
+// (~950 of its ~1,170 objects, a few dozen ever on screen together), and with
+// four renders a frame that walk was most of the site's CPU time.
+//
+// So each piece's wrapper gets its own `updateMatrixWorld` that returns at once
+// while nothing under it is visible. The check runs when the renderer calls it,
+// after the pieces have set their visibility for the frame, so a piece that
+// appears is brought up to date in that same frame. Installed once per wrapper.
+//
+// Typed structurally: @types/three ships two `Object3D` declarations (the
+// bundle's and `src/core`'s) and the scene's children come back as the other
+// one, so neither import fits both.
+interface Node3D {
+  children: Node3D[];
+  visible: boolean;
+  userData: Record<string, unknown>;
+  updateMatrixWorld(force?: boolean): void;
+  isMesh?: boolean;
+  isLine?: boolean;
+  isPoints?: boolean;
+  isSprite?: boolean;
+}
+const skipWhileHidden = (wrapper: Node3D) => {
+  if (wrapper.userData.skipsWhileHidden) return;
+  wrapper.userData.skipsWhileHidden = true;
+  const update = wrapper.updateMatrixWorld;
+  wrapper.updateMatrixWorld = function (this: Node3D, force?: boolean) {
+    const kids = this.children;
+    for (let i = 0; i < kids.length; i++) {
+      if (kids[i]!.visible) return update.call(this, force);
+    }
+  };
+};
+
+// Whether anything drawable under `o` is visible, so a pass with nothing in it
+// is skipped outright rather than run to draw nothing.
+const hasVisibleDrawable = (o: Node3D): boolean => {
+  const kids = o.children;
+  for (let i = 0; i < kids.length; i++) {
+    const c = kids[i]!;
+    if (!c.visible) continue;
+    if (c.isMesh || c.isLine || c.isPoints || c.isSprite) return true;
+    if (hasVisibleDrawable(c)) return true;
+  }
+  return false;
+};
+
 const { onRender } = useLoop();
 onRender(() => {
   const root = setPiecesRoot.value;
@@ -277,11 +326,21 @@ onRender(() => {
   // The wrapper groups below carry the name, so a stray node is simply skipped
   // instead of shifting every piece onto the wrong layer.
   const kids = root.children;
+  let onTop = false;
+  let occluded = false;
   for (let i = 0; i < kids.length; i++) {
     const kid = kids[i]!;
-    if (kid.name === OCCLUDED_TAG) kid.traverse((o) => o.layers.set(OCCLUDED_LAYER));
-    else if (kid.name === ONTOP_TAG) kid.traverse((o) => o.layers.set(SETPIECE_LAYER));
+    if (kid.name === OCCLUDED_TAG) {
+      skipWhileHidden(kid);
+      kid.traverse((o) => o.layers.set(OCCLUDED_LAYER));
+      if (!occluded && hasVisibleDrawable(kid)) occluded = true;
+    } else if (kid.name === ONTOP_TAG) {
+      skipWhileHidden(kid);
+      kid.traverse((o) => o.layers.set(SETPIECE_LAYER));
+      if (!onTop && hasVisibleDrawable(kid)) onTop = true;
+    }
   }
+  if (!onTop && !occluded) return;
 
   // Composite the crisp set-pieces over the ASCII'd scene the composer just drew
   // to the canvas. Keep the existing colour buffer (autoClear=false) and clear
@@ -289,26 +348,35 @@ onRender(() => {
   const prevAutoClear = gl.autoClear;
   const prevBackground = scn.background;
   const prevOverride = scn.overrideMaterial;
+  const prevMatrixUpdate = scn.matrixWorldAutoUpdate;
   gl.autoClear = false;
   scn.background = null;
+  // The composer's render earlier this frame already brought every matrix up to
+  // date; letting each pass below redo it for the whole scene was pure repeat.
+  scn.matrixWorldAutoUpdate = false;
   gl.clearDepth();
 
   // 1) On-top backdrops (no occluder yet → all visible over the head).
-  cam.layers.set(SETPIECE_LAYER);
-  gl.render(scn, cam);
+  if (onTop) {
+    cam.layers.set(SETPIECE_LAYER);
+    gl.render(scn, cam);
+  }
 
-  // 2) Stamp the head into the depth buffer (depth only, no colour).
-  cam.layers.set(HEAD_LAYER);
-  scn.overrideMaterial = depthOnlyMat;
-  gl.render(scn, cam);
-  scn.overrideMaterial = prevOverride;
+  if (occluded) {
+    // 2) Stamp the head into the depth buffer (depth only, no colour).
+    cam.layers.set(HEAD_LAYER);
+    scn.overrideMaterial = depthOnlyMat;
+    gl.render(scn, cam);
+    scn.overrideMaterial = prevOverride;
 
-  // 3) Occluded pieces (the graph): depth-tested against the head, so the head
-  //    hides the back of the cloud and the face reads as being *inside* it.
-  cam.layers.set(OCCLUDED_LAYER);
-  gl.render(scn, cam);
+    // 3) Occluded pieces (the graph): depth-tested against the head, so the head
+    //    hides the back of the cloud and the face reads as being *inside* it.
+    cam.layers.set(OCCLUDED_LAYER);
+    gl.render(scn, cam);
+  }
 
   cam.layers.set(0);
+  scn.matrixWorldAutoUpdate = prevMatrixUpdate;
   scn.background = prevBackground;
   gl.autoClear = prevAutoClear;
 });

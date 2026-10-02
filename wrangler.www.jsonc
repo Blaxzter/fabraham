@@ -1,0 +1,11 @@
+{
+  // www.fabraham.dev → https://fabraham.dev, permanently, path and query kept.
+  // Deployed on its own (`pnpm deploy:www`) so the main Worker never has to
+  // run in front of the static assets just to look at the hostname.
+  "name": "fabraham-www",
+  // Pinned so a deploy can't land on another account the login can see.
+  "account_id": "5bba05afbd252add74fdd4573c985080",
+  "main": "worker/www.ts",
+  "compatibility_date": "2025-05-15",
+  "routes": [{ "pattern": "www.fabraham.dev", "custom_domain": true }]
+}

@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "optimize:model": "pnpm dlx @gltf-transform/cli@4 optimize public/models/head.glb public/models/head.glb --compress false --simplify false --texture-compress webp --texture-size 1024",
-    "build:icons": "node scripts/build-icons.cjs"
+    "build:icons": "node scripts/build-icons.cjs",
+    "deploy:www": "wrangler deploy --config wrangler.www.jsonc"
   },
   "dependencies": {
     "@nuxt/content": "3.10.0",
@@ -55,5 +56,10 @@
     "sharp": "0.34.5",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.3"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@tresjs/core@5.2.1": "patches/@tresjs__core@5.2.1.patch"
+    }
   }
 }

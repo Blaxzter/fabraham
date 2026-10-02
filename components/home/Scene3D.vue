@@ -412,12 +412,17 @@ watch(
 </script>
 
 <template>
+  <!-- Capped at 60 fps: on a 120/144 Hz screen the scene otherwise renders two
+       to two and a half times as often as it needs to, and every one of those
+       frames is the full scene plus the ASCII pass. `fps-limit` is backported
+       into @tresjs/core 5.2.1 by patches/@tresjs__core@5.2.1.patch. -->
   <TresCanvas
     v-bind="gl"
     clear-color="#111"
     shadows
     alpha
     window-size
+    :fps-limit="60"
     @loop="onLoop"
   >
     <!-- Free camera. `minDistance` keeps you out of the inside of the head;
@@ -522,12 +527,14 @@ watch(
       </TresMesh>
     </TresGroup>
 
-    <!-- Ground plane -->
-    <TresMesh :position="[0, -2, 0]" :scale="[10, 10, 10]">
+    <!-- Ground plane. A group, not a mesh: it only places the backdrop, and an
+         empty TresMesh here was a geometry-less mesh in the scene (the one the
+         TresJS devtools choked on with "reading 'count'"). -->
+    <TresGroup :position="[0, -2, 0]" :scale="[10, 10, 10]">
       <Backdrop :floor="0.25" :segments="20" receive-shadow>
         <TresMeshPhysicalMaterial color="#444" :roughness="0.5" />
       </Backdrop>
-    </TresMesh>
+    </TresGroup>
 
     <!-- Constant base lighting (tunable). The scroll spotlights add focused,
          scroll-driven light on top of this. -->

@@ -1,18 +1,17 @@
 ---
-title: "TU Berlin, B.Sc. Informatik"
-subtitle: "2016–2020 · Berlin"
-location: "Berlin"
+title: "Berlin"
+period: "2016–2020"
 ---
 
-## TU Berlin
+::bio-row{when="2016–2020" kind="study" name="TU Berlin" role="B.Sc. Informatik, 1,8"}
+::
 
-B.Sc. in Informatik, abgeschlossen mit 1,8. Meine Bachelorarbeit war eine
-[Laufzeitumgebung für genetische Algorithmen](https://github.com/Blaxzter/GaenAPI),
-die vergleicht, wie gut verschiedene genetische Operatoren
-Shop-Scheduling-Probleme lösen.
+::bio-row{when="2017–2020" kind="work" name="GT-ARC" href="https://gt-arc.com" role="Studentische Hilfskraft"}
+Multi-Agenten-Anwendungen auf dem JIAC-V-Framework und ein Angular- und
+Node-Dashboard zur Überwachung von IoT-Geräten.
+::
 
-::bio-work{when="2017–2020"}
-Als studentische Hilfskraft bei [**GT-ARC**](https://gt-arc.com) an der TU Berlin
-habe ich Multi-Agenten-Anwendungen auf dem JIAC-V-Framework entwickelt und ein
-Angular- und Node-Dashboard zur Überwachung von IoT-Geräten gebaut.
+::bio-row{when="2020" kind="study" name="Bachelorarbeit"}
+Eine [Laufzeitumgebung für genetische Algorithmen](https://github.com/Blaxzter/GaenAPI), die vergleicht, wie
+gut verschiedene genetische Operatoren Shop-Scheduling-Probleme lösen.
 ::

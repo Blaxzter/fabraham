@@ -1,0 +1,40 @@
+# Frederic Abraham
+
+> Senior full-stack developer at Respeak in Berlin. Studied computer science at TU Berlin (B.Sc.) and artificial intelligence at Maastricht University (M.Sc.). Most of the work involves AI: GANs in the master's thesis, sentence embeddings for a chat game with 18,000 concurrent players, and now a retrieval-augmented generation platform for public administration.
+
+The site is in English at https://fabraham.dev and in German at https://fabraham.dev/de.
+
+## Pages
+
+- [Home](https://fabraham.dev/): the career as a scroll-driven timeline, from Berlin and Maastricht to Respeak
+- [Projects](https://fabraham.dev/projects): the projects below, with commit activity per repository
+
+## Work
+
+- [Respeak](https://respeak.io): employer since 2023; tech lead of Experte, a RAG platform that answers with citations from PDFs, SharePoint and Confluence
+
+## Projects
+
+- [Episko](https://episko.dev): a native desktop app (Tauri, Rust) for running many coding agents at once, each in a real terminal ([source](https://github.com/respeak-io/episko))
+- [LogoLab](https://logolab.fabraham.dev): preview, clean up, vectorize and export a logo entirely in the browser, with background removal on WebGPU ([source](https://github.com/Blaxzter/LogoLab))
+- [Speeden & Cuben](https://speeden-and-cuben.fabraham.dev): a CFOP speedcubing reference with 3D playback; every algorithm is checked against a cube model ([source](https://github.com/Blaxzter/speeden-and-cuben))
+- [Free Fast File Sync](https://github.com/Blaxzter/Free-Fast-File-Sync): file sync with a Rust core and a TypeScript shell
+- [Angry Birds levels, generated](https://github.com/Blaxzter/Utilizing-Generative-Adversarial-Networks-for-Stable-Structure-Generation-in-Angry-Birds): pretrained models for the AIIDE 2023 paper "Utilizing GANs for Stable Structure Generation in Angry Birds"
+- [Master's thesis](https://github.com/Blaxzter/Master-Thesis_GAN-level-gen): GANs generating Science Birds levels, scored on whether the structures stay standing
+- [Genetic algorithms for the JVM](https://github.com/Blaxzter/GaenAPI): the bachelor's thesis runtime
+- [Room booking, self-hosted](https://github.com/Blaxzter/room-booking-tool): self-hostable room and resource booking
+- [Instant Twitch Replay](https://github.com/Blaxzter/Instant-Twitch-Replay): replay the last seconds of a Twitch stream
+- [Wirksam](https://github.com/Blaxzter/wirksam): an events tool in Python and Vue
+- [This website](https://github.com/Blaxzter/fabraham): Nuxt, GSAP and a GLB head rendered through an ASCII post-process
+
+## Church and community
+
+- [Johannischer Kirchentag](https://johannischer-kirchentag.de): event site for the Johannischer Kirchentag ([source](https://github.com/johkirche/KiTaWo-Frontend))
+- [The hymnal app](https://github.com/johkirche/gb-app-pwa): engraved sheet music that reflows to the screen, with notes you can tap to hear
+- [The hymnal, offline](https://github.com/johkirche/gb-pwa): the offline part of the hymnal PWA
+- [The hymnal's editor](https://github.com/Blaxzter/gb-dashboard): the editing tool behind it
+- [A century of objects](https://github.com/johkirche/100year-object-upload-frontend): an upload desk for a centenary archive
+
+## Elsewhere
+
+- [GitHub](https://github.com/Blaxzter)

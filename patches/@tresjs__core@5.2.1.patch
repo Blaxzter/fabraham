@@ -1,0 +1,84 @@
+diff --git a/dist/tres.d.ts b/dist/tres.d.ts
+index 5174c09de96bd0c643c37f1d62b19ff6ba34e1db..b99d8d179dfd183045568df7dbaa1ea78a4e118f 100644
+--- a/dist/tres.d.ts
++++ b/dist/tres.d.ts
+@@ -268,6 +268,8 @@ interface RendererOptions {
+    * @default 'always'
+    */
+   renderMode?: 'always' | 'on-demand' | 'manual';
++  /** Cap the render loop to this many frames per second (fabraham patch, backported from 5.9). */
++  fpsLimit?: number;
+   /**
+    * Device Pixel Ratio for the renderer
+    * Can be a single number or a tuple defining a range [min, max]
+diff --git a/dist/tres.js b/dist/tres.js
+index 058fc2d95ed2ef8870e9a4669e0b45478a7fe3ea..4c749d1448a686c8b72baac09cccd4bbfc3280ba 100644
+--- a/dist/tres.js
++++ b/dist/tres.js
+@@ -721,13 +721,25 @@ const setPixelRatio = (renderer, systemDpr, userDpr) => {
+ /**
+ * @param cycleFn the function that is called before the after event hook is triggered and after the before event hook is triggered.
+ */
+-const useCreateRafLoop = (cycleFn) => {
++const useCreateRafLoop = (cycleFn, { fpsLimit } = {}) => {
+ 	const clock = new Clock();
+ 	const eventHooks = {
+ 		before: createEventHook(),
+ 		after: createEventHook()
+ 	};
+-	const { pause, resume, isActive } = useRafFn(() => {
++	// fabraham patch: `fpsLimit`, backported from @tresjs/core 5.9 (whose
++	// nuxt/cientos/post-processing siblings pin core to 5.2.1). Throttled here
++	// rather than with useRafFn's own `fpsLimit`, which restarts its interval at
++	// every rendered frame and so lands a 60 limit at 48 fps on a 144 Hz screen.
++	// This carries the remainder instead (1 ms slack for rAF jitter).
++	let nextAt = 0;
++	const { pause, resume, isActive } = useRafFn(({ timestamp }) => {
++		const limit = toValue(fpsLimit);
++		if (limit && limit < Infinity) {
++			const interval = 1e3 / limit;
++			if (nextAt && timestamp < nextAt - 1) return;
++			nextAt = nextAt && timestamp - nextAt < interval ? nextAt + interval : timestamp + interval;
++		}
+ 		const getContextWithClock = () => ({
+ 			delta: clock.getDelta(),
+ 			elapsed: clock.elapsedTime
+@@ -738,6 +750,7 @@ const useCreateRafLoop = (cycleFn) => {
+ 	}, { immediate: false });
+ 	const start = () => {
+ 		clock.start();
++		nextAt = 0;
+ 		resume();
+ 	};
+ 	const stop = () => {
+@@ -816,7 +829,7 @@ function useRendererManager({ scene, canvas, options, contextParts: { sizes, cam
+ 	};
+ 	const loop = useCreateRafLoop(() => {
+ 		if (frames.value) renderFunction(notifyFrameRendered);
+-	});
++	}, { fpsLimit: () => toValue(options.fpsLimit) });
+ 	readyEventHook.on(loop.start);
+ 	watch([sizes.width, sizes.height], () => {
+ 		renderer.setSize(sizes.width.value, sizes.height.value);
+@@ -1905,6 +1918,10 @@ var Context_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ define
+ 			type: String,
+ 			required: false
+ 		},
++		fpsLimit: {
++			type: Number,
++			required: false
++		},
+ 		dpr: {
+ 			type: [Number, Array],
+ 			required: false
+@@ -2172,6 +2189,10 @@ var TresCanvas_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ def
+ 			required: false,
+ 			default: "always"
+ 		},
++		fpsLimit: {
++			type: Number,
++			required: false
++		},
+ 		dpr: {
+ 			type: [Number, Array],
+ 			required: false

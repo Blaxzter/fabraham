@@ -1,18 +1,12 @@
 ---
-title: "Gesangbuch PWA (volunteer)"
-subtitle: "Open source · for my church"
+title: "Gesangbuch"
 order: 60
-location: "Berlin"
-kind: "volunteer"
 accent: "#ffd479"
 side: "auto"
 setPiece: ["staffLines"]
 ---
 
-## Gesangbuch
-
-Outside of work I build a hymnal app for my church. It's a PWA that works
-offline, shows sheet music that reflows to fit the screen, and can page along
-with the order of service. The code is open source
-[on GitHub](https://github.com/johkirche). People use it during Sunday services,
-so I hear about bugs quickly.
+::bio-row{kind="volunteer" name="Gesangbuch PWA" href="https://github.com/johkirche" role="for my church"}
+An offline hymnal app with sheet music that reflows to the screen and follows
+the order of service. Used every Sunday, so bugs get reported fast.
+::

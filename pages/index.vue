@@ -128,6 +128,71 @@ useSeoMeta({
   ogImageAlt: "fabraham.dev",
   twitterCard: "summary_large_image",
 });
+
+// Structured data, so search engines and AI assistants can tie the name to the
+// job and the projects. One Person, the site, and the live projects with him
+// as their creator. `sameAs` lists only profiles of him, not the products.
+const person = { "@id": "https://fabraham.dev/#person" };
+useHead({
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            ...person,
+            name: "Frederic Abraham",
+            url: "https://fabraham.dev",
+            image: "https://fabraham.dev/og.png",
+            jobTitle: "Senior Full-Stack Developer",
+            worksFor: { "@type": "Organization", name: "Respeak", url: "https://respeak.io" },
+            alumniOf: [
+              { "@type": "CollegeOrUniversity", name: "Technische Universität Berlin" },
+              { "@type": "CollegeOrUniversity", name: "Maastricht University" },
+            ],
+            knowsAbout: ["Full-stack development", "Retrieval-augmented generation", "Sentence embeddings", "Generative adversarial networks"],
+            knowsLanguage: ["de", "en"],
+            sameAs: ["https://github.com/Blaxzter"],
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://fabraham.dev/#website",
+            url: "https://fabraham.dev",
+            name: "fabraham.dev",
+            inLanguage: ["en", "de"],
+            author: person,
+          },
+          {
+            "@type": "SoftwareApplication",
+            name: "LogoLab",
+            url: "https://logolab.fabraham.dev",
+            applicationCategory: "DesignApplication",
+            operatingSystem: "Web",
+            creator: person,
+          },
+          {
+            "@type": "SoftwareApplication",
+            name: "Episko",
+            url: "https://episko.dev",
+            applicationCategory: "DeveloperApplication",
+            // Built with the team at Respeak, so a contributor, not the creator.
+            contributor: person,
+          },
+          {
+            "@type": "SoftwareApplication",
+            name: "Speeden & Cuben",
+            url: "https://speeden-and-cuben.fabraham.dev",
+            applicationCategory: "EducationalApplication",
+            operatingSystem: "Web",
+            creator: person,
+          },
+        ],
+      }),
+    },
+  ],
+});
 </script>
 
 <style scoped>

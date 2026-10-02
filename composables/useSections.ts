@@ -69,8 +69,7 @@ export function useBiographyMilestones() {
       return {
         ...d,
         title: t.title,
-        subtitle: t.subtitle ?? d.subtitle,
-        location: t.location ?? d.location,
+        period: t.period ?? d.period,
         body: t.body,
       };
     });
@@ -81,9 +80,7 @@ export function useBiographyMilestones() {
       id: doc.path ?? doc.id ?? doc.title,
       order: doc.order ?? 0,
       title: doc.title ?? "",
-      subtitle: doc.subtitle,
-      location: doc.location,
-      kind: doc.kind,
+      period: doc.period,
       accent: doc.accent,
       side: (doc.side as "left" | "right" | "auto") ?? "auto",
       offset: doc.offset ?? undefined,

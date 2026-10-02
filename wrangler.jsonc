@@ -12,11 +12,21 @@
   "compatibility_date": "2025-05-15",
   "assets": {
     "directory": "./.output/public",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*"],
+    // One spelling per page: /projects/index.html is served at /projects, and
+    // /projects/ redirects there. That matches the canonical and hreflang URLs
+    // @nuxtjs/i18n writes (no trailing slash), so no canonical points at a
+    // redirect. The default, auto-trailing-slash, did the opposite.
+    "html_handling": "drop-trailing-slash",
+    // A miss gets Nuxt's prerendered 404.html from the asset store instead of
+    // falling through to the Worker, whose own 404 is JSON for the API.
+    "not_found_handling": "404-page"
   },
+  // www is not served from here: wrangler.www.jsonc deploys a separate,
+  // tiny Worker on www.fabraham.dev that 301s to the bare domain. Keeping it
+  // separate means the asset requests on fabraham.dev never invoke a Worker.
   "routes": [
-    { "pattern": "fabraham.dev", "custom_domain": true },
-    { "pattern": "www.fabraham.dev", "custom_domain": true }
+    { "pattern": "fabraham.dev", "custom_domain": true }
   ],
   "vars": {
     // The frontend hostnames siteverify must report. Production only, never

@@ -146,10 +146,8 @@ export interface BiographyMilestone {
   id: string;
   order: number;
   title: string;
-  subtitle?: string;
-  location?: string;
-  /** Study / work / volunteer tag in the card header; none for a transition. */
-  kind?: "study" | "work" | "volunteer";
+  /** Next to the title in the card header, e.g. "2016–2020". */
+  period?: string;
   accent?: string;
   side: "left" | "right" | "auto";
   offset?: { x?: number; y?: number };

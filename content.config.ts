@@ -89,13 +89,11 @@ export default defineContentConfig({
             type: 'page',
             schema: z.object({
                 title: z.string(),
-                subtitle: z.string().optional(),
+                // Shown next to the title in the card's header ("2016–2020").
+                period: z.string().optional(),
                 order: z.number(),
-                location: z.string().optional(),
-                // What the card is mainly about, shown as a tag in its header.
-                // Omitted for transitions (the move). A job held during a degree
-                // is not a second card: it is a `::bio-work` block in the prose.
-                kind: z.enum(['study', 'work', 'volunteer']).optional(),
+                // The body is a timeline of `::bio-row` entries, each carrying
+                // its own study / work / volunteer tag.
                 accent: z.string().optional(),
                 // Which side of the connector line the card sits on.
                 side: z.enum(['left', 'right', 'auto']).default('auto'),
@@ -119,8 +117,7 @@ export default defineContentConfig({
             type: 'page',
             schema: z.object({
                 title: z.string(),
-                subtitle: z.string().optional(),
-                location: z.string().optional(),
+                period: z.string().optional(),
             }),
         }),
     },

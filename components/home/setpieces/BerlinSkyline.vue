@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, onMounted, onBeforeUnmount } from "vue";
+import { shallowRef, onMounted, onBeforeUnmount, watch } from "vue";
 import { useLoop } from "@tresjs/core";
 import {
   AdditiveBlending,
@@ -218,6 +218,22 @@ interface Part {
 const groupRef = shallowRef<Group | null>(null);
 const stageRef = shallowRef<Group | null>(null);
 const parts = shallowRef<Part[]>([]);
+
+// The parts are parented to the stage HERE, not with a `<primitive v-for>` in the
+// template. They only exist once the SVG has loaded, and in a production build
+// TresJS inserted primitives that arrive late into the OUTER group rather than
+// the stage: the city then ignored the stage's horizon offset and yaw, and stood
+// at the slot origin, 0.85 closer and well above the frame. Dev put them in the
+// right parent, so it only ever showed up deployed.
+watch(
+  [stageRef, parts],
+  ([stage, list], old) => {
+    const prev = (old?.[1] as Part[] | undefined) ?? [];
+    for (const p of prev) p.group.removeFromParent();
+    if (stage) for (const p of list) stage.add(p.group);
+  },
+  { immediate: true }
+);
 let worldWidth = TARGET_SIZE;
 let worldHeight = TARGET_SIZE;
 let disposed = false;
@@ -620,8 +636,8 @@ onBeforeUnmount(() => {
   <!-- Outer group: the slot position SceneSetPieces assigns. Inner "stage":
        placement + scale, written imperatively in the loop from the tunables. -->
   <TresGroup ref="groupRef" :position="props.position" :visible="false">
-    <TresGroup ref="stageRef">
-      <primitive v-for="p in parts" :key="p.id" :object="p.group" />
-    </TresGroup>
+    <!-- The parts are added to this group in script (see the `watch` on
+         `stageRef`/`parts`), not with a template `<primitive v-for>`. -->
+    <TresGroup ref="stageRef" />
   </TresGroup>
 </template>

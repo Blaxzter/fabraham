@@ -1,15 +1,11 @@
 ---
-title: "Respeak, das Tatort-Spiel"
-subtitle: "2023 · 18.000 gleichzeitige Spieler"
-location: "Berlin"
+title: "Zurück in Berlin"
+period: "2023"
 ---
 
-## Tatort
-
-2023 bin ich zurück nach Berlin gezogen und bei **Respeak** eingestiegen. Mein
-erstes großes Projekt war das *Tatort*-Spiel des SWR, ein Chat-basiertes Spiel,
-das für 100.000 gleichzeitige Spieler bereit sein musste. Dafür war ich
-verantwortlich: die Migration nach Azure, Auswahl und Deployment der
-Sentence-Embedding-Modelle auf Azure ML, ein Refactoring des Flask-Backends mit
-weniger redundanten SQL-Abfragen und Caching, und das Load Balancing. Zum Start
-hatte es 18.000 gleichzeitige Spieler. Wir waren ein Team aus fünf Leuten.
+::bio-row{when="2023" kind="work" name="Respeak" href="https://respeak.io" role="Das Tatort-Spiel des SWR"}
+Ein Chat-Spiel zum *Tatort*, ausgelegt auf 100.000 gleichzeitige Spieler. Die
+Skalierung lag bei mir: Migration nach Azure, Sentence-Embedding-Modelle auf
+Azure ML, ein schlankeres Flask-Backend mit Caching, Load Balancing. Zum Start
+18.000 gleichzeitige Spieler, Team aus fünf Leuten.
+::
