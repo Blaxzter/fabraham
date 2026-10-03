@@ -15,6 +15,7 @@ import SignalField from "./setpieces/SignalField.vue";
 import StackFlight from "./setpieces/StackFlight.vue";
 import ProjectVine from "./setpieces/ProjectVine.vue";
 import StructureGen from "./setpieces/StructureGen.vue";
+import AmbientMotes from "./AmbientMotes.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -408,6 +409,11 @@ onBeforeUnmount(() => {
         :position="piece.position"
         v-bind="extraPropsOf(piece)"
       />
+    </TresGroup>
+    <!-- Not a piece: the page-wide motes. Rides the occluded pass so they stay
+         crisp and the head hides the ones behind it. -->
+    <TresGroup :name="OCCLUDED_TAG">
+      <AmbientMotes />
     </TresGroup>
   </TresGroup>
 </template>

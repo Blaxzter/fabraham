@@ -404,8 +404,15 @@ export interface DotField {
   posAttr: BufferAttribute;
   sizeAttr: BufferAttribute;
   glowAttr: BufferAttribute;
+  /**
+   * Per-point colour, multiplied into `uColor` — only on a field created with
+   * `tinted: true` (everyone else pays nothing for it). Starts white, so an
+   * untouched tint is `uColor` exactly.
+   */
+  tint?: Float32Array;
+  tintAttr?: BufferAttribute;
   /** Upload whatever this frame wrote (position + glow by default). */
-  flush(opts?: { position?: boolean; size?: boolean; glow?: boolean }): void;
+  flush(opts?: { position?: boolean; size?: boolean; glow?: boolean; tint?: boolean }): void;
   dispose(): void;
 }
 
@@ -414,8 +421,15 @@ attribute float size;
 attribute float glow;
 uniform float uScale;
 varying float vGlow;
+#ifdef TINTED
+attribute vec3 tint;
+varying vec3 vTint;
+#endif
 void main() {
   vGlow = glow;
+#ifdef TINTED
+  vTint = tint;
+#endif
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_PointSize = size * uScale / max(0.0001, -mv.z);
   gl_Position = projectionMatrix * mv;
@@ -427,6 +441,9 @@ uniform vec3 uColor;
 uniform vec3 uHot;
 uniform float uOpacity;
 varying float vGlow;
+#ifdef TINTED
+varying vec3 vTint;
+#endif
 void main() {
   // gl_PointCoord is 0..1 across the sprite; r is 0 at the centre, 1 at the rim.
   float r = length(gl_PointCoord - 0.5) * 2.0;
@@ -435,7 +452,11 @@ void main() {
   // bloom, so a lit node reads as a light source and not as a bigger square.
   float core = smoothstep(1.0, 0.15, r);
   float halo = pow(1.0 - r, 2.5);
+#ifdef TINTED
+  vec3 tint = mix(uColor * vTint, uHot, vGlow);
+#else
   vec3 tint = mix(uColor, uHot, vGlow);
+#endif
   float a = uOpacity * (core * (0.45 + 0.55 * vGlow) + halo * (0.25 + 0.75 * vGlow));
   if (a <= 0.002) discard;
   gl_FragColor = vec4(tint, a);
@@ -449,6 +470,8 @@ export const createDots = (
     /** Colour a fully-lit (`glow` = 1) dot warms to. Defaults to white. */
     hot?: ColorRepresentation;
     opacity?: number;
+    /** Give every point its own colour (see `DotField.tint`). */
+    tinted?: boolean;
   }
 ): DotField => {
   const position = new Float32Array(count * 3);
@@ -462,6 +485,9 @@ export const createDots = (
   geometry.setAttribute("position", posAttr);
   geometry.setAttribute("size", sizeAttr);
   geometry.setAttribute("glow", glowAttr);
+  const tint = opts.tinted ? new Float32Array(count * 3).fill(1) : undefined;
+  const tintAttr = tint ? new BufferAttribute(tint, 3) : undefined;
+  if (tintAttr) geometry.setAttribute("tint", tintAttr);
 
   const material = new ShaderMaterial({
     uniforms: {
@@ -470,6 +496,7 @@ export const createDots = (
       uOpacity: { value: opts.opacity ?? 0 },
       uScale: { value: 400 },
     },
+    defines: opts.tinted ? { TINTED: "" } : {},
     vertexShader: DOT_VERT,
     fragmentShader: DOT_FRAG,
     transparent: true,
@@ -491,10 +518,13 @@ export const createDots = (
     posAttr,
     sizeAttr,
     glowAttr,
+    tint,
+    tintAttr,
     flush(o) {
       if (!o || o.position !== false) posAttr.needsUpdate = true;
       if (o?.size) sizeAttr.needsUpdate = true;
       if (!o || o.glow !== false) glowAttr.needsUpdate = true;
+      if (o?.tint && tintAttr) tintAttr.needsUpdate = true;
     },
     dispose() {
       geometry.dispose();

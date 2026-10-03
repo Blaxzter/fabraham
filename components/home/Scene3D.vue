@@ -3,7 +3,7 @@ import { TresCanvas } from "@tresjs/core";
 import { OrbitControls, useGLTF } from "@tresjs/cientos";
 import { EffectComposerPmndrs } from "@tresjs/post-processing";
 import { NoToneMapping, Box3, Vector3 } from "three";
-import type { Group, Material, Object3D, PerspectiveCamera } from "three";
+import type { Group, Material, MeshPhysicalMaterial, Object3D, PerspectiveCamera } from "three";
 import { useWindowSize } from "@vueuse/core";
 import { fovForAspect } from "~/lib/frame";
 import SceneSetPieces from "./SceneSetPieces.vue";
@@ -383,6 +383,63 @@ watch(
   { flush: "pre" }
 );
 
+// --- Backdrop floor fade ----------------------------------------------------------
+// The backdrop is one lit sweep — a floor running from under the camera back to
+// a wall that curves up behind the head — and it goes through the ASCII pass
+// like the face does. Far away that is the faint character texture behind
+// everything, which is part of the look. Up close it is not: the near floor is
+// the bit of it nearest the lights and nearest the lens, and at the bottom of
+// every frame it turned into a flat field of grey characters (tinted red and
+// violet by the planets at the coda) that read as nothing but noise.
+//
+// So the floor fades out, by world HEIGHT: `fadeFloor` at floor level (the
+// whole floor sits at y=-2), back to full strength by `fadeTop`, a little way up
+// the wall. Height rather than depth because the cameras look slightly down: the
+// bottom edge of the frame meets the floor around z≈-2.3, well behind the head,
+// so a fade toward the lens missed nearly all of the floor that is in shot.
+// Injected into the material's own shader rather than a second mesh or a
+// texture: one uniform write per tuning change, nothing per frame.
+const tuneBackdrop = useTuning("backdrop", "Backdrop");
+const FLOOR_Y = -2; // the backdrop group's y in the template below
+// 0.5, not just above the floor: the backdrop's curve rises gently out of the
+// floor, and that low slope is what caught the planets' light as the red haze.
+const fadeTop = tuneBackdrop.num("fadeTop", 0.5, { min: -2, max: 3, step: 0.05, label: "Floor fade · full strength from y" });
+const fadeFloor = tuneBackdrop.num("fadeFloor", 0, { min: 0, max: 1, step: 0.01, label: "Floor fade · brightness at the floor" });
+const backdropUniforms = {
+  uFadeBottom: { value: FLOOR_Y },
+  uFadeTop: { value: fadeTop.value },
+  uFadeFloor: { value: fadeFloor.value },
+};
+watchEffect(() => {
+  // Kept above the floor: smoothstep with equal (or crossed) edges is undefined.
+  backdropUniforms.uFadeTop.value = Math.max(FLOOR_Y + 0.01, fadeTop.value);
+  backdropUniforms.uFadeFloor.value = fadeFloor.value;
+});
+const backdropMatRef = shallowRef<MeshPhysicalMaterial | null>(null);
+watch(backdropMatRef, (mat) => {
+  if (!mat) return;
+  mat.onBeforeCompile = (shader) => {
+    // Shared objects, so the watchEffect above reaches the compiled program.
+    Object.assign(shader.uniforms, backdropUniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vFadeY;")
+      .replace(
+        "#include <project_vertex>",
+        "#include <project_vertex>\nvFadeY = (modelMatrix * vec4(transformed, 1.0)).y;"
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying float vFadeY;\nuniform float uFadeBottom;\nuniform float uFadeTop;\nuniform float uFadeFloor;"
+      )
+      .replace(
+        "#include <dithering_fragment>",
+        "gl_FragColor.rgb *= mix(uFadeFloor, 1.0, smoothstep(uFadeBottom, uFadeTop, vFadeY));\n#include <dithering_fragment>"
+      );
+  };
+  mat.needsUpdate = true;
+}, { immediate: true });
+
 // Keep the camera aspect matched to the (window-size) canvas so the scene isn't
 // stretched. The hard-coded aspect=1 distorted everything on wide viewports.
 const { width: windowWidth, height: windowHeight } = useWindowSize();
@@ -532,7 +589,7 @@ watch(
          TresJS devtools choked on with "reading 'count'"). -->
     <TresGroup :position="[0, -2, 0]" :scale="[10, 10, 10]">
       <Backdrop :floor="0.25" :segments="20" receive-shadow>
-        <TresMeshPhysicalMaterial color="#444" :roughness="0.5" />
+        <TresMeshPhysicalMaterial ref="backdropMatRef" color="#444" :roughness="0.5" />
       </Backdrop>
     </TresGroup>
 
