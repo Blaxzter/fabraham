@@ -144,7 +144,7 @@ that belongs to the biography *section* in the registry.
 | `components/home/sections/registry.ts` | `SECTION_DEFS` — the typed section sequence + scene spine. |
 | `components/home/sections/*.vue` | The section components: `HeroSection` (the identity's DOM half — the `fullest-stack` entry over the canvas, plus the `sr-only` name), `InterludeSection` (camera-only beat), `BiographySection` (+ `BiographyCard`), `ContactSection` (the terminal finale). |
 | `components/home/SceneSetPieces.vue` | Maps each section's + each milestone's `setPiece[]` to its 3D component, passing `:reveal`, `:variant`, `:position` — plus `:cardProgress` for pieces that opt in. Owns the selective-render overlay (see below). |
-| `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `StaffLines` (a page of the hymnal, playing), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
+| `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `ChurchApps` (the hymnal app on a tablet, playing, beside the Kirchentag app on a phone), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
 | `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
 | `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
 | `components/home/CursorOrb.vue` | The **fly**: a glowing orb orbiting the cursor in 3D (between the head and the lens) while the head is tracking it, burning off embers that rise, cool and fall. Spring gravity toward the cursor + wander + a speed floor, so it never settles. Goes through the ASCII pass with the face, and is pitched loud enough to survive it. See [The finale (contact)](#the-finale-contact). |
@@ -1505,7 +1505,7 @@ You don't tag scenes by hand. Routing (see `composables/useDevPanelGroups.ts`):
 > milestone(s) with no extra wiring. `SignalField` and `BerlinSkyline` are wired
 > up (the latter exposes its horizon anchor as a gizmo, plus stage scale and
 > cursor parallax, under the Berlin milestone); the other set-pieces (`Lattice`,
-> `RouteArc`, `ThreadBoard`, `DocumentGrid`, `StaffLines`) still carry hard-coded
+> `RouteArc`, `ThreadBoard`, `DocumentGrid`, `ChurchApps`) still carry hard-coded
 > constants ripe for this treatment.
 
 ### Workflow

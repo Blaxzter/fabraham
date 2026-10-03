@@ -6,7 +6,7 @@ const setPieceEnum = z.enum([
     'routeArc',
     'threadBoard',
     'documentGrid',
-    'staffLines',
+    'churchApps',
     'signalField',
     'stackFlight',
 ]);

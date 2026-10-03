@@ -468,11 +468,13 @@
   font-family: "Courier New", monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, visibility 0s;
 }
+/* visibility waits out the fade; on its own it would cut the hints off at once. */
 .boot-root .hints.is-hidden {
   opacity: 0;
   visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0s 0.3s;
 }
 .boot-root .hints .text-white {
   color: rgba(255, 255, 255, 0.45);

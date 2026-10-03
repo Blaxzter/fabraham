@@ -124,8 +124,9 @@
       <div class="lip" aria-hidden="true" />
 
       <!-- Key hints, under the set, for whatever the tube is showing. The
-           screens' own footers can be scrolled out of view; these cannot. -->
-      <div class="hints" :class="{ 'is-hidden': !hints.length || through }">
+           screens' own footers can be scrolled out of view; these cannot. They
+           stay through the handover and go with the set. -->
+      <div class="hints" :class="{ 'is-hidden': !hints.length }">
         <BootText v-for="hint in hints" :key="hint" :text="hint" color="white" />
       </div>
     </div>

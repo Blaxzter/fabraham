@@ -271,6 +271,20 @@ const entered = computed(() => {
   transition: opacity 0.6s ease, transform 0.6s ease;
 }
 .head.is-in { opacity: 1; transform: none; }
+/* The face behind this is a field of small bright glyphs: per-letter shadows
+   can't quiet it, so the whole block gets a soft, edgeless pool of dark. */
+.head::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 50%;
+  width: min(56rem, 100%);
+  transform: translateX(-50%);
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.45) 55%, transparent);
+  pointer-events: none;
+}
 .eyebrow {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
@@ -293,7 +307,8 @@ h2 {
   margin: 0.75rem 0 0;
   font-size: clamp(0.95rem, 1.4vw, 1.1rem);
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.94);
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9), 0 0 22px rgba(0, 0, 0, 0.6);
 }
 
@@ -302,7 +317,7 @@ h2 {
    frame while the scene plays under it. In flow — a phone, a short window — the
    cards are ordinary stacked content and a heading pinned over them just lands
    on whichever vessel is passing. */
-.projects:not(.is-driven) .head { position: static; }
+.projects:not(.is-driven) .head { position: relative; }
 .cards {
   display: flex;
   flex-wrap: wrap;

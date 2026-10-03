@@ -10,7 +10,7 @@ import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
 import RouteArc from "./setpieces/RouteArc.vue";
 import ThreadBoard from "./setpieces/ThreadBoard.vue";
 import DocumentGrid from "./setpieces/DocumentGrid.vue";
-import StaffLines from "./setpieces/StaffLines.vue";
+import ChurchApps from "./setpieces/ChurchApps.vue";
 import SignalField from "./setpieces/SignalField.vue";
 import StackFlight from "./setpieces/StackFlight.vue";
 import ProjectVine from "./setpieces/ProjectVine.vue";
@@ -59,7 +59,7 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   routeArc: RouteArc,
   threadBoard: ThreadBoard,
   documentGrid: DocumentGrid,
-  staffLines: StaffLines,
+  churchApps: ChurchApps,
   signalField: SignalField,
   stackFlight: StackFlight,
   projectVine: ProjectVine,
@@ -124,7 +124,7 @@ const PROGRESS_DRIVEN = new Set([
   "lattice",
   "threadBoard",
   "documentGrid",
-  "staffLines",
+  "churchApps",
   "projectVine",
 ]);
 

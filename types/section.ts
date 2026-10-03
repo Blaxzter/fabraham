@@ -88,7 +88,7 @@ export type SetPieceName =
   | "routeArc"
   | "threadBoard"
   | "documentGrid"
-  | "staffLines"
+  | "churchApps"
   | "signalField"
   | "stackFlight"
   | "projectVine";
