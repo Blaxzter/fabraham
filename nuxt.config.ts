@@ -26,6 +26,10 @@ export default defineNuxtConfig({
                 { rel: 'manifest', href: '/site.webmanifest' },
             ],
             meta: [{ name: 'theme-color', content: '#313131' }],
+            // Dark only, on purpose: the site is one art-directed look, not a
+            // themeable UI. The class switches the shadcn tokens and `dark:`
+            // variants in tailwind.css to their dark set.
+            htmlAttrs: { class: 'dark' },
         },
     },
 
@@ -73,7 +77,6 @@ export default defineNuxtConfig({
         'shadcn-nuxt',
         '@nuxt/content',
         '@nuxt/image',
-        '@nuxtjs/color-mode',
         '@pinia/nuxt',
         '@nuxtjs/i18n',
     ],
@@ -126,9 +129,5 @@ export default defineNuxtConfig({
          * @default "./components/ui"
          */
         componentDir: './components/ui',
-    },
-
-    colorMode: {
-        classSuffix: '',
     },
 });

@@ -60,10 +60,8 @@
     },
     "setup": {
       "metaTitle": "Einstellungen {'|'} Frederic Abraham",
-      "metaDescription": "Theme, Animationen und Starteinstellungen für die Seite.",
+      "metaDescription": "Animationen und Starteinstellungen für die Seite.",
       "title": "SETUP · EINSTELLUNGEN",
-      "appearance": "Darstellung",
-      "appearanceDesc": "Farbschema der Seite.",
       "motion": "Animation",
       "motionDesc": "Weniger Animation in der 3D-Ansicht. „System“ folgt der Einstellung für reduzierte Bewegung in deinem Betriebssystem.",
       "startup": "Start",
@@ -71,16 +69,9 @@
       "back": "← zurück zur Startseite",
       "opt": {
         "system": "System",
-        "light": "Hell",
-        "dark": "Dunkel",
         "full": "Voll",
         "reduced": "Reduziert"
       }
-    },
-    "theme": {
-      "toDark": "Zum dunklen Modus wechseln",
-      "toLight": "Zum hellen Modus wechseln",
-      "toggle": "Theme wechseln"
     }
   }
 }

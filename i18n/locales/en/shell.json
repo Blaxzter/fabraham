@@ -60,10 +60,8 @@
     },
     "setup": {
       "metaTitle": "Setup — Preferences {'|'} Frederic Abraham",
-      "metaDescription": "Theme, motion, and startup preferences for the site.",
+      "metaDescription": "Motion and startup preferences for the site.",
       "title": "SETUP · PREFERENCES",
-      "appearance": "Appearance",
-      "appearanceDesc": "Color theme for the site.",
       "motion": "Motion",
       "motionDesc": "Reduce animation in the 3D experience. “System” follows your OS reduced-motion setting.",
       "startup": "Startup",
@@ -71,16 +69,9 @@
       "back": "← return to home",
       "opt": {
         "system": "System",
-        "light": "Light",
-        "dark": "Dark",
         "full": "Full",
         "reduced": "Reduced"
       }
-    },
-    "theme": {
-      "toDark": "Switch to dark mode",
-      "toLight": "Switch to light mode",
-      "toggle": "Toggle theme"
     }
   }
 }

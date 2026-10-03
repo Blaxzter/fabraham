@@ -6,23 +6,6 @@
         <h1 class="setup-title">{{ t("shell.setup.title") }}</h1>
       </header>
 
-      <!-- Appearance / theme -->
-      <section class="setup-sec">
-        <h2 class="setup-h">{{ t("shell.setup.appearance") }}</h2>
-        <p class="setup-desc">{{ t("shell.setup.appearanceDesc") }}</p>
-        <div class="setup-seg">
-          <button
-            v-for="opt in themeOptions"
-            :key="opt.value"
-            class="setup-opt"
-            :class="{ active: colorMode.preference === opt.value }"
-            @click="colorMode.preference = opt.value"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
-      </section>
-
       <!-- Motion -->
       <section class="setup-sec">
         <h2 class="setup-h">{{ t("shell.setup.motion") }}</h2>
@@ -59,18 +42,10 @@
 <script setup lang="ts">
 import type { MotionPref } from "~/composables/usePreferences";
 
-const colorMode = useColorMode();
 const { motion, skipBootIntro } = usePreferences();
 
 const { t } = useI18n();
 const localePath = useLocalePath();
-
-const themeOptions = computed(() =>
-  (["system", "light", "dark"] as const).map((value) => ({
-    value,
-    label: t(`shell.setup.opt.${value}`),
-  }))
-);
 
 const motionOptions = computed<{ value: MotionPref; label: string }[]>(() =>
   (["system", "full", "reduced"] as const).map((value) => ({
@@ -88,7 +63,7 @@ useSeoMeta({
 
 <style scoped>
 /* BIOS/terminal aesthetic — matches the boot screen this page is reached from,
-   so it reads as a single dark settings surface regardless of the chosen theme. */
+   so it reads as a single dark settings surface. */
 .setup {
   min-height: 100vh;
   display: flex;

@@ -10,8 +10,7 @@ import { ref, computed, watch } from "vue";
  *   CSS hook).
  * - `skipBootIntro` — bypass the BIOS boot intro on load.
  *
- * Theme is intentionally NOT here — it's owned by `useColorMode()`
- * (@nuxtjs/color-mode), which already persists and SSR-syncs the theme class.
+ * There is no theme preference: the site is dark only (see nuxt.config.ts).
  *
  * SSR-safe: module-level refs default to the "no preference" state, and
  * localStorage / matchMedia are only touched on the client, so first-paint
