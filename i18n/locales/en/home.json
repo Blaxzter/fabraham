@@ -130,6 +130,8 @@
         "rightDrag": "right-drag", "pan": "pan", "esc": "esc", "exit": "exit"
       },
       "back": "return to scroll",
+      "panel": "behind the scenes",
+      "panelHint": "The controls this scene was built with: every keyframe, light and knob. Change anything — a reload puts it all back.",
       "pause": "Pause the tour",
       "play": "Play the tour",
       "prev": "Previous chapter",

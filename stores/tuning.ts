@@ -4,17 +4,20 @@ import type { Ref } from "vue";
 import tuningConfig from "~/tuning.config.json";
 
 /**
- * Generic dev-only tuning layer.
+ * Generic tuning layer.
  *
  * Any component registers tunable params (numbers, 3D points, colours, bools)
  * with one line via the `useTuning(group)` composable; the dev panel renders
  * live controls for all of them and `vec3` points flagged `gizmo` get a 3D marker
- * (TuningGizmos). Code stays the source of truth: the registered defaults are
- * canonical, edits persist to localStorage so reloads keep them, and the panel
- * "Copy" exports the current values to paste back into the config/consts.
+ * (TuningGizmos). Values come from the committed tuning.config.json, else the
+ * inline default; edits live in memory (see below), and in dev "save" writes
+ * them back to the file.
  *
- * This store only exists in dev (the composable no-ops to plain values in prod),
- * so there is zero production cost and no behaviour change in the built site.
+ * It runs in production too. Explore mode opens the panel to visitors as
+ * "behind the scenes" (`unlock`), so they can play with the same knobs: their
+ * edits are theirs alone, gone on reload, and `resetEverything` puts the whole
+ * scene back without one. There is no save outside dev — the route it posts to
+ * does not exist in a build.
  */
 export type TuneKind = "number" | "vec3" | "color" | "bool";
 
@@ -103,6 +106,45 @@ export const useTuningStore = defineStore("tuning", () => {
   const defaults: Record<string, Record<string, unknown>> = {};
 
   const panelOpen = ref(false); // opens via the ⚙ toggle (so it never blocks the scene)
+
+  // --- Visitors ("behind the scenes") ---------------------------------------
+  // `unlocked`: the panel has been opened from explore mode this visit, so it is
+  // mounted (lazily — nobody downloads it until then). `keepInScroll`: the
+  // visitor asked to keep it on the normal scroll page too, not only in explore.
+  // Both are per tab; a reload locks it again with everything else.
+  const unlocked = ref(false);
+  const keepInScroll = ref(false);
+
+  /**
+   * What `resetEverything` goes back to: every store the panel can edit,
+   * snapshotted the first time the panel is unlocked — before any edit, so it is
+   * exactly what shipped. Tuning values have their own baseline (`defaults`);
+   * this covers the rest: the keyframe tracks and the scene-control knobs.
+   *
+   * Live fields that are not settings — the camera pose readout, which mode the
+   * camera is in, explore mode itself — are left out, or a reset would yank the
+   * camera out of the visitor's hands.
+   */
+  const SCENE_LIVE = new Set(["cameraPosition", "cameraRotation", "cameraControlMode", "exploreMode"]);
+  let snapshot: { scene: Record<string, unknown>; sections: Record<string, unknown>; spots: Record<string, unknown> } | null = null;
+  const plain = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+  const takeSnapshot = () => {
+    if (snapshot) return;
+    const scene = Object.fromEntries(
+      Object.entries(plain(useSceneControlStore().$state)).filter(([k]) => !SCENE_LIVE.has(k))
+    );
+    const sec = useSectionsStore();
+    snapshot = {
+      scene,
+      sections: plain({ cameraKeyframes: sec.cameraKeyframes, headKeyframes: sec.headKeyframes }),
+      spots: plain(useSpotlightsStore().$state) as unknown as Record<string, unknown>,
+    };
+  };
+  const unlock = () => {
+    takeSnapshot();
+    unlocked.value = true;
+    panelOpen.value = true;
+  };
 
   // Nothing is read from storage any more, but browsers that used the old
   // scratchpad are still carrying it — drop it, so it cannot come back as a
@@ -198,6 +240,21 @@ export const useTuningStore = defineStore("tuning", () => {
     for (const k in d) values[groupId]![k] = clone(d[k]);
   };
 
+  /** Everything the panel can change, back to what shipped. */
+  const resetEverything = () => {
+    for (const g in defaults) resetGroup(g);
+    if (!snapshot) return;
+    // Key by key, replacing — not `$patch(object)`, which MERGES records and
+    // would keep a light or keyframe the visitor added.
+    const restore = (store: { $patch: (fn: (s: Record<string, unknown>) => void) => void }, snap: Record<string, unknown>) =>
+      store.$patch((state) => {
+        for (const k in snap) state[k] = plain(snap[k]);
+      });
+    restore(useSceneControlStore() as never, snapshot.scene);
+    restore(useSectionsStore() as never, snapshot.sections);
+    restore(useSpotlightsStore() as never, snapshot.spots);
+  };
+
   const exportGroup = (groupId: string) =>
     JSON.stringify(values[groupId] ?? {}, null, 2);
 
@@ -258,6 +315,10 @@ export const useTuningStore = defineStore("tuning", () => {
     groups,
     values,
     panelOpen,
+    unlocked,
+    keepInScroll,
+    unlock,
+    resetEverything,
     num,
     vec3,
     color,

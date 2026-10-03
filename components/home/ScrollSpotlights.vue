@@ -174,11 +174,16 @@ const rebuild = () => {
 };
 rebuild();
 // Re-cache (coalesced via a dirty flag, applied once per frame in the loop) on:
-//  - dev edits to the tracks (deep watch; fires on every slider tick), and
+//  - panel edits to the tracks (deep watch; fires on every slider tick) — from
+//    the start in dev, and in production from the moment a visitor unlocks the
+//    panel in explore mode, so nobody else pays for a deep watch, and
 //  - section-layout / biography-card changes, which re-resolve every keyframe's
 //    anchored scroll position (this is what makes the rig content-resilient).
 let dirty = false;
-if (isDev) watch(() => store.tracks, () => { dirty = true; }, { deep: true });
+const watchTracks = () => watch(() => store.tracks, () => { dirty = true; }, { deep: true });
+const tuning = useTuningStore();
+if (isDev) watchTracks();
+else watch(() => tuning.unlocked, (on) => on && watchTracks(), { once: true });
 watch(
   () => `${sectionsStore.boundaries.join(",")}|${sectionsStore.milestoneCount}`,
   () => { dirty = true; }

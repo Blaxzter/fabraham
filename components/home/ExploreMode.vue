@@ -144,6 +144,15 @@ watch(playing, (on) => {
 });
 const togglePlay = () => (playing.value = !playing.value);
 
+// ---- behind the scenes -----------------------------------------------------
+// The first press unlocks the panel (snapshotting the scene for its reset) and
+// opens it; after that the button just shows and hides it.
+const tuning = useTuningStore();
+const togglePanel = () => {
+  if (!tuning.unlocked) tuning.unlock();
+  else tuning.panelOpen = !tuning.panelOpen;
+};
+
 // ---- entering / leaving -----------------------------------------------------
 const exit = () => {
   playing.value = false;
@@ -220,6 +229,19 @@ onBeforeUnmount(() => {
           <span>{{ t("home.explore.keys.rightDrag") }}</span> {{ t("home.explore.keys.pan") }} <i>·</i>
           <span>{{ t("home.explore.keys.esc") }}</span> {{ t("home.explore.keys.exit") }}
         </p>
+        <!-- "Behind the scenes": the panel the scene was tuned with, opened
+             to the visitor. Hidden where the panel does not fit (see
+             pages/index.vue) — the same query, in CSS. -->
+        <button
+          class="xpl-panel"
+          :class="{ 'is-on': tuning.unlocked && tuning.panelOpen }"
+          type="button"
+          :title="t('home.explore.panelHint')"
+          :aria-pressed="tuning.unlocked && tuning.panelOpen"
+          @click="togglePanel"
+        >
+          <span aria-hidden="true">⚙</span> {{ t("home.explore.panel") }}
+        </button>
         <button class="xpl-exit" type="button" @click="exit">
           {{ t("home.explore.back") }} <span aria-hidden="true">✕</span>
         </button>
@@ -386,8 +408,37 @@ onBeforeUnmount(() => {
   opacity: 0.4;
   margin: 0 0.35rem;
 }
-.xpl-exit {
+.xpl-panel {
   margin-left: auto;
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 255, 245, 0.75);
+  background: rgba(4, 10, 8, 0.72);
+  border: 1px dashed rgba(232, 255, 245, 0.28);
+  border-radius: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.xpl-panel:hover,
+.xpl-panel.is-on {
+  color: var(--accent, #00ff9c);
+  border-color: color-mix(in srgb, var(--accent, #00ff9c) 70%, transparent);
+  border-style: solid;
+}
+/* Same query as `panelFits` in pages/index.vue: no panel, no button. */
+@media not ((min-width: 900px) and (pointer: fine)) {
+  .xpl-panel {
+    display: none;
+  }
+  .xpl-exit {
+    margin-left: auto;
+  }
+}
+.xpl-exit {
+  margin-left: 0.5rem;
   font: inherit;
   font-size: 0.7rem;
   letter-spacing: 0.14em;

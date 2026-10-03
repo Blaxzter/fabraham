@@ -18,11 +18,25 @@ const { locale, locales, setLocale, t } = useI18n();
 const options = computed(() =>
   locales.value.map((l) => ({ code: l.code, name: l.name ?? l.code }))
 );
-const isDev = import.meta.dev;
+// Moves left of the panel's ⚙ whenever the panel is on the page: always in dev,
+// and for a visitor who kept "behind the scenes" open after explore mode.
+const tuning = useTuningStore();
+const sceneControl = useSceneControlStore();
+const panelOnPage = computed(() => import.meta.dev || (tuning.unlocked && tuning.keepInScroll));
+// Hidden in explore mode (its corner is the explore bar's "return to scroll",
+// and nothing there is worth translating mid-flight) and while the panel is
+// OPEN: the open bar (save/reset, keep, edit, collapse, ×) runs far past the
+// one-⚙ offset below and lands on top of it. Closing the panel brings it back.
+const shown = computed(() => !sceneControl.exploreMode && !(panelOnPage.value && tuning.panelOpen));
 </script>
 
 <template>
-  <nav class="lang" :class="{ dev: isDev }" :aria-label="t('common.lang.label')">
+  <nav
+    v-show="shown"
+    class="lang"
+    :class="{ dev: panelOnPage }"
+    :aria-label="t('common.lang.label')"
+  >
     <button
       v-for="(o, i) in options"
       :key="o.code"

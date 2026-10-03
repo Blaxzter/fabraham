@@ -6,6 +6,7 @@
 import { ref } from "vue";
 
 const store = useSpotlightsStore();
+const isDev = import.meta.dev;
 
 const copied = ref(false);
 const copyJson = async () => {
@@ -42,7 +43,8 @@ const copyJson = async () => {
     </label>
     <input v-model.number="store.coneOpacity" type="range" min="0" max="0.5" step="0.01" />
   </div>
-  <label class="dvp-row dvp-clickable">
+  <!-- The markers are only built in dev (ScrollSpotlights' markerGeom). -->
+  <label v-if="isDev" class="dvp-row dvp-clickable">
     <span class="dvp-label">Show markers (dev)</span>
     <input v-model="store.showHelpers" type="checkbox" />
   </label>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-// The single dev-only control panel (the ⚙, top-right). One organized surface
+// The single control panel (the ⚙, top-right). One organized surface
 // that merges the old /setup ControlsPanel (camera/positioning, scene debug,
 // ASCII, lights — runtime config in useSceneControlStore) with the generic
-// tuning layer (self-registered params via useTuning). Mounted dev-only from
-// pages/index.vue; in production none of this instantiates.
+// tuning layer (self-registered params via useTuning). Always mounted in dev;
+// in production it is "behind the scenes", unlocked by a visitor from explore
+// mode and lazy-loaded only then (pages/index.vue). For visitors the bar trades
+// save for reset + keep, and the authoring-only sections (camera snippets,
+// debug geometry that is never built outside dev) are left out.
 //
 // Layout is a SPLIT (issue: the panel had grown into one crammed box): a pinned
 // keyframe/scene OVERVIEW (KeyframeOverview) always on top — the navigation map of
@@ -26,6 +29,20 @@ import { computed, ref, watch } from "vue";
 // no-op path), so there's one toggle for the whole panel.
 const tuning = useTuningStore();
 const sections = useSectionsStore();
+const sceneControl = useSceneControlStore();
+const isDev = import.meta.dev;
+// In explore mode the panel sits under its top bar and stops above the scrubber
+// dock (see `.dvp-explore` below), so neither covers the other.
+const inExplore = computed(() => sceneControl.exploreMode);
+
+// Visitor reset: everything back to what shipped, with a beat of feedback since
+// the scene may not visibly change if nothing near the camera was edited.
+const resetFlash = ref(false);
+const resetAll = () => {
+    tuning.resetEverything();
+    resetFlash.value = true;
+    setTimeout(() => (resetFlash.value = false), 1200);
+};
 
 // Two separate popovers: the OVERVIEW (the ⚙ panel, the navigation map) is the
 // primary one; the EDITOR is a second, native HTML popover opened FROM it (the
@@ -85,7 +102,7 @@ const saveTitle = computed(() =>
 </script>
 
 <template>
-    <div class="dvp" :class="{ open: tuning.panelOpen }">
+    <div class="dvp" :class="{ open: tuning.panelOpen, 'dvp-explore': inExplore }">
         <!-- Top-right control bar. When open it holds the editor trigger and the
              overview collapse toggle next to the ×; when closed, just the ⚙. -->
         <div class="dvp-bar">
@@ -97,6 +114,7 @@ const saveTitle = computed(() =>
                      to write the file. The bar is the one surface present in every
                      panel state. -->
                 <button
+                    v-if="isDev"
                     type="button"
                     class="dvp-btn dvp-save-trigger"
                     :class="[tuning.saveState, { dirty: tuning.dirty }]"
@@ -106,6 +124,30 @@ const saveTitle = computed(() =>
                 >
                     {{ saveLabel }}
                 </button>
+                <!-- Visitors: no file to save to. Reset instead, and a choice
+                     to keep the panel on the scroll page after leaving explore
+                     mode (it is per tab; a reload locks it again). -->
+                <template v-else>
+                    <button
+                        type="button"
+                        class="dvp-btn dvp-save-trigger"
+                        :class="{ dirty: tuning.dirty && !resetFlash, saved: resetFlash }"
+                        title="Put every value, keyframe and light back the way it shipped"
+                        @click="resetAll"
+                    >
+                        {{ resetFlash ? "reset ✓" : tuning.dirty ? "reset •" : "reset" }}
+                    </button>
+                    <button
+                        type="button"
+                        class="dvp-btn dvp-save-trigger"
+                        :class="{ saved: tuning.keepInScroll }"
+                        :aria-pressed="tuning.keepInScroll"
+                        title="Keep this panel on the page after you leave the free camera"
+                        @click="tuning.keepInScroll = !tuning.keepInScroll"
+                    >
+                        {{ tuning.keepInScroll ? "kept ✓" : "keep" }}
+                    </button>
+                </template>
                 <button
                     type="button"
                     class="dvp-btn dvp-pop-trigger"
@@ -130,7 +172,7 @@ const saveTitle = computed(() =>
             </template>
             <button
                 class="dvp-toggle"
-                title="Dev panel"
+                :title="isDev ? 'Dev panel' : 'Behind the scenes'"
                 @click="tuning.panelOpen = !tuning.panelOpen"
             >
                 {{ tuning.panelOpen ? "×" : "⚙" }}
@@ -211,7 +253,9 @@ const saveTitle = computed(() =>
                     </template>
 
                     <template v-else>
-                        <DevPanelSection title="Camera">
+                        <!-- Authoring only: copies registry snippets and flips the
+                             camera mode, which explore mode owns for a visitor. -->
+                        <DevPanelSection v-if="isDev" title="Camera">
                             <CameraSection />
                         </DevPanelSection>
 
@@ -219,7 +263,8 @@ const saveTitle = computed(() =>
                             <AsciiSection />
                         </DevPanelSection>
 
-                        <DevPanelSection title="Scene">
+                        <!-- Debug geometry, which is never built outside dev. -->
+                        <DevPanelSection v-if="isDev" title="Scene">
                             <SceneSection />
                         </DevPanelSection>
 
@@ -459,6 +504,21 @@ const saveTitle = computed(() =>
    into the overview's top-right spot instead of leaving a gap. */
 .dvp-pop-docked {
     right: 0.75rem;
+}
+
+/* Explore mode: below the explore top bar (badge, hints, behind the scenes,
+   return to scroll) and clear of the scrubber dock at the bottom, which on most
+   screens runs under the panel's column. The dock is ~7.5rem with its margin;
+   9.5rem leaves air. */
+.dvp-explore {
+    top: 3.6rem;
+}
+.dvp-explore .dvp-body {
+    max-height: calc(100vh - 3.6rem - 2.2rem - 9.5rem);
+}
+.dvp-explore .dvp-pop {
+    top: 5.8rem;
+    max-height: calc(100vh - 5.8rem - 9.5rem);
 }
 .dvp-pop-title {
     flex: none;

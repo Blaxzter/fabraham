@@ -130,6 +130,8 @@
         "rightDrag": "rechts ziehen", "pan": "schwenken", "esc": "esc", "exit": "beenden"
       },
       "back": "zurück zum Scrollen",
+      "panel": "hinter den Kulissen",
+      "panelHint": "Die Regler, mit denen diese Szene gebaut wurde: jeder Keyframe, jedes Licht, jeder Wert. Ändere, was du willst — ein Neuladen stellt alles wieder her.",
       "pause": "Tour pausieren",
       "play": "Tour abspielen",
       "prev": "Vorheriges Kapitel",

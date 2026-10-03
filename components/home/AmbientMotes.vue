@@ -135,7 +135,7 @@ const profileRefs = Object.entries(PROFILE_DEFAULTS).map(([id, def]) => ({
       k,
       tune.num(`${k}_${id}`, def[k], { min: 0, max: k === "strength" ? 1.5 : 1, step: 0.01, label: `${id} · ${k}` }),
     ])
-  ) as Record<(typeof PROFILE_KEYS)[number], { value: number }>,
+  ) as unknown as Record<(typeof PROFILE_KEYS)[number], { value: number }>,
 }));
 const profileOf = (id: string): Profile => {
   const p = profileRefs.find((r) => r.id === id);
@@ -273,7 +273,9 @@ const planetLvl = new Float32Array(PLANETS_MAX);
 const findScene = () => {
   const scn = scene.value;
   if (!scn) return;
-  if (!headObj) headObj = scn.getObjectByName("headGroup") ?? null;
+  // Through `unknown`: @types/three resolves Object3D via two module paths and
+  // the scene hands back the other one (the same quirk SignalField hits).
+  if (!headObj) headObj = (scn.getObjectByName("headGroup") as unknown as Object3D | undefined) ?? null;
   if (!planetLights.length) {
     const g = scn.getObjectByName("planets");
     g?.traverse((o) => {

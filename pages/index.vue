@@ -49,15 +49,18 @@
       <HomeExploreMode />
     </ClientOnly>
 
-    <!-- Dev-only unified control panel (camera/positioning, scene, ASCII,
-         lights + registered tuning groups). -->
+    <!-- The control panel (camera/positioning, scene, ASCII, lights + the
+         registered tuning groups). Always there in dev; for visitors it is
+         "behind the scenes", unlocked from explore mode — `Lazy`, so its chunk
+         is only fetched once someone opens it. -->
     <ClientOnly>
-      <HomeDevPanel v-if="isDev" />
+      <LazyHomeDevPanel v-if="showPanel" />
     </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useMediaQuery } from "@vueuse/core";
 import { scrollToTopUnlessLocaleSwitch } from "~/utils/localeSwitch";
 
 // Fixed key + no scroll reset: `/` and `/de` are two routes, and without this a
@@ -86,8 +89,23 @@ const bootEnabled = !isDev || route.query.boot === "1";
 // they assume, and it would swallow the drags meant for OrbitControls. Two ways
 // in now — the dev panel's camera mode, and a visitor running `orbit` in the
 // finale — so this is no longer dev-gated.
-const { cameraControlMode } = storeToRefs(useSceneControlStore());
+const { cameraControlMode, exploreMode } = storeToRefs(useSceneControlStore());
 const orbitInspect = computed(() => cameraControlMode.value === "orbit");
+
+// Visitors get the panel once they unlock it in explore mode, on a screen it
+// fits: it is a dense, mouse-driven ~19rem column, so phones and touch-only
+// devices keep explore mode without it. In explore mode it shows; back on the
+// scroll page only if they asked to keep it there.
+const tuning = useTuningStore();
+const panelFits = useMediaQuery("(min-width: 900px) and (pointer: fine)");
+const showPanel = computed(
+  () => isDev || (tuning.unlocked && panelFits.value && (exploreMode.value || tuning.keepInScroll))
+);
+// Leaving explore mode without "keep" closes it, so the next visit to explore
+// mode finds it the way the button left it rather than mid-edit.
+watch(exploreMode, (on) => {
+  if (!on && !isDev && !tuning.keepInScroll) tuning.panelOpen = false;
+});
 
 // Visitor preference (from /setup): skip the boot intro and go straight in.
 // Read client-side only, so this completes boot after hydration — no SSR/first-
