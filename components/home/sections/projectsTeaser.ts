@@ -123,22 +123,19 @@ export const BUD_DROP_PX = 104;
 /**
  * What buds on the vine, in bud order — the project, and the VESSEL it grew as.
  *
- * CURATED, not "the three newest". The timeline at /projects is the complete,
+ * CURATED, not "the four newest". The timeline at /projects is the complete,
  * ordered record and can be trusted to be even-handed; this is a shop window,
- * and it should show the three that are worth stopping for. Newest-first would
+ * and it should show the ones that are worth stopping for. Newest-first would
  * currently hand a bud to a file-sync utility over the vectorizer.
  *
  * Slugs are content file stems (`content/projects/<slug>.md`). A slug with no
- * file is skipped rather than blowing up, which is what makes the line below
- * safe to leave in place:
+ * file is skipped rather than blowing up. Order matters: entry `i` grows at
+ * `CARD_T[i]`, so the list is read in the order the vine reaches its buds.
  *
- *   Putt Party goes here once it is live — add it with a vessel and re-run
- *   `scripts/shoot-project-screens.mjs` with a recipe for it.
- *
- * The vessel is the interesting half. Three identical plaques hanging off a
- * plant is a dropdown menu with leaves drawn on it: the vine does all the work
- * and the projects do none of it. So each bud grows as a different ORGAN, and
- * each organ is the one that project would have grown —
+ * The vessel is the interesting half. Identical plaques hanging off a plant
+ * are a dropdown menu with leaves drawn on it: the vine does all the work and
+ * the projects do none of it. So each bud grows as a different ORGAN, and each
+ * organ is the one that project would have grown —
  *
  *   husk  — a ribbed lantern that splits to show the thing inside it. The CFOP
  *           trainer's whole pitch is "open the case in a cube you can turn", so
@@ -149,10 +146,13 @@ export const BUD_DROP_PX = 104;
  *   bloom — petals that open. LogoLab turns a picture into curves, so the
  *           petals open as bezier skeletons — anchors, handles, the lot — and
  *           only fill in once they are out.
+ *   pitcher — the one organ in botany that is a HOLE. Putty Party keeps score
+ *           for mini-golf, so the lid lifts, the pin and its flag rise out of
+ *           the cup, and a ball keeps rolling in.
  *
  * `BudVessel` is the contract with `BudCard.vue`, which draws them.
  */
-export type BudVessel = "husk" | "pod" | "bloom";
+export type BudVessel = "husk" | "pod" | "bloom" | "pitcher";
 
 export interface Teaser {
   slug: string;
@@ -163,6 +163,7 @@ export const TEASERS: readonly Teaser[] = [
   { slug: "speeden-and-cuben", vessel: "husk" },
   { slug: "episko", vessel: "pod" },
   { slug: "logolab", vessel: "bloom" },
+  { slug: "puttyparty", vessel: "pitcher" },
 ];
 
 let curve: CatmullRomCurve3 | null = null;
@@ -212,17 +213,20 @@ export const VINE_SAMPLES = 1280;
  *      ±0.59 wide instead of ±0.90.
  *
  * The scan returns exactly four viable windows, one per quarter-turn where the
- * vine comes round the front. These three alternate sides (right, left, right)
- * and span both turns, so the second wrap is visibly a second wrap and not a
- * repeat of the first.
+ * vine comes round the front, and all four are used. They alternate sides
+ * (right, left, right, left) and span both turns, so the second wrap is visibly
+ * a second wrap and not a repeat of the first.
  *
  * The numbers moved when the tail was rebuilt to descend into the card, and NOT
  * because the buds did: `t` here is arc length, so shortening the curve from
  * 8.728 to 8.067 units re-scales every station on it. These three are the same
  * three POINTS as before — (0.410, 0.277, 0.184), (-0.413, 0.163, 0.184),
  * (0.367, -0.053, 0.252) — found again on the new parameterisation.
+ *
+ * The fourth is the middle of the last window (0.6785..0.7005), at
+ * (-0.416, -0.158, 0.179): lower left, on the second turn's left-hand pass.
  */
-export const CARD_T = [0.2197, 0.3441, 0.5745] as const;
+export const CARD_T = [0.2197, 0.3441, 0.5745, 0.6895] as const;
 
 /** Preallocated: these are read every frame by the projection. */
 const buds = CARD_T.map((t) => vineCurve().getPointAt(t));
@@ -267,7 +271,7 @@ const hang = vineCurve().getPointAt(1);
 export const hangPoint = () => hang;
 
 /**
- * Can this viewport actually hold three cards pinned to the vine?
+ * Can this viewport actually hold every card pinned to the vine?
  *
  * A card is a big object in this world: the frame here is only about 1.8 units
  * wide and the head takes the middle of it, so on anything much narrower than
@@ -314,7 +318,7 @@ export const cardsFitFrame = (aspect: number, vpWidthPx: number) => {
  * than recomputing the pose from scroll) is also what keeps the cards attached
  * during explore mode, where a free camera overrides the scroll poses.
  */
-export const cardEls: (HTMLElement | null)[] = [null, null, null];
+export const cardEls: (HTMLElement | null)[] = CARD_T.map(() => null);
 
 export const registerCard = (i: number, el: HTMLElement | null) => {
   cardEls[i] = el;
@@ -353,7 +357,7 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - clamp01(t), 3);
  * So the acts are laid end to end instead, each with its own share of the
  * section's scroll:
  *
- *   0 → COIL_ENDS      the coil. 88.5% of the curve's arc length, and the three
+ *   0 → COIL_ENDS      the coil. 88.5% of the curve's arc length, and the four
  *                      cards bud along it. Walked at a steady rate: the buds are
  *                      spaced by arc length, so anything but a straight line
  *                      here bunches them.

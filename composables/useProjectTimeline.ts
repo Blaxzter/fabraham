@@ -41,6 +41,7 @@ export interface ProjectDoc {
   emergent: string;
   spec: string;
   shared?: boolean;
+  private?: boolean;
   note?: string;
   /** German wording of the authored fields; see `localizeProject`. */
   de?: { title?: string; description?: string; spec?: string; note?: string } | null;

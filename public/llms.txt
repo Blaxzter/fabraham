@@ -18,6 +18,7 @@ The site is in English at https://fabraham.dev and in German at https://fabraham
 - [Episko](https://episko.dev): a native desktop app (Tauri, Rust) for running many coding agents at once, each in a real terminal ([source](https://github.com/respeak-io/episko))
 - [LogoLab](https://logolab.fabraham.dev): preview, clean up, vectorize and export a logo entirely in the browser, with background removal on WebGPU ([source](https://github.com/Blaxzter/LogoLab))
 - [Speeden & Cuben](https://speeden-and-cuben.fabraham.dev): a CFOP speedcubing reference with 3D playback; every algorithm is checked against a cube model ([source](https://github.com/Blaxzter/speeden-and-cuben))
+- [Putty Party](https://puttyparty.de): a digital scorecard for mini-golf courses; guests enter scores from their phone and a big screen shows the live leaderboard (Cloudflare Workers, Durable Objects; source private)
 - [Free Fast File Sync](https://github.com/Blaxzter/Free-Fast-File-Sync): file sync with a Rust core and a TypeScript shell
 - [Angry Birds levels, generated](https://github.com/Blaxzter/Utilizing-Generative-Adversarial-Networks-for-Stable-Structure-Generation-in-Angry-Birds): pretrained models for the AIIDE 2023 paper "Utilizing GANs for Stable Structure Generation in Angry Birds"
 - [Master's thesis](https://github.com/Blaxzter/Master-Thesis_GAN-level-gen): GANs generating Science Birds levels, scored on whether the structures stay standing

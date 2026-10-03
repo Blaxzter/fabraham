@@ -155,6 +155,18 @@ export const EMERGENTS: Record<string, Emergent[]> = {
     { h: chip("01101011"), lx: "78%", tx: "18px", ty: "-62px", tr: "9deg", d: ".16s" },
     { h: chip("hall of fame"), lx: "64%", tx: "30px", ty: "-34px", tr: "5deg", d: ".22s" },
   ],
+  golf: [
+    {
+      h: '<div class="blk" style="width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #fff 0 30%, #d9dee3 70%, #aab3bc)"></div>',
+      lx: "24%", tx: "-12px", ty: "-58px", tr: "0deg", d: "0s",
+    },
+    {
+      h: '<svg width="40" height="56" viewBox="0 0 40 56" aria-hidden="true"><ellipse cx="12" cy="51" rx="10" ry="3.5" fill="#05070a" stroke="#00ff9c" stroke-width="1.2"/><line x1="12" y1="51" x2="12" y2="4" stroke="#c9d3dc" stroke-width="1.6"/><path d="M12 4 L 36 11 L 12 18 Z" fill="#ff5a6e"/></svg>',
+      lx: "50%", tx: "0px", ty: "-100px", tr: "0deg", d: ".08s",
+    },
+    { h: chip("▲2 · 43", true), lx: "76%", tx: "16px", ty: "-66px", tr: "8deg", d: ".16s" },
+    { h: chip("Bahn 7 · Par 3"), lx: "62%", tx: "30px", ty: "-36px", tr: "4deg", d: ".24s" },
+  ],
 };
 
 /** The small ornament in each card header's top-right corner, one per skin. */
@@ -195,6 +207,12 @@ export const MARKS: Record<string, string> = {
     '<circle cx="18" cy="16" r="3" fill="currentColor"/><circle cx="12" cy="27" r="2" fill="currentColor"/>' +
     '<circle cx="29" cy="24" r="2" fill="currentColor"/></svg>',
   event: '<div class="mk-date"><u>KITAWO</u><b>26</b></div>',
+  green:
+    '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">' +
+    '<ellipse cx="13" cy="29" rx="10" ry="3.2" fill="#05070a" stroke="currentColor" stroke-width="1.2"/>' +
+    '<line x1="13" y1="29" x2="13" y2="3" stroke="currentColor" stroke-width="1.4"/>' +
+    '<path d="M13 3 L 30 8 L 13 13 Z" fill="#ff5a6e"/>' +
+    '<circle cx="26" cy="27" r="3" fill="#f4f6f8"/></svg>',
   genome:
     '<div class="mk-bits">' +
     ["1011010", "0110101", "1101001"]

@@ -135,7 +135,10 @@ const spark = computed(() => {
         </div>
 
         <div class="card-foot">
-          <a class="ghost slug" :href="doc.url" target="_blank" rel="noopener" :title="doc.repo">
+          <!-- A private repo is still on the record (its commits count), but a
+               link to it would only show a visitor GitHub's 404. -->
+          <span v-if="doc.private" class="ghost slug is-private">{{ t("projects.card.private") }}</span>
+          <a v-else class="ghost slug" :href="doc.url" target="_blank" rel="noopener" :title="doc.repo">
             {{ doc.repo }} ↗
           </a>
           <a v-if="doc.home" class="ghost" :href="doc.home" target="_blank" rel="noopener">{{ t("projects.card.liveLink") }}</a>
@@ -333,6 +336,8 @@ const spark = computed(() => {
 }
 .ghost:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: var(--vp-ground-2); }
 .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ghost.is-private,
+.ghost.is-private:hover { color: var(--vp-muted); border-style: dashed; border-color: var(--vp-line-hi); background: none; cursor: default; }
 /* One repo name is 97 characters long, so the slug shrinks before its
    neighbours do and keeps the full string in its tooltip. */
 .ghost.slug { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -413,6 +418,12 @@ const spark = computed(() => {
 .card[data-skin="genome"] {
   --motif: repeating-linear-gradient(90deg, var(--mo) 0 5px, transparent 5px 9px),
     repeating-linear-gradient(0deg, transparent 0 8px, #0b1016 8px 10px);
+}
+
+/* Mowing stripes, the way a putting green is cut, and the cup at the end. */
+.card[data-skin="green"] {
+  --motif: radial-gradient(circle at 84% 64%, var(--mo) 0 3px, transparent 3.5px),
+    repeating-linear-gradient(90deg, var(--mo-soft) 0 16px, transparent 16px 32px);
 }
 
 /* ── Corner marks ───────────────────────────────────────────────────────── */

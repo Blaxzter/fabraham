@@ -14,7 +14,7 @@ import {
 } from "./projectsTeaser";
 
 /**
- * The projects chapter's DOM half: three things growing on the vine that coils
+ * The projects chapter's DOM half: four things growing on the vine that coils
  * around the head, and — hanging in the bush the vine ends in — the way through
  * to the full timeline.
  *
@@ -47,7 +47,7 @@ const { data } = await useAsyncData("projects-teaser", () =>
  * Matched on the content file stem rather than on title or repo, because those
  * are prose and can be reworded; the filename is the stable handle. A slug with
  * no document drops out silently, so the list can name a project before it
- * exists (Putt Party) without breaking the section.
+ * exists without breaking the section.
  */
 type ProjectDoc = NonNullable<typeof data.value>[number];
 const bySlug = computed(() => {
@@ -111,7 +111,7 @@ const nodeOf = (el: Reffed): HTMLElement | null => {
 // to the wide composition, which is the one the static HTML is laid out for.
 const { width, height } = useWindowSize({ initialWidth: 1920, initialHeight: 1080 });
 
-/** Narrow or short frames cannot hold three cards; see `cardsFitFrame`. */
+/** Narrow or short frames cannot hold every card; see `cardsFitFrame`. */
 const canPin = computed(
   () => mounted.value && cardsFitFrame(width.value / height.value, width.value)
 );

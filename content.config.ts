@@ -40,11 +40,11 @@ export default defineContentConfig({
                 skin: z.enum([
                     'cubes', 'cockpit', 'hatch', 'alpha', 'rail', 'staff', 'tests',
                     'ascii', 'archive', 'scrub', 'week', 'desk', 'paper', 'lattice',
-                    'event', 'genome',
+                    'event', 'genome', 'green',
                 ]),
                 emergent: z.enum([
                     'cubes', 'sessions', 'files', 'vectors', 'tags', 'notes', 'tests',
-                    'ascii', 'archive', 'clips', 'rooms', 'paper', 'blocks', 'event', 'dna',
+                    'ascii', 'archive', 'clips', 'rooms', 'paper', 'blocks', 'event', 'dna', 'golf',
                 ]),
                 spec: z.string(),
                 // The German wording of the authored fields above. Lives in the
@@ -62,6 +62,9 @@ export default defineContentConfig({
                 // True when the repo is not mine alone: the card says so, and its
                 // activity block counts only my commits.
                 shared: z.boolean().optional(),
+                // True when the source is not public: the card drops the link to
+                // a repository visitors would only get a 404 from.
+                private: z.boolean().optional(),
                 // Shown under the spark when the 52-week window does not tell the
                 // honest story (e.g. my work on it predates the window).
                 note: z.string().optional(),

@@ -35,7 +35,8 @@
       "window": "{n} Commits · 52 Wo.",
       "sparkAria": "{n} Commits in den letzten 52 Wochen",
       "dormant": "Ruht, letzter Push {since}. Bleibt öffentlich, weil es Teil der Geschichte ist.",
-      "liveLink": "Live ↗"
+      "liveLink": "Live ↗",
+      "private": "privates Repo"
     },
     "loading": "Projekte werden geladen…",
     "foot": {

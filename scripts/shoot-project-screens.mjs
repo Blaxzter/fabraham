@@ -71,6 +71,14 @@ const SHOTS = [
     ],
     settle: 11000,
   },
+  {
+    slug: "puttyparty",
+    url: "https://puttyparty.de",
+    // The landing hero already shows the product: a scorecard and the live
+    // board beside it, ranks, ties and climbers. Server-rendered, so it is
+    // there on first paint and needs no arranging.
+    settle: 6000,
+  },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

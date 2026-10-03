@@ -6,7 +6,7 @@ import { cube } from "~/components/projects/emergents";
 /**
  * One thing growing on the vine.
  *
- * The three buds used to be the same 196px plaque three times over, which is
+ * The buds used to be the same 196px plaque three times over, which is
  * how a chapter built around a living plant ended up looking like a dropdown
  * menu with leaves drawn on it. Each bud is now a different ORGAN — see
  * `TEASERS` in ./projectsTeaser.ts for which project grows which and why — and
@@ -15,6 +15,7 @@ import { cube } from "~/components/projects/emergents";
  *   husk   a ribbed lantern that splits to show a real, scrambled, turning cube
  *   pod    a legume that unzips and lets its sessions out in a row
  *   bloom  petals that open as bezier skeletons and only fill in once they are
+ *   pitcher a cup whose lid lifts, a flag rising out of it, and a ball dropping in
  *
  * The staging is the part worth understanding. Nothing here is a CSS
  * transition. `ProjectVine` writes `--born` (0..1) onto this element every
@@ -160,6 +161,41 @@ class="teeth" d="M75 118 L 82 114 M75 100 L 83 96 M75 82 L 83 78
             <line class="bar" :x1="86" :y1="s.y" :x2="118" :y2="s.y" />
           </g>
           <path class="stalk" d="M75 126 L 75 136" />
+        </svg>
+      </template>
+
+      <!-- ── PITCHER ──────────────────────────────────────────────────────── -->
+      <template v-else-if="vessel === 'pitcher'">
+        <svg class="shell" viewBox="0 0 150 140" fill="none" aria-hidden="true">
+          <path class="stalk" d="M75 134 L 75 140" />
+          <!-- Back to front: the inside of the mouth, the far side of the rim,
+               the pin and the ball, then the body over all of it and the near
+               side of the rim last. That order is the whole trick — the pin
+               rises out of a cup rather than standing in front of one, and the
+               ball drops INTO it. -->
+          <ellipse class="throat" cx="75" cy="46" rx="30" ry="9" />
+          <path class="rim far" d="M45 46 A 30 9 0 0 1 105 46" />
+          <g class="pin">
+            <line class="pole" x1="75" y1="70" x2="75" y2="6" />
+            <path class="flag" d="M75 6 L 51 12 L 75 18 Z" />
+          </g>
+          <g class="putt">
+            <g class="putt-x">
+              <circle class="ball" cx="8" cy="132" r="4.5" />
+            </g>
+          </g>
+          <path
+            class="body"
+            d="M45 46 C 40 66, 32 92, 46 116 C 54 128, 66 134, 75 134
+               C 84 134, 96 128, 104 116 C 118 92, 110 66, 105 46
+               A 30 9 0 0 1 45 46 Z"
+          />
+          <!-- The veins a real pitcher carries down its front. -->
+          <path class="vein" d="M60 58 C 54 80, 56 104, 66 124 M90 58 C 96 80, 94 104, 84 124" />
+          <path class="rim near" d="M105 46 A 30 9 0 0 1 45 46" />
+          <!-- The lid, hinged at the back on the right. Closed it caps the mouth;
+               `--born` swings it up and over, like the real thing. -->
+          <path class="lid" d="M44 43 C 50 31, 100 31, 106 43 C 94 49, 56 49, 44 43 Z" />
         </svg>
       </template>
 
@@ -511,6 +547,95 @@ class="teeth" d="M75 118 L 82 114 M75 100 L 83 96 M75 82 L 83 78
   to { rotate: 360deg; }
 }
 
+/* ── Pitcher ──────────────────────────────────────────────────────────────── */
+.is-pitcher .shell {
+  width: 184px;
+  height: 150px;
+}
+.is-pitcher .stalk,
+.is-pitcher .pole {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.is-pitcher .pole { stroke: #c9d3dc; stroke-width: 1.8; }
+.is-pitcher .throat { fill: #020305; }
+.is-pitcher .body {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  fill: rgba(4, 9, 13, 0.92);
+}
+.is-pitcher .vein {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.35;
+}
+/* The peristome: the ribbed lip of a real pitcher, drawn as a dashed stroke so
+   it reads as ridges rather than as one more outline. The sap thickens it. */
+.is-pitcher .rim {
+  stroke: var(--accent);
+  stroke-width: calc(3.4 + var(--sap) * 1.6);
+  stroke-dasharray: 1.6 2.2;
+}
+.is-pitcher .rim.far { opacity: 0.55; }
+.is-pitcher .lid {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  fill: color-mix(in srgb, var(--accent) 14%, rgba(4, 9, 13, 0.94));
+  transform-origin: 104px 43px;
+  transform: rotate(calc(var(--born) * 118deg));
+  transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.is-pitcher:hover .lid,
+.is-pitcher:focus-visible .lid { transform: rotate(132deg); }
+/* The pin waits under the lid, inside the cup, and comes up once the lid is
+   out of the way — so it trails `--born` instead of riding it. */
+.is-pitcher .pin {
+  --up: clamp(0, calc((var(--born) - 0.35) / 0.55), 1);
+  transform: translateY(calc((1 - var(--up)) * 58px));
+}
+.is-pitcher .flag {
+  fill: #ff5a6e;
+  transform-origin: 75px 12px;
+  animation: flag-wave 2.6s ease-in-out infinite;
+}
+@keyframes flag-wave {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  50% { transform: skewY(-6deg) scaleX(0.9); }
+}
+/* The ball: chipped in from the left over and over, x and y on two nested
+   groups so a linear run and an eased rise and fall make a parabola. It only
+   starts once the pitcher is open — there is no hole to aim at before that. */
+.is-pitcher .putt {
+  opacity: clamp(0, calc((var(--born) - 0.8) * 5), 1);
+  animation: putt-y 3.6s infinite;
+}
+.is-pitcher .putt-x { animation: putt-x 3.6s linear infinite; }
+.is-pitcher .ball { fill: #f4f6f8; animation: putt-in 3.6s linear infinite; }
+.is-pitcher:hover .putt,
+.is-pitcher:hover .putt-x,
+.is-pitcher:hover .ball,
+.is-pitcher:focus-visible .putt,
+.is-pitcher:focus-visible .putt-x,
+.is-pitcher:focus-visible .ball { animation-duration: 1.8s; }
+@keyframes putt-x {
+  0% { transform: translateX(0); }
+  56%, 100% { transform: translateX(67px); }
+}
+@keyframes putt-y {
+  0% { transform: translateY(0); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  28% { transform: translateY(-122px); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+  56% { transform: translateY(-86px); animation-timing-function: ease-in; }
+  68%, 100% { transform: translateY(-50px); }
+}
+@keyframes putt-in {
+  0%, 64% { opacity: 1; }
+  66%, 100% { opacity: 0; }
+}
+
 /* ── The plate ────────────────────────────────────────────────────────────── */
 .plate {
   display: block;
@@ -591,6 +716,25 @@ class="teeth" d="M75 118 L 82 114 M75 100 L 83 96 M75 82 L 83 78
   border-left: 7px solid #c4a0ff;
   border-right: 7px solid #c4a0ff;
   opacity: 0.75;
+}
+/* PITCHER — a scorecard: a row of hole boxes along the bottom edge. */
+.is-pitcher .plate {
+  border-radius: 2px;
+  border-top: 2px solid var(--accent);
+  padding-bottom: 0.95rem;
+}
+.is-pitcher .plate::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 11px,
+    color-mix(in srgb, var(--accent) 45%, transparent) 11px 12px
+  );
+  opacity: calc(0.6 + var(--sap) * 0.4);
 }
 
 .row { display: flex; align-items: center; gap: 0.5rem; }
@@ -681,11 +825,18 @@ class="teeth" d="M75 118 L 82 114 M75 100 L 83 96 M75 82 L 83 78
      its cubes at. */
   .cube :deep(.cube-inner) { transform: rotateX(-24deg) rotateY(-34deg); }
   .head,
+  .flag,
+  .putt,
+  .putt-x,
+  .ball,
   .cube :deep(.cube-inner),
   .seed .halo,
   .seed .bar,
   .seed .core { animation: none !important; }
+  /* A ball frozen mid-flight is a ball floating beside the plant. */
+  .putt { visibility: hidden; }
   .half,
+  .lid,
   .plate,
   .shot,
   .veil { transition: none; }
