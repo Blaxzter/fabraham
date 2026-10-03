@@ -37,6 +37,7 @@
         'transition-opacity duration-700',
         contentRevealed && !orbitInspect ? 'opacity-100' : 'opacity-0 content-inert',
       ]"
+      :inert="contentRevealed && !orbitInspect ? undefined : true"
     >
       <HomeScrollableContent />
     </div>
@@ -218,11 +219,19 @@ useHead({
  * visitor drags, an invisible `<p>` takes the pointerdown, OrbitControls never
  * sees it, and the free camera reads as frozen.
  *
- * Two selectors, so it covers the wrapper and everything under it, and no
- * `!important`: the scope attribute makes this (0,2,0) against the cards' (0,1,0),
- * which wins on specificity alone. `visibility: hidden` would not have been
- * enough either — SkillsSection writes `visibility: visible` inline on every card
- * in flight, which the scrubber can bring back at any point of the run.
+ * `visibility: hidden` would not have been enough either — SkillsSection writes
+ * `visibility: visible` inline on every card in flight, which the scrubber can
+ * bring back at any point of the run.
+ *
+ * This rule is NOT the fence any more, the `inert` attribute on the wrapper is.
+ * Specificity alone could not hold: this compiles to `.content-inert[data-v] *`,
+ * (0,2,0), and a child component's SCOPED rule carries its own attribute too —
+ * ProjectsSection's `.bud-card { pointer-events: auto }` is also (0,2,0), loads
+ * later, and won. So in orbit mode, with the scrubber in the projects chapter,
+ * the invisible vine buds and the timeline label took the drag wherever they
+ * sat, and the free camera froze "sometimes". `inert` hit-tests the whole
+ * subtree as if it were `pointer-events: none` (and keeps it out of the tab
+ * order), and no descendant can opt back out. This stays as a second layer.
  */
 .content-inert,
 .content-inert :deep(*) {
