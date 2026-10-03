@@ -9,6 +9,7 @@ const setPieceEnum = z.enum([
     'churchApps',
     'signalField',
     'stackFlight',
+    'structureGen',
 ]);
 
 export default defineContentConfig({
@@ -104,6 +105,9 @@ export default defineContentConfig({
                 offset: z
                     .object({ x: z.number().optional(), y: z.number().optional() })
                     .optional(),
+                // How far back the head steps while this card is centred, to give
+                // its backdrop the frame (world units; ~0.5 shrinks the face ~72%).
+                headDepth: z.number().optional(),
                 // The line backdrop(s) that bloom in 3D as this milestone centers.
                 setPiece: z.array(setPieceEnum).optional(),
                 setPieceVariant: z.string().optional(),

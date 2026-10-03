@@ -91,7 +91,8 @@ export type SetPieceName =
   | "churchApps"
   | "signalField"
   | "stackFlight"
-  | "projectVine";
+  | "projectVine"
+  | "structureGen";
 
 export type SectionType =
   | "hero"
@@ -151,6 +152,9 @@ export interface BiographyMilestone {
   accent?: string;
   side: "left" | "right" | "auto";
   offset?: { x?: number; y?: number };
+  /** How far back the head steps while this card is centred, to make room for
+   *  a big backdrop (world units; see biography.ts `headSpot`). */
+  headDepth?: number;
   /** Line backdrop(s) that bloom while this milestone is centered. */
   setPiece: SetPieceName[];
   setPieceVariant: string;

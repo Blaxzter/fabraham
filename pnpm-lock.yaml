@@ -119,6 +119,9 @@ importers:
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
+      planck:
+        specifier: '1'
+        version: 1.5.0(stage-js@1.0.2)
       sharp:
         specifier: 0.34.5
         version: 0.34.5
@@ -5488,6 +5491,12 @@ packages:
   pkg-types@2.3.3:
     resolution: {integrity: sha512-j/lCFdcppV0JxWpCEITdbDltBxPP6cHT+yNJ6Go2OgoSA9518X847X9z0p6LtA4Nc16+eQzCZjRrWanTGvHJ5w==}
 
+  planck@1.5.0:
+    resolution: {integrity: sha512-dlvqJE+FscZgrGUXJ5ybd0o5bvZ5XXyZNbm08xGsXp9WjXeAyWSFT6n9s/1PQcUBo4546fDXA5RMA4wbDyZw6g==}
+    engines: {node: '>=24.0'}
+    peerDependencies:
+      stage-js: ^1.0.0-alpha.12
+
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
@@ -6153,6 +6162,10 @@ packages:
   stable-hash-x@0.2.0:
     resolution: {integrity: sha512-o3yWv49B/o4QZk5ZcsALc6t0+eCelPc44zZsLtCQnZPDwFpDYSWcDnrv2TtMmMbQ7uKo3J0HTURCqckw23czNQ==}
     engines: {node: '>=12.0.0'}
+
+  stage-js@1.0.2:
+    resolution: {integrity: sha512-EWTRBYlg7Qv9wGUao99/PfRe3KaiQqWmgSvTOXvaWnu1Jk/q/vV8yJVu6bi/3EqDZeMVnCPAjheba6OFc5k1GQ==}
+    engines: {node: '>=24.0'}
 
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
@@ -13609,6 +13622,10 @@ snapshots:
       exsolve: 1.1.1
       pathe: 2.0.3
 
+  planck@1.5.0(stage-js@1.0.2):
+    dependencies:
+      stage-js: 1.0.2
+
   pluralize@8.0.0: {}
 
   popmotion@11.0.5:
@@ -14466,6 +14483,8 @@ snapshots:
   srvx@0.9.8: {}
 
   stable-hash-x@0.2.0: {}
+
+  stage-js@1.0.2: {}
 
   standard-as-callback@2.1.0: {}
 

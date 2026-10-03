@@ -14,6 +14,7 @@ import ChurchApps from "./setpieces/ChurchApps.vue";
 import SignalField from "./setpieces/SignalField.vue";
 import StackFlight from "./setpieces/StackFlight.vue";
 import ProjectVine from "./setpieces/ProjectVine.vue";
+import StructureGen from "./setpieces/StructureGen.vue";
 
 /**
  * Renders the line set-pieces inside the canvas. Two sources:
@@ -63,6 +64,7 @@ const SET_PIECES: Partial<Record<string, Component>> = {
   signalField: SignalField,
   stackFlight: StackFlight,
   projectVine: ProjectVine,
+  structureGen: StructureGen,
 };
 
 // Pieces that should be DEPTH-OCCLUDED by the head (the head hides whatever of
@@ -86,6 +88,7 @@ const OCCLUDED_PIECES = new Set([
   "stackFlight",
   "berlinSkyline",
   "projectVine",
+  "structureGen",
 ]);
 
 // Keep the primary piece centered on the head; push stacked pieces aside and
@@ -126,6 +129,7 @@ const PROGRESS_DRIVEN = new Set([
   "documentGrid",
   "churchApps",
   "projectVine",
+  "structureGen",
 ]);
 
 const bioIndex = computed(() =>

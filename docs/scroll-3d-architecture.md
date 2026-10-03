@@ -144,7 +144,7 @@ that belongs to the biography *section* in the registry.
 | `components/home/sections/registry.ts` | `SECTION_DEFS` — the typed section sequence + scene spine. |
 | `components/home/sections/*.vue` | The section components: `HeroSection` (the identity's DOM half — the `fullest-stack` entry over the canvas, plus the `sr-only` name), `InterludeSection` (camera-only beat), `BiographySection` (+ `BiographyCard`), `ContactSection` (the terminal finale). |
 | `components/home/SceneSetPieces.vue` | Maps each section's + each milestone's `setPiece[]` to its 3D component, passing `:reveal`, `:variant`, `:position` — plus `:cardProgress` for pieces that opt in. Owns the selective-render overlay (see below). |
-| `components/home/setpieces/*.vue` | The line set-pieces: `Lattice` (a latent space being queried; GAN→embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `ChurchApps` (the hymnal app on a tablet, playing, beside the Kirchentag app on a phone), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
+| `components/home/setpieces/*.vue` | The line set-pieces: `StructureGen` (the master thesis replayed: GAN-generated Angry Birds structures decoded from noise, then knocked down by a bird along a collapse baked offline by `scripts/bake-structures.mjs`), `Lattice` (a latent space being queried; embeddings→RAG), `BerlinSkyline` (an extruded city), `RouteArc` (Berlin→Maastricht flown across a real map), `ThreadBoard` (a detective's pinboard), `DocumentGrid` (retrieval composing a cited answer), `ChurchApps` (the hymnal app on a tablet, playing, beside the Kirchentag app on a phone), `StackFlight` (the stack flying past the head), `SignalField` (the finale broadcast). |
 | `scripts/make-germany-svg.py` | Cuts `public/setpieces/germany.svg` from Natural Earth. Run by hand, output committed — see [the map](#the-map-berlin-to-maastricht-routearc). |
 | `components/home/setpieces/lineArt.ts` | The shared vocabulary every backdrop is built from: deterministic layout, the draw-on, line fields, and the dot shader. See "The line-art vocabulary" below. |
 | `components/home/CursorOrb.vue` | The **fly**: a glowing orb orbiting the cursor in 3D (between the head and the lens) while the head is tracking it, burning off embers that rise, cool and fall. Spring gravity toward the cursor + wander + a speed floor, so it never settles. Goes through the ASCII pass with the face, and is pitched loud enough to survive it. See [The finale (contact)](#the-finale-contact). |
@@ -786,13 +786,19 @@ unconditionally). Nothing is authored for this section in `registry.ts` or
 
 It is a `watch` on a **signature** of everything the generators read (section id,
 start/span/pageVh, **the frame's half-extents and which DOM layout the cards are
-in**, and each milestone's side/accent/offset) — deliberately not a `watchEffect`
+in**, and each milestone's side/accent/offset/headDepth) — deliberately not a `watchEffect`
 (which would track the stores it writes into) and not the milestone array (which
 would re-run on every reactive tick). Both setters *overwrite* the whole section's
 track, so re-running carelessly would clobber live dev-panel edits. The viewport
 terms are **quantised** for the same reason: an aspect rounded to 0.02 and a rail
 width rounded to 20px keep a window drag — or mobile Safari collapsing its URL
 bar mid-scroll — from regenerating the chapter on every pixel.
+
+**A card can step the head back** with `headDepth` in its frontmatter (world
+units; the Maastricht card uses 0.5, which shrinks the face to ~72% at the
+chapter camera) to give a big backdrop the frame. `headSpot` in biography.ts
+scales that card's swerve by the same perspective factor, so the smaller head
+still sits as far out to the side on screen, and the key/fill lights follow it.
 
 **Generated tracks double as their section's reset baseline.** They can't live on
 the registry spine, so `sections.setHeadKeyframes` and

@@ -21,7 +21,7 @@ The site is in English at https://fabraham.dev and in German at https://fabraham
 - [Putty Party](https://puttyparty.de): a digital scorecard for mini-golf courses; guests enter scores from their phone and a big screen shows the live leaderboard (Cloudflare Workers, Durable Objects; source private)
 - [Free Fast File Sync](https://github.com/Blaxzter/Free-Fast-File-Sync): file sync with a Rust core and a TypeScript shell
 - [Angry Birds levels, generated](https://github.com/Blaxzter/Utilizing-Generative-Adversarial-Networks-for-Stable-Structure-Generation-in-Angry-Birds): pretrained models for the AIIDE 2023 paper "Utilizing GANs for Stable Structure Generation in Angry Birds"
-- [Master's thesis](https://github.com/Blaxzter/Master-Thesis_GAN-level-gen): GANs generating Science Birds levels, scored on whether the structures stay standing
+- [Master's thesis](https://fabraham.dev/files/frederic-abraham-master-thesis-2022.pdf): "Stable Structure Generation with GANs", GANs generating Science Birds levels, scored on whether the structures stay standing ([source](https://github.com/Blaxzter/Master-Thesis_GAN-level-gen))
 - [Genetic algorithms for the JVM](https://github.com/Blaxzter/GaenAPI): the bachelor's thesis runtime
 - [Room booking, self-hosted](https://github.com/Blaxzter/room-booking-tool): self-hostable room and resource booking
 - [Instant Twitch Replay](https://github.com/Blaxzter/Instant-Twitch-Replay): replay the last seconds of a Twitch stream

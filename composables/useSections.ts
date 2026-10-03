@@ -84,6 +84,7 @@ export function useBiographyMilestones() {
       accent: doc.accent,
       side: (doc.side as "left" | "right" | "auto") ?? "auto",
       offset: doc.offset ?? undefined,
+      headDepth: doc.headDepth ?? undefined,
       setPiece: (doc.setPiece as SetPieceName[] | undefined) ?? [],
       setPieceVariant: doc.setPieceVariant ?? "",
       path: doc.path,
@@ -176,6 +177,7 @@ export function useBiographyChoreography() {
       halfH: half.h,
       rail: winW.value <= BIO_RAIL_MAX_PX,
       viewportW: winW.value || 1,
+      camZ,
     };
   });
 
@@ -198,7 +200,8 @@ export function useBiographyChoreography() {
       // and rounded to 20px so dragging a desktop window costs nothing.
       f.rail ? Math.round(f.viewportW / 20) : 0,
       ...ms.map(
-        (m) => `${m.side}/${m.accent ?? ""}/${m.offset?.x ?? 0}/${m.offset?.y ?? 0}`
+        (m) =>
+          `${m.side}/${m.accent ?? ""}/${m.offset?.x ?? 0}/${m.offset?.y ?? 0}/${m.headDepth ?? 0}`
       ),
     ].join("|");
   });

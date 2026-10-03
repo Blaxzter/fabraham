@@ -7,7 +7,7 @@ period: "2020–2022"
 Durchgehend Teamprojekte, mein Schwerpunkt waren generative Modelle.
 ::
 
-::bio-row{when="2022" kind="study" name="Masterarbeit" href="https://github.com/Blaxzter/Master-Thesis_GAN-level-gen"}
+::bio-row{when="2022" kind="study" name="Masterarbeit" href="/files/frederic-abraham-master-thesis-2022.pdf"}
 GANs, die stabile Strukturen für Angry-Birds-Level generieren. Aus den
 Ergebnissen wurde ein [Paper auf der AIIDE 2023](https://github.com/Blaxzter/Utilizing-Generative-Adversarial-Networks-for-Stable-Structure-Generation-in-Angry-Birds).
 ::

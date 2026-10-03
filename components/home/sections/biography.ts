@@ -39,6 +39,8 @@ export interface BioCardInput {
   side?: "left" | "right" | "auto";
   accent?: string;
   offset?: { x?: number; y?: number };
+  /** How far back the head steps while this card is centred (world units). */
+  headDepth?: number;
 }
 
 /**
@@ -141,6 +143,8 @@ export interface BioFraming {
   /** Viewport width in CSS px. The rail sits at a fixed rem offset from the left
    *  edge, so how far off centre that is depends on the screen. */
   viewportW: number;
+  /** The chapter camera's distance from the head's plane (registry.ts owns it). */
+  camZ: number;
 }
 
 /**
@@ -309,6 +313,27 @@ const headDropY = (frame: BioFraming, cramped: number) =>
   HEAD_DROP_FRAC *
   cramped;
 
+/**
+ * Where the head stands for card `j`, honouring the card's `headDepth`.
+ *
+ * Stepping the head back is how a card makes room for a big backdrop: at the
+ * chapter camera (z ≈ 1.3) half a unit back shrinks the face to ~72%. The
+ * swerve is scaled by the same perspective factor, so the smaller head still
+ * sits as far out to the side ON SCREEN as every other card's does, instead of
+ * drifting in toward the middle where the backdrop needs to be.
+ */
+const headSpot = (
+  a: BioCardAnchor,
+  card: BioCardInput | undefined,
+  frame: BioFraming,
+  swing: number,
+  headY: number
+) => {
+  const depth = Math.max(0, card?.headDepth ?? 0);
+  const k = (frame.camZ + depth) / frame.camZ;
+  return { x: -a.sideSign * swing * k, y: headY * k, z: -depth };
+};
+
 // ---------------------------------------------------------------------------
 // The swerve and the gaze
 // ---------------------------------------------------------------------------
@@ -399,11 +424,12 @@ const headKf = (
   y: number,
   yaw: number,
   pitch: number,
-  milestone?: number
+  milestone?: number,
+  z = 0
 ): HeadKeyframe => ({
   t,
   milestone,
-  position: v3(x, y, 0),
+  position: v3(x, y, z),
   rotation: v3(pitch, yaw, 0),
   // No fade anywhere in this chapter — the head stays in frame the whole way, so
   // there is never a return trip that has to happen unseen (contrast skills).
@@ -441,19 +467,19 @@ export const biographyHeadKeyframes = (
     const a = anchors[j]!;
     // Opposite the card: card on the left (-1) → head slides right (+x) and yaws
     // left (negative) to look back at it.
-    const headX = -a.sideSign * swing;
+    const spot = headSpot(a, cards[j], frame, swing, headY);
     const cardX = cardWorldX(a, frame);
     for (let s = 0; s < GAZE_SAMPLES; s++) {
       const u = trackedU(s);
       const g = gazeAt(
         cardX,
         cardWorldY(j, n, u, a, frame),
-        headX,
-        headY,
+        spot.x,
+        spot.y,
         frame,
         cramped
       );
-      kfs.push(headKf(u, headX, headY, g.yaw, g.pitch, j));
+      kfs.push(headKf(u, spot.x, spot.y, g.yaw, g.pitch, j, spot.z));
     }
   }
   kfs.push(headKf(0.98, 0, 0, REST_YAW, 0));
@@ -550,7 +576,7 @@ export const biographySpotKeyframes = (
   const key: SpotKeyframe[] = [];
   const fill: SpotKeyframe[] = [];
   anchors.forEach((a, j) => {
-    const headX = -a.sideSign * swing;
+    const spot = headSpot(a, cards[j], frame, swing, headY);
     const color = mixHex(KEY_COLOR, cards[j]?.accent, KEY_ACCENT_MIX);
     for (const s of SPOT_SAMPLES) {
       const t = trackedU(s);
@@ -559,7 +585,7 @@ export const biographySpotKeyframes = (
         section: "biography",
         milestone: j,
         t,
-        position: v3(headX + a.sideSign * KEY_OFFSET_X, headY + KEY_Y, KEY_Z),
+        position: v3(spot.x + a.sideSign * KEY_OFFSET_X, spot.y + KEY_Y, KEY_Z + spot.z),
         target: FACE,
         intensity: KEY_INTENSITY,
         color,
@@ -575,7 +601,7 @@ export const biographySpotKeyframes = (
         section: "biography",
         milestone: j,
         t,
-        position: v3(headX - a.sideSign * FILL_OFFSET_X, headY + FILL_Y, FILL_Z),
+        position: v3(spot.x - a.sideSign * FILL_OFFSET_X, spot.y + FILL_Y, FILL_Z + spot.z),
         target: FACE,
         intensity: FILL_INTENSITY,
         color: FILL_COLOR,
