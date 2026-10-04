@@ -136,6 +136,19 @@ export const BIO_PIECE_SPAN = 1.35;
 export const bioMilestonePieceHalfWindow = (n: number) =>
   bioMilestoneHalfWindow(n) * BIO_PIECE_SPAN;
 
+/**
+ * On a portrait screen, how far AHEAD of its card a milestone's set-piece
+ * blooms, in viewport heights of scroll.
+ *
+ * Wide, a card and its backdrop share the frame side by side, so blooming on the
+ * card's own beat is right. Held upright the card is most of the screen and passes
+ * straight over the backdrop, so on that beat the visitor got a card, a piece and
+ * a head stacked in the same pixels. Leading by most of a screen puts the piece at
+ * full while its card is still coming up from below the fold — the chapter reads
+ * piece, then card — and has it fading as the card covers it.
+ */
+export const BIO_PORTRAIT_PIECE_LEAD_VH = 0.75;
+
 const lerp = (a: number, b: number, t: number) => gsap.utils.interpolate(a, b, t);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const smoothstep = (v: number) => v * v * (3 - 2 * v);
@@ -213,7 +226,33 @@ export const useSectionsStore = defineStore("sections", () => {
       rotation: { x: k.rotation.x, y: k.rotation.y, z: k.rotation.z },
     }));
 
-  const cameraKeyframes = ref<Record<string, CameraKeyframe[]>>({});
+  /**
+   * One editable bank per COMPOSITION — the wide one every pose was authored on,
+   * and the portrait one a phone gets (see `SectionPortrait`). The two maps the
+   * rest of the store and the dev panel read, `cameraKeyframes` / `headKeyframes`,
+   * are simply pointed at the active bank, so everything downstream keeps reading
+   * one map and an edit made on a phone stays on the phone.
+   */
+  type Bank = {
+    camera: Record<string, CameraKeyframe[]>;
+    head: Record<string, HeadKeyframe[]>;
+    // Tracks GENERATED at runtime (the biography gaze — see
+    // components/home/sections/biography.ts, written via `setHeadKeyframes`). They
+    // can't live on the registry spine because they derive from content that only
+    // exists at runtime, so they act as that section's baseline instead: "reset" in
+    // the dev panel restores the generated track, not the bare resting pose.
+    generated: Record<string, HeadKeyframe[]>;
+  };
+  const banks: Record<"wide" | "portrait", Bank> = {
+    wide: { camera: {}, head: {}, generated: {} },
+    portrait: { camera: {}, head: {}, generated: {} },
+  };
+
+  /** Whether the viewport is held upright (set alongside the sections, by
+   *  `useSections`, which has already merged each section's portrait overrides). */
+  const portrait = ref(false);
+
+  const cameraKeyframes = ref<Record<string, CameraKeyframe[]>>(banks.wide.camera);
   const seedCameraKf = (s: Section): CameraKeyframe[] =>
     cloneKfs(
       s.cameraKeyframes && s.cameraKeyframes.length
@@ -224,13 +263,8 @@ export const useSectionsStore = defineStore("sections", () => {
   // Editable head keyframes (position offset + rotation), same model as the
   // camera. Default: a single resting pose (no translation, resting yaw), so the
   // head reads exactly as before until a scene's keyframes are tuned.
-  const headKeyframes = ref<Record<string, HeadKeyframe[]>>({});
-  // Tracks GENERATED at runtime (the biography gaze — see
-  // components/home/sections/biography.ts, written via `setHeadKeyframes`). They
-  // can't live on the registry spine because they derive from content that only
-  // exists at runtime, so they act as that section's baseline instead: "reset" in
-  // the dev panel restores the generated track, not the bare resting pose.
-  const generatedHeadKeyframes = ref<Record<string, HeadKeyframe[]>>({});
+  const headKeyframes = ref<Record<string, HeadKeyframe[]>>(banks.wide.head);
+  const generatedHeadKeyframes = ref<Record<string, HeadKeyframe[]>>(banks.wide.generated);
   const seedHeadKf = (s: Section): HeadKeyframe[] => {
     const gen = generatedHeadKeyframes.value[s.id];
     if (gen && gen.length) return cloneKfs<HeadKeyframe>(gen);
@@ -239,7 +273,14 @@ export const useSectionsStore = defineStore("sections", () => {
     );
   };
 
-  const setSections = (next: Section[]) => {
+  const setSections = (next: Section[], isPortrait = false) => {
+    if (isPortrait !== portrait.value) {
+      portrait.value = isPortrait;
+      const bank = banks[isPortrait ? "portrait" : "wide"];
+      cameraKeyframes.value = bank.camera;
+      headKeyframes.value = bank.head;
+      generatedHeadKeyframes.value = bank.generated;
+    }
     sections.value = next;
     // Seed editable camera/head keyframes for any section we haven't seen (don't
     // clobber in-session edits if this re-runs, e.g. on HMR).
@@ -645,6 +686,20 @@ export const useSectionsStore = defineStore("sections", () => {
     return smoothstep(Math.max(0, Math.min(fadeIn, fadeOut)));
   };
 
+  /**
+   * Where milestone `subIndex`'s SET-PIECE is centred, as a fraction of section
+   * `index` — its card's own position, less the portrait lead (see
+   * `BIO_PORTRAIT_PIECE_LEAD_VH`). Shared by the piece's bloom (`subReveal`) and
+   * its assembly clock (SceneSetPieces' `cardProgressOf`), so the two can never
+   * drift apart.
+   */
+  const bioPieceCenter = (index: number, subIndex: number, subCount: number) => {
+    const lead = portrait.value
+      ? BIO_PORTRAIT_PIECE_LEAD_VH / (sections.value[index]?.weight || 1)
+      : 0;
+    return bioMilestoneCenter(subIndex, subCount) - lead;
+  };
+
   // Reveal (0..1) for sub-beat `subIndex` of `subCount` *within* section `index`
   // — used for the biography milestones' individual line backdrops, which bloom
   // one after another as you scroll through the (single) biography section.
@@ -655,7 +710,7 @@ export const useSectionsStore = defineStore("sections", () => {
     const range = end - start || 1;
     // Bloom centered on the milestone card's position (same layout the cards
     // use) so the set-piece tracks its card, not an evenly-divided sub-beat.
-    const center = start + bioMilestoneCenter(subIndex, subCount) * range;
+    const center = start + bioPieceCenter(index, subIndex, subCount) * range;
     // The PIECE window, which is wider than the anchor window — see BIO_PIECE_SPAN.
     const half = (bioMilestonePieceHalfWindow(subCount) || 0.0001) * range;
     const local = (progress.value - (center - half)) / (2 * half);
@@ -750,6 +805,7 @@ export const useSectionsStore = defineStore("sections", () => {
     enabled,
     progress,
     sections,
+    portrait,
     milestoneCount,
     cameraKeyframes,
     headKeyframes,
@@ -800,5 +856,6 @@ export const useSectionsStore = defineStore("sections", () => {
     localFracAt,
     revealFor,
     subReveal,
+    bioPieceCenter,
   };
 });

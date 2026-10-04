@@ -1,5 +1,5 @@
 import { computed, watch, watchEffect } from "vue";
-import { useWindowSize } from "@vueuse/core";
+import { useMounted, useWindowSize } from "@vueuse/core";
 import type { BiographyMilestone, SetPieceName } from "~/types/section";
 import { SECTION_DEFS, spineOf } from "~/components/home/sections/registry";
 import {
@@ -25,15 +25,49 @@ import { frameHalfAt } from "~/lib/frame";
  */
 export function useSections() {
   const store = useSectionsStore();
+  const portrait = usePortrait();
 
+  // A section's `portrait` block replaces the matching wide values while the
+  // screen is upright — merged HERE, once, so the DOM (weight → section height,
+  // layout → where a pinned card sits) and the scene read the same composition.
   const defs = computed(() =>
-    [...SECTION_DEFS].sort((a, b) => a.order - b.order)
+    [...SECTION_DEFS]
+      .sort((a, b) => a.order - b.order)
+      .map((d) => (portrait.value && d.portrait ? { ...d, ...d.portrait } : d))
   );
 
   // Keep the store's shared state in sync (single source for camera/reveal math).
-  watchEffect(() => store.setSections(defs.value.map(spineOf)));
+  watchEffect(() => store.setSections(defs.value.map(spineOf), portrait.value));
 
   return { defs };
+}
+
+/**
+ * Below this width/height a viewport gets the PORTRAIT composition.
+ *
+ * Not 1, where the lens starts widening (`REF_ASPECT` in ~/lib/frame): a square
+ * or slightly tall window still has room to stand a head beside a card. 0.8 is
+ * where it stops having that room — every phone held upright (~0.46) and a tablet
+ * in portrait (0.75) are below it, a laptop window dragged narrow is not.
+ */
+export const PORTRAIT_MAX_ASPECT = 0.8;
+
+/**
+ * Whether the screen is held upright.
+ *
+ * False until mounted, on purpose. The prerendered html is the wide composition,
+ * and portrait changes what the DOM renders (a section's `weight` is its height).
+ * Answering on the client's first render would hydrate a 1100vh section onto
+ * markup that says 700vh — and Vue reports a style mismatch rather than
+ * repairing it, so the page kept the wide heights while the scene ran the
+ * portrait timings. Flipping one tick later makes it an ordinary update.
+ */
+export function usePortrait() {
+  const { width, height } = useWindowSize({ initialWidth: 1920, initialHeight: 1080 });
+  const mounted = useMounted();
+  return computed(
+    () => mounted.value && (width.value || 1) / (height.value || 1) < PORTRAIT_MAX_ASPECT
+  );
 }
 
 /**
@@ -166,6 +200,9 @@ export function useBiographyChoreography() {
     // is the one THIS section is shot at, so read it from the spine rather than
     // restating 1.3 anywhere (`registry.ts` owns that number).
     const camZ = store.sections[s.index]?.camera?.position?.z ?? 1.3;
+    // …and its height, which the portrait composition lowers to lift the head
+    // into the top half (the cards' screen → world mapping is centred on it).
+    const camY = store.sections[s.index]?.camera?.position?.y ?? 0;
     const half = frameHalfAt(aspect.value, camZ);
     return {
       start,
@@ -178,6 +215,8 @@ export function useBiographyChoreography() {
       rail: winW.value <= BIO_RAIL_MAX_PX,
       viewportW: winW.value || 1,
       camZ,
+      camY,
+      portrait: store.portrait,
     };
   });
 
@@ -196,6 +235,8 @@ export function useBiographyChoreography() {
       f.halfW.toFixed(4),
       f.halfH.toFixed(4),
       f.rail ? "rail" : "zigzag",
+      f.portrait ? "portrait" : "wide",
+      f.camY.toFixed(3),
       // Only matters in the rail layout (it places the rail the head looks at),
       // and rounded to 20px so dragging a desktop window costs nothing.
       f.rail ? Math.round(f.viewportW / 20) : 0,

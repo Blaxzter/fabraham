@@ -1,6 +1,6 @@
 import { CatmullRomCurve3, Vector3 } from "three";
 import { frameHalfAt } from "~/lib/frame";
-import type { HeadKeyframe } from "~/types/section";
+import type { CameraKeyframe, HeadKeyframe } from "~/types/section";
 
 /**
  * The projects chapter's shared geometry.
@@ -636,3 +636,58 @@ const buildGazeTrack = (): HeadKeyframe[] => {
 };
 
 export const projectsHeadKeyframes: HeadKeyframe[] = buildGazeTrack();
+
+/**
+ * The camera on a phone: it RIDES THE VINE, bud to bud.
+ *
+ * The wide composition holds one shot of the whole coil, with every bud and its
+ * card in it at once. Held upright that frame is a third as wide, so the cards
+ * either covered the face or came loose from the vine into a stacked list — the
+ * plant and the projects it grew stopped being one object.
+ *
+ * So the portrait camera goes where the plant is growing. It closes in, and as
+ * the tip travels from one bud to the next it travels with it: it arrives on a
+ * bud just as that bud opens, holds while the card unfolds, then moves on with
+ * the tip to the next. One card is on screen at a time, still hanging off its
+ * own bud — the vine does the explaining and the card is where it leads.
+ *
+ * Aimed at the bud, not the card: a card stands ON its bud and hangs a plate
+ * under it (`BUD_ANCHOR_PX` / `BUD_DROP_PX`), so the bud is the middle of the
+ * assembly. Pulled toward the centre (`RIDE_X`) so the head stays in the edge
+ * of the shot as the thing being wrapped. Generated from `budAt`/`vineDrawT`,
+ * so moving a bud or retiming the growth re-aims the camera with it.
+ *
+ * After the coil it takes the wide composition's descent (same clocks, see the
+ * registry note), framed a little wider so the curtain fits a narrow screen, and
+ * climbs out to the biography's PORTRAIT pose.
+ */
+const RIDE_Z = 1.3;
+const RIDE_X = 0.72;
+const RIDE_OVERVIEW_Z = 1.6;
+
+/** Section-local progress at which the growing tip reaches vine station `d`. */
+const localAtDraw = (d: number) => (d / TAIL_T) * COIL_ENDS;
+
+export const projectsPortraitCameraKeyframes = (
+  biographyPose: { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } }
+): CameraKeyframe[] => {
+  const pose = (t: number, x: number, y: number, z: number): CameraKeyframe => ({
+    t,
+    position: { x, y, z },
+    rotation: { x: 0, y: 0, z: 0 },
+  });
+  const kfs: CameraKeyframe[] = [pose(0, 0, 0, RIDE_OVERVIEW_Z)];
+  CARD_T.forEach((ct, i) => {
+    const b = budAt(i);
+    const x = b.x * RIDE_X;
+    // Arrive while the bud is opening (`born` in ProjectVine runs CARD_T−0.01 →
+    // +0.07) and hold a little past it, so the open card gets a still frame.
+    kfs.push(pose(localAtDraw(ct + 0.02), x, b.y, RIDE_Z));
+    kfs.push(pose(localAtDraw(ct + 0.095), x, b.y, RIDE_Z));
+  });
+  kfs.push(pose(0.46, 0, (budAt(CARD_T.length - 1).y - 0.9) / 2, 1.5));
+  kfs.push(pose(0.62, 0, -0.92, 1.45));
+  kfs.push(pose(0.78, 0, -0.92, 1.45));
+  kfs.push({ t: 1, position: { ...biographyPose.position }, rotation: { ...biographyPose.rotation } });
+  return kfs.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+};

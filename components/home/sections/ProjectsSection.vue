@@ -112,8 +112,15 @@ const nodeOf = (el: Reffed): HTMLElement | null => {
 const { width, height } = useWindowSize({ initialWidth: 1920, initialHeight: 1080 });
 
 /** Narrow or short frames cannot hold every card; see `cardsFitFrame`. */
+/**
+ * …except on a portrait screen, where they always pin: the camera there rides
+ * the vine bud to bud (`projectsPortraitCameraKeyframes`), so the frame each card
+ * has to fit is one framed around its own bud rather than the whole coil.
+ */
 const canPin = computed(
-  () => mounted.value && cardsFitFrame(width.value / height.value, width.value)
+  () =>
+    mounted.value &&
+    (store.portrait || cardsFitFrame(width.value / height.value, width.value))
 );
 
 /**
@@ -212,7 +219,11 @@ const entered = computed(() => {
 </script>
 
 <template>
-  <div class="projects" :class="{ 'is-driven': driven }" :style="{ '--accent': accent }">
+  <div
+    class="projects"
+    :class="{ 'is-driven': driven, portrait: store.portrait }"
+    :style="{ '--accent': accent }"
+  >
     <header class="head" :class="{ 'is-in': entered }">
       <p v-if="section?.subtitle" class="eyebrow">{{ t(`home.sections.${section.id}.subtitle`) }}</p>
       <h2 v-if="section?.title">{{ t(`home.sections.${section.id}.title`) }}</h2>
@@ -318,6 +329,10 @@ h2 {
    cards are ordinary stacked content and a heading pinned over them just lands
    on whichever vessel is passing. */
 .projects:not(.is-driven) .head { position: relative; }
+/* Portrait, too: the camera is riding the vine underneath, and a heading pinned
+   over the top third of a narrow frame sits on the bud it is riding to. It opens
+   the chapter and scrolls away. */
+.projects.portrait .head { position: relative; }
 .cards {
   display: flex;
   flex-wrap: wrap;

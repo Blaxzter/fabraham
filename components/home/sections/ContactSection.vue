@@ -61,7 +61,7 @@ const flash = () => {
 const termEl = ref<HTMLElement | null>(null);
 const { left, top, height, width } = useElementBounding(termEl);
 watch(
-  [left, top, height, width],
+  [left, top, height, width, () => store.portrait],
   () => {
     if (!import.meta.client || !width.value) {
       store.setContactAnchor(null);
@@ -69,8 +69,9 @@ watch(
     }
     const vw = window.innerWidth || 1;
     const vh = window.innerHeight || 1;
-    const px = left.value;
-    const py = top.value + height.value / 2;
+    // Portrait stacks the head ABOVE the card, so the edge facing it is the top.
+    const px = store.portrait ? left.value + width.value / 2 : left.value;
+    const py = store.portrait ? top.value : top.value + height.value / 2;
     store.setContactAnchor({ x: (px / vw) * 2 - 1, y: -((py / vh) * 2 - 1) });
   },
   { immediate: true }
@@ -454,7 +455,7 @@ const startFromLink = () => {
   <article
     ref="termEl"
     class="terminal"
-    :class="{ 'is-visible': visible, sending }"
+    :class="{ 'is-visible': visible, sending, portrait: store.portrait }"
     :style="{ '--accent': accent }"
     :aria-label="t('home.sections.contact.subtitle')"
     @click="focusInput"
@@ -844,6 +845,19 @@ button.token {
   .p-host {
     display: none;
   }
+}
+
+/* Portrait: the card shares the screen with the head above it (see
+   `PORTRAIT_FINALE` in the registry), so it gets the bottom ~60% rather than
+   the whole height. The session is trimmed to fit in that room — the `whoami`
+   exchange is the one part that only restates the title bar — and the cap on
+   the transcript follows the smaller box. */
+.terminal.portrait .term-body {
+  max-height: calc(58dvh - 6rem);
+}
+.terminal.portrait .t-line.cmd:first-child,
+.terminal.portrait .t-line.out {
+  display: none;
 }
 
 .cursor {

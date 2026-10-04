@@ -1,6 +1,6 @@
 import { markRaw } from "vue";
 import type { Component } from "vue";
-import type { Section } from "~/types/section";
+import type { Section, SectionPortrait } from "~/types/section";
 import HeroSection from "./HeroSection.vue";
 import InterludeSection from "./InterludeSection.vue";
 import BiographySection from "./BiographySection.vue";
@@ -9,7 +9,11 @@ import ContactSection from "./ContactSection.vue";
 import OutroSection from "./OutroSection.vue";
 import ProjectsSection from "./ProjectsSection.vue";
 import { skillsCameraKeyframes, skillsHeadKeyframes } from "./skills";
-import { PROJECTS_CAM_Z, projectsHeadKeyframes } from "./projectsTeaser";
+import {
+  PROJECTS_CAM_Z,
+  projectsHeadKeyframes,
+  projectsPortraitCameraKeyframes,
+} from "./projectsTeaser";
 
 // How a section's HTML is laid out over the canvas:
 //   flow   → the component fills the section height (the biography cluster).
@@ -35,6 +39,33 @@ export interface SectionDef extends Section {
 }
 
 const v3 = (x: number, y: number, z: number) => ({ x, y, z });
+
+/**
+ * The finale on a phone: the head ABOVE the card instead of beside it.
+ *
+ * The wide finale pans the camera right so the head stands on the left and the
+ * terminal on the right — on a screen 390px across there is no right, and the
+ * head ended up behind the card it was meant to be addressing. Here the camera
+ * drops instead of panning: at z 2.05 the portrait lens (70°, see ~/lib/frame)
+ * shows ±1.44 vertically, so sitting 0.85 below the head puts its centre a
+ * fifth of the way down the screen and its chin at about 34% — the card gets
+ * the bottom 60% to itself, and the head looks down at it (`portraitAddress*`
+ * in Scene3D) rather than across.
+ *
+ * Shared by contact and the coda for the same reason the wide poses are equal:
+ * nothing moves between them, the coda just scrolls in over a held scene.
+ */
+const PORTRAIT_FINALE = {
+  layout: { align: "bottom", maxWidth: "32rem", offset: { y: -2 } },
+  camera: { position: v3(0.0, -0.85, 2.05), rotation: v3(0.0, 0.0, 0.0) },
+} satisfies SectionPortrait;
+
+/** The biography's portrait camera — named because the projects chapter's
+ *  portrait track has to end on exactly this pose (see the biography entry). */
+const BIO_PORTRAIT_CAMERA = {
+  position: v3(0.0, -0.2, 1.3),
+  rotation: v3(0.0, 0.0, 0.0),
+};
 
 // The scroll experience, in order. Camera poses / weights / accents are the same
 // values the markdown frontmatter carried, so the camera path is unchanged.
@@ -260,6 +291,12 @@ export const SECTION_DEFS: SectionDef[] = [
       { t: 1.0, position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, -0.03, 0.0) },
     ],
     headKeyframes: projectsHeadKeyframes,
+    // Phones: the camera rides the vine bud to bud instead of holding the whole
+    // coil — see `projectsPortraitCameraKeyframes`. Ends on the biography's
+    // portrait pose for the same reason the wide track ends on its wide one.
+    portrait: {
+      cameraKeyframes: projectsPortraitCameraKeyframes(BIO_PORTRAIT_CAMERA),
+    },
   },
   {
     id: "biography",
@@ -287,6 +324,25 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "",
     layout: { align: "center" },
     camera: { position: v3(-0.05, 0.05, 1.3), rotation: v3(-0.05, -0.03, 0.0) },
+    /**
+     * On a phone the three things this chapter shows — a card, its set-piece and
+     * the head — cannot stand side by side, so they take TURNS instead.
+     *
+     * The head rises into the top of the frame and the milestone's set-piece
+     * drops below it (`BIO_PORTRAIT_HEAD_Y` / `_PIECE_Y` in ./biography.ts — on
+     * a phone there is no side for the head to swerve to), and the cards scroll
+     * up through the bottom. Each set-piece blooms a little BEFORE its card arrives
+     * (`BIO_PORTRAIT_PIECE_LEAD_VH` in the sections store) and the head steps
+     * back behind it (`PORTRAIT_STEP_BACK` in ./biography.ts) — so a beat reads
+     * piece first, then card, rather than all three in the same pixels.
+     *
+     * Longer (7 → 11) to pay for that: the lead needs the gap between two cards
+     * to be most of a screen, and a phone's cards are far taller than a laptop's.
+     */
+    portrait: {
+      weight: 11,
+      camera: BIO_PORTRAIT_CAMERA,
+    },
     // No `headKeyframes` here on purpose — unlike skills (below), this chapter's
     // head track is GENERATED at runtime, because its cards are a @nuxt/content
     // collection whose count and sides only exist once the query resolves. See
@@ -349,6 +405,7 @@ export const SECTION_DEFS: SectionDef[] = [
     setPieceVariant: "receive",
     layout: { align: "right", maxWidth: "32rem", offset: { x: -1 } },
     camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
+    portrait: PORTRAIT_FINALE,
   },
   {
     id: "outro",
@@ -373,6 +430,7 @@ export const SECTION_DEFS: SectionDef[] = [
     // is authored for this beat and nothing moves: the scene simply holds its
     // finale while the coda scrolls in over it.
     camera: { position: v3(0.62, 0.04, 1.72), rotation: v3(-0.04, 0.0, 0.0) },
+    portrait: PORTRAIT_FINALE,
   },
 ];
 

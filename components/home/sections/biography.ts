@@ -145,6 +145,12 @@ export interface BioFraming {
   viewportW: number;
   /** The chapter camera's distance from the head's plane (registry.ts owns it). */
   camZ: number;
+  /** The chapter camera's height — the world y the middle of the screen sits at.
+   *  0 on the wide composition (near enough: 0.05), lowered on portrait. */
+  camY: number;
+  /** The portrait composition (registry.ts `biography.portrait`): the camera, not
+   *  the head, makes the room, and the head steps back behind the set-pieces. */
+  portrait: boolean;
 }
 
 /**
@@ -239,7 +245,9 @@ const cardWorldY = (
   // into viewport heights (the section is `span * pageVh` viewports tall).
   const own = (a.ay / 100 - center) * frame.span * frame.pageVh;
   const screenY = anchorP - drift + own;
-  return (1 - 2 * screenY) * frame.halfH;
+  // Only the portrait composition moves the camera far enough off 0 to matter;
+  // the wide one's 0.05 is already paid for by the gaze being tuned against it.
+  return (frame.portrait ? frame.camY : 0) + (1 - 2 * screenY) * frame.halfH;
 };
 
 // ---------------------------------------------------------------------------
@@ -301,6 +309,9 @@ const HEAD_DROP_FRAC = 0.85;
  * constants were quietly wrong about.
  */
 const headRoom = (frame: BioFraming) => {
+  // Portrait: no swerve at all. The camera has already put the head in the top
+  // half (see registry.ts), and the cards come up underneath rather than beside.
+  if (frame.portrait) return { swing: 0, cramped: 1 };
   const room = Math.max(0, frame.halfW - HEAD_HALF.x - HEAD_EDGE_MARGIN);
   const swing = Math.min(HEAD_SWERVE_X, room);
   return { swing, cramped: 1 - swing / HEAD_SWERVE_X };
@@ -309,9 +320,41 @@ const headRoom = (frame: BioFraming) => {
 /** How far the head sits below centre: nothing on a wide screen, and up to
  *  `HEAD_DROP_FRAC` of the room below centre once the swerve is gone. */
 const headDropY = (frame: BioFraming, cramped: number) =>
-  -Math.max(0, frame.halfH - HEAD_HALF.y - HEAD_EDGE_MARGIN) *
+  frame.portrait
+    ? BIO_PORTRAIT_HEAD_Y
+    : -Math.max(0, frame.halfH - HEAD_HALF.y - HEAD_EDGE_MARGIN) *
   HEAD_DROP_FRAC *
   cramped;
+
+/**
+ * How far the head steps back on a portrait screen, on top of a card's own
+ * `headDepth` (world units).
+ *
+ * Held upright, the head and the set-pieces share the top half of the frame,
+ * and at full size the face fills it on its own. Stepping back shrinks it to
+ * ~80% and puts it BEHIND the pieces that bloom around the origin, so a
+ * milestone's artwork reads in front of the face instead of being hidden by it.
+ */
+const PORTRAIT_STEP_BACK = 0.32;
+
+/**
+ * On a portrait screen the head and its milestone's set-piece split the frame
+ * VERTICALLY, because that is the one way a phone has room to split it.
+ *
+ * Wide, they never compete: the head swerves to the side and the piece blooms
+ * around the origin it left. Held upright there is no side to swerve to, so both
+ * sat on the origin and the route map was drawn across the face. Instead the
+ * head rises (`BIO_PORTRAIT_HEAD_Y`, screen-equivalent — `headSpot` scales it by
+ * the step back) and the pieces drop by `BIO_PORTRAIT_PIECE_Y` (SceneSetPieces),
+ * into the lower half — which is empty at that moment, because the piece blooms
+ * ahead of its card (`BIO_PORTRAIT_PIECE_LEAD_VH`). The card then comes up over
+ * the piece as it fades, not over the face.
+ *
+ * Against the portrait camera (registry.ts, y −0.2 at z 1.3 → ±0.91 visible):
+ * the head's centre lands ~21% down the screen, the pieces' ~62%.
+ */
+export const BIO_PORTRAIT_HEAD_Y = 0.32;
+export const BIO_PORTRAIT_PIECE_Y = -0.42;
 
 /**
  * Where the head stands for card `j`, honouring the card's `headDepth`.
@@ -329,7 +372,7 @@ const headSpot = (
   swing: number,
   headY: number
 ) => {
-  const depth = Math.max(0, card?.headDepth ?? 0);
+  const depth = Math.max(0, card?.headDepth ?? 0) + (frame.portrait ? PORTRAIT_STEP_BACK : 0);
   const k = (frame.camZ + depth) / frame.camZ;
   return { x: -a.sideSign * swing * k, y: headY * k, z: -depth };
 };

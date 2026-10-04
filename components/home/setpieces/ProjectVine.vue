@@ -32,6 +32,7 @@ import {
   LABEL_OPEN,
   labelEl,
   PROJECTS_CAM_Z,
+  TAIL_T,
   VINE_SAMPLES,
   vineCurve,
   vineDrawT,
@@ -1196,6 +1197,9 @@ const easeOutBack = (t: number) => {
   return 1 + u * u * (2.2 * u + 1.2);
 };
 
+// Read per frame for the portrait card hand-off (a plain getter, no watcher).
+const sections = useSectionsStore();
+
 const { onBeforeRender } = useLoop();
 onBeforeRender(({ delta, elapsed }) => {
   const g = group.value;
@@ -1524,7 +1528,16 @@ onBeforeRender(({ delta, elapsed }) => {
     if (!el) continue;
     // A card opens just after the stem's tip has gone past its bud.
     world.copy(budAt(i)).applyMatrix4(g.matrixWorld);
-    placeEl(el, world, cam, w, h, born[i]!, reveal, sapNear[i]!, CARD_ANCHOR);
+    // Portrait: the camera rides from bud to bud, so a card steps aside as the
+    // next one opens — otherwise two buds on the same side stack their cards.
+    // The last one has no successor; it steps aside as the stem starts to drop
+    // and the camera goes down after it.
+    const handoff = !sections.portrait
+      ? 1
+      : i + 1 < CARD_T.length
+        ? 1 - born[i + 1]!
+        : 1 - clamp01(((drawT - TAIL_T) / (1 - TAIL_T)) * 3);
+    placeEl(el, world, cam, w, h, born[i]!, reveal * handoff, sapNear[i]!, CARD_ANCHOR);
   }
 
   // The label hangs BY ITS EYELET, which is why it gets a different anchor: the

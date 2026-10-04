@@ -83,6 +83,13 @@ const turnSpeed = tuneModel.num("turnSpeed", 0.45, {
 const tuneHead = useTuning("headAddress", "Head addressing", "contact");
 const addressYaw = tuneHead.num("addressYaw", 1.17, { min: -2.5, max: 2.5, step: 0.01, label: "Address yaw (toward CLI)" });
 const addressPitch = tuneHead.num("addressPitch", 0.02, { min: -1, max: 1, step: 0.01, label: "Address pitch" });
+/**
+ * The same turn on a phone, where there is no "toward the CLI" to the side: the
+ * portrait finale stacks the head ABOVE the terminal, so it addresses the card
+ * by looking down at it, square to the lens. Positive pitch is chin-down.
+ */
+const portraitAddressYaw = tuneHead.num("portraitAddressYaw", 0, { min: -2.5, max: 2.5, step: 0.01, label: "Portrait: address yaw" });
+const portraitAddressPitch = tuneHead.num("portraitAddressPitch", 0.28, { min: -1, max: 1, step: 0.01, label: "Portrait: address pitch (down at the card)" });
 const maxYaw = tuneHead.num("maxYaw", 0.22, { min: 0, max: 1, step: 0.01, label: "Cursor yaw range" });
 const maxPitch = tuneHead.num("maxPitch", 0.14, { min: 0, max: 1, step: 0.01, label: "Cursor pitch range" });
 /**
@@ -270,8 +277,10 @@ const onLoop = ({ delta, elapsed }: { delta: number; elapsed: number }) => {
   // store). So this is `tracking`, not `addressing`.
   const addressing = sectionsStore.addressing;
   const cursorScale = reducedMotion.value ? 0 : sectionsStore.tracking;
-  const baseYaw = headPose.rotation.y * (1 - addressing) + addressYaw.value * addressing;
-  const basePitch = headPose.rotation.x * (1 - addressing) + addressPitch.value * addressing;
+  const toYaw = sectionsStore.portrait ? portraitAddressYaw.value : addressYaw.value;
+  const toPitch = sectionsStore.portrait ? portraitAddressPitch.value : addressPitch.value;
+  const baseYaw = headPose.rotation.y * (1 - addressing) + toYaw * addressing;
+  const basePitch = headPose.rotation.x * (1 - addressing) + toPitch * addressing;
   // What the head is actually watching. The orb, when there is one — it hovers
   // near the cursor and lags a fast move, so the gaze inherits that life instead
   // of being pinned to the pointer — blending back to the raw cursor by however

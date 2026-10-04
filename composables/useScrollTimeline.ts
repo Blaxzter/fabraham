@@ -121,9 +121,10 @@ export function useScrollTimeline() {
     );
 
     // The document height depends on the (async-loaded) sections; refresh the
-    // trigger whenever the section count changes and on resize.
+    // trigger whenever the section count changes and on resize — and when the
+    // weights do, which a rotation into the portrait composition can change.
     stopRefresh = watch(
-      () => store.sections.length,
+      () => store.sections.map((s) => s.weight).join(","),
       () => requestAnimationFrame(() => ScrollTrigger.refresh()),
       { immediate: true }
     );

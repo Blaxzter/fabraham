@@ -4,7 +4,8 @@ import type { Component } from "vue";
 import { useLoop, useTresContext } from "@tresjs/core";
 import { MeshBasicMaterial } from "three";
 import type { Group } from "three";
-import { bioMilestoneCenter, bioMilestonePieceHalfWindow } from "~/stores/sections";
+import { bioMilestonePieceHalfWindow } from "~/stores/sections";
+import { BIO_PORTRAIT_PIECE_Y } from "~/components/home/sections/biography";
 import Lattice from "./setpieces/Lattice.vue";
 import BerlinSkyline from "./setpieces/BerlinSkyline.vue";
 import RouteArc from "./setpieces/RouteArc.vue";
@@ -112,6 +113,16 @@ const SLOT_OFFSETS: [number, number, number][] = [
 const offsetFor = (slot: number): [number, number, number] =>
   SLOT_OFFSETS[Math.min(slot, SLOT_OFFSETS.length - 1)]!;
 
+/**
+ * A biography milestone's slot on a portrait screen: dropped below the head
+ * (`BIO_PORTRAIT_PIECE_Y`, see ./sections/biography.ts), and the stacked slots
+ * pulled in, since ±0.45 sideways is past the edge of a phone's frame.
+ */
+const portraitMilestoneOffset = (slot: number): [number, number, number] => {
+  const [x, y, z] = offsetFor(slot);
+  return [x * 0.35, y + BIO_PORTRAIT_PIECE_Y, z];
+};
+
 // Set-pieces that also want their beat's RAW LOCAL PROGRESS, not just `reveal`
 // (see `cardProgressOf` below). Opt-in by name so every other set-piece keeps
 // exactly the props it had — nothing extra is bound to a component that hasn't
@@ -173,7 +184,7 @@ const pieces = computed(() => {
               subIndex: j,
               subCount: count,
               variant: m.setPieceVariant,
-              position: offsetFor(slot),
+              position: store.portrait ? portraitMilestoneOffset(slot) : offsetFor(slot),
               occluded: OCCLUDED_PIECES.has(name),
               progressDriven: PROGRESS_DRIVEN.has(name),
               component: SET_PIECES[name],
@@ -217,7 +228,7 @@ const cardProgressOf = (p: Piece) => {
   const bs = store.boundaries;
   const start = bs[p.index] ?? 0;
   const range = (bs[p.index + 1] ?? 1) - start || 1;
-  const center = start + bioMilestoneCenter(p.subIndex, p.subCount) * range;
+  const center = start + store.bioPieceCenter(p.index, p.subIndex, p.subCount) * range;
   const half = (bioMilestonePieceHalfWindow(p.subCount) || 0.0001) * range;
   return clamp01((store.progress - (center - half)) / (2 * half));
 };

@@ -140,7 +140,24 @@ export interface Section {
   /** Optional head poses (position offset + rotation) anchored within this section
    *  — lets the head fly/turn per scene. Defaults to a resting pose when absent. */
   headKeyframes?: HeadKeyframe[];
+  /**
+   * The same chapter, recomposed for a screen held upright.
+   *
+   * Every pose above was composed on a wide screen, where the head and a card can
+   * stand side by side. A phone has no "beside": the frame is a column, so the
+   * things that share it have to share it top-to-bottom — and the head that sat
+   * left of a card on desktop ends up behind it. Whatever a section sets here
+   * REPLACES the wide value while the viewport is portrait (see `PORTRAIT_MAX_ASPECT`
+   * in the sections store); whatever it leaves out is shared. The store keeps a
+   * separate editable copy of each set, so tuning one never moves the other.
+   */
+  portrait?: SectionPortrait;
 }
+
+/** The parts of a section a portrait composition may replace. */
+export type SectionPortrait = Partial<
+  Pick<Section, "weight" | "layout" | "camera" | "cameraKeyframes" | "headKeyframes">
+>;
 
 /** A biographical milestone rendered inside the biography section's cluster. */
 export interface BiographyMilestone {
