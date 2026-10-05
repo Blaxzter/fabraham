@@ -222,6 +222,11 @@ const CARD_REACH_VW = 12;
  * which is the same sentence the zigzag says with a swerve.
  */
 const cardWorldX = (a: BioCardAnchor, frame: BioFraming) => {
+  // Portrait: the head sits ABOVE the cards, which span the screen under it, so
+  // the thing it is watching is straight below it. Aiming at the rail here (as
+  // the low-seated rail composition does) turned the face away to the left
+  // margin for the whole chapter — looking past the card instead of at it.
+  if (frame.portrait) return 0;
   const ax = frame.rail ? railAx(frame) : a.ax + a.sideSign * CARD_REACH_VW;
   return ((ax - 50) / 50) * frame.halfW;
 };
