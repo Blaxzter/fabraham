@@ -58,6 +58,8 @@ const props = withDefaults(defineProps<SetPieceProps>(), {
 const { pointer } = usePointer();
 const { reducedMotion } = usePreferences();
 const { height } = useWindowSize();
+// Read per frame for the portrait framing (a plain getter, no watcher).
+const sections = useSectionsStore();
 
 const DATA_URL = "/setpieces/structures.json";
 
@@ -75,6 +77,31 @@ const HILLS = "#8fd19e";
 const STAGE_SCALE = 0.155;
 /** Where the stage stands relative to the slot position (stage units). */
 const STAGE_OFFSET: [number, number, number] = [0.04, -0.56, -0.3];
+/**
+ * The same stage on a phone: framed on the STRUCTURE, not the whole level.
+ *
+ * The wide stage is ~12 m of game world — slingshot at about −6.5 m, every
+ * baked structure inside ±2.5 m of 0. A portrait frame at this depth holds under
+ * 7 m, so the level was cut at the left edge and, dropped below the head on top
+ * of its own stage offset, sat on the floor of the screen. Shrinking all 12 m to
+ * fit would leave the blocks a few pixels each.
+ *
+ * So the phone keeps what the piece is about — the tower and its collapse — and
+ * lets the slingshot go: the frame is centred on the structure
+ * (`PORTRAIT_FOCUS_M`) and holds ±3 m of it at this scale, and the bird arrives
+ * from off the left edge. Rubble that flies further than that leaves the shot,
+ * as it would. Without the sling to fit, the stage can be drawn a little LARGER
+ * than on desktop, and higher, so the ground sits ~75% down the screen rather
+ * than at the bottom of it.
+ */
+const PORTRAIT_STAGE_SCALE = 0.17;
+const PORTRAIT_FOCUS_M = 0;
+const PORTRAIT_STAGE_OFFSET: [number, number, number] = [
+  -PORTRAIT_FOCUS_M * PORTRAIT_STAGE_SCALE,
+  -0.34,
+  -0.3,
+];
+
 /**
  * The stage is seen from slightly above, so the blocks' tops show and their
  * depth reads (Science Birds itself is flat). No yaw at rest: a turned stage
@@ -521,9 +548,11 @@ onBeforeRender(({ delta }) => {
   const ease = approach(0.07, delta);
   curX += ((still ? 0 : pointer.value.x) - curX) * ease;
   curY += ((still ? 0 : pointer.value.y) - curY) * ease;
-  stage.position.set(STAGE_OFFSET[0], STAGE_OFFSET[1], STAGE_OFFSET[2]);
+  const portrait = sections.portrait;
+  const at = portrait ? PORTRAIT_STAGE_OFFSET : STAGE_OFFSET;
+  stage.position.set(at[0], at[1], at[2]);
   stage.rotation.set(STAGE_PITCH + curY * 0.06, STAGE_YAW + curX * 0.14, 0);
-  stage.scale.setScalar(STAGE_SCALE);
+  stage.scale.setScalar(portrait ? PORTRAIT_STAGE_SCALE : STAGE_SCALE);
 
   // --- The clock --------------------------------------------------------------
   // Reduced motion parks on the built structure, bird in the sling: the piece
