@@ -13,10 +13,13 @@ import ScrollSpotlights from "./ScrollSpotlights.vue";
 import CursorOrb from "./CursorOrb.vue";
 import Planets from "./Planets.vue";
 import TuningGizmos from "./TuningGizmos.vue";
+import SceneWarmup from "./SceneWarmup.vue";
+import RenderGovernor from "./RenderGovernor.vue";
 
 const store = useSceneControlStore();
 const bootState = useBootStateStore();
 const sectionsStore = useSectionsStore();
+const quality = useRenderQuality();
 const isDev = import.meta.dev;
 
 const modelRef = shallowRef<Object3D | null>(null);
@@ -137,13 +140,28 @@ const { reducedMotion } = usePreferences();
 const orbGaze = useCursorOrb();
 
 // ASCII and rendering configuration
+//
+// `antialias` is the canvas' own MSAA, and all it smooths is the line overlay:
+// the ASCII pass is a full-screen quad, which has no edges. It is a context
+// attribute, fixed when the canvas is created, so it is read once here; the
+// tiers that turn it off are the ones where every sample is CPU time.
 const gl = {
   toneMapping: NoToneMapping,
+  antialias: quality.antialias.value,
 };
 
+// The composer's buffer is where the lit scene is drawn, and HeroAscii keeps it
+// far smaller than the screen and sets its sample count per quality tier (see
+// "The scene buffer" there). No normal pass: nothing reads normals, and TresJS
+// otherwise builds one, disabled, with a full-size target of its own.
 const glComposer = {
-  multisampling: 4,
+  multisampling: quality.sceneSamples.value,
+  disableNormalPass: true,
 };
+// `EffectComposerPmndrs` exposes its composer; HeroAscii and SceneWarmup need
+// the instance itself.
+const composerHost = shallowRef<InstanceType<typeof EffectComposerPmndrs> | null>(null);
+const composer = computed(() => composerHost.value?.composer ?? null);
 
 // Load the head model. Textures are 1024² WebP (EXT_texture_webp); geometry is
 // ~10k verts uncompressed — no DRACO in the file, so no decoder is loaded
@@ -217,14 +235,27 @@ const applyHeadOpacity = (opacity: number) => {
   for (const m of headMaterials.value) {
     // depthWrite is left alone: turning it off mid-fade makes the back of the
     // head show through the front.
-    m.transparent = !solid;
+    //
+    // `needsUpdate` on the flip, because opaque and transparent are two
+    // different programs (an opaque one writes alpha 1 whatever `opacity` says).
+    // It used to be picked up without this, by accident: the extra passes each
+    // frame change the renderer's light state, which sends every lit material
+    // back through program selection anyway.
+    if (m.transparent === solid) {
+      m.transparent = !solid;
+      m.needsUpdate = true;
+    }
     m.opacity = opacity;
   }
 };
 
-// Mark scene as ready for boot screen
+// The model is here. The scene is not ready until it has drawn and compiled its
+// shaders, which SceneWarmup reports from inside the canvas; the timer is the
+// way out if the canvas never draws at all, so the boot cannot wait forever on
+// a scene that is not coming.
 if (import.meta.client) {
-  bootState.markSceneReady();
+  bootState.markModelReady();
+  setTimeout(() => bootState.markSceneReady(), 8000);
 }
 
 // Setup render loop to track camera changes
@@ -481,14 +512,23 @@ watch(
   <!-- Capped at 60 fps: on a 120/144 Hz screen the scene otherwise renders two
        to two and a half times as often as it needs to, and every one of those
        frames is the full scene plus the ASCII pass. `fps-limit` is backported
-       into @tresjs/core 5.2.1 by patches/@tresjs__core@5.2.1.patch. -->
+       into @tresjs/core 5.2.1 by patches/@tresjs__core@5.2.1.patch.
+
+       The cap and the pixel ratio both come from the quality tier (see
+       useRenderQuality): the display's own ratio and 60 on a GPU that keeps
+       up, less where it does not.
+
+       No `shadows`. Nothing in the scene casts one (the lights say why: the
+       ASCII grid hides the detail), so the shadow pass walked the whole scene
+       every frame to draw an empty map, and the backdrop's shader sampled it
+       at every fragment. -->
   <TresCanvas
     v-bind="gl"
     clear-color="#111"
-    shadows
     alpha
     window-size
-    :fps-limit="60"
+    :dpr="quality.dpr.value"
+    :fps-limit="quality.fps.value"
     @loop="onLoop"
   >
     <!-- Free camera. `minDistance` keeps you out of the inside of the head;
@@ -597,14 +637,14 @@ watch(
          empty TresMesh here was a geometry-less mesh in the scene (the one the
          TresJS devtools choked on with "reading 'count'"). -->
     <TresGroup :position="[0, -2, 0]" :scale="[10, 10, 10]">
-      <Backdrop :floor="0.25" :segments="20" receive-shadow>
+      <Backdrop :floor="0.25" :segments="20">
         <TresMeshPhysicalMaterial ref="backdropMatRef" color="#444" :roughness="0.5" />
       </Backdrop>
     </TresGroup>
 
     <!-- Constant base lighting (tunable). The scroll spotlights add focused,
          scroll-driven light on top of this. -->
-    <TresDirectionalLight :position="[5, 5, 5]" :intensity="spotlights.baseFill" cast-shadow />
+    <TresDirectionalLight :position="[5, 5, 5]" :intensity="spotlights.baseFill" />
     <TresAmbientLight :intensity="spotlights.baseAmbient" />
 
     <!-- Scroll-driven spotlight rig: dark through the hero, then lights kick on
@@ -616,9 +656,17 @@ watch(
     <!-- ASCII Post-processing Effect. Two grids: the face on the scroll-driven
          cell, the hero name on its own finer one. -->
     <Suspense>
-      <EffectComposerPmndrs v-bind="glComposer">
-        <HeroAscii />
+      <EffectComposerPmndrs ref="composerHost" v-bind="glComposer">
+        <HeroAscii :composer="composer" />
       </EffectComposerPmndrs>
     </Suspense>
+
+    <!-- Compiles every shader while the boot screen is up, then reports the
+         scene ready (the boot's handover waits for it). -->
+    <SceneWarmup :composer="composer" />
+
+    <!-- Watches the frame pacing and steps the quality down on a GPU that
+         cannot keep up. -->
+    <RenderGovernor />
   </TresCanvas>
 </template>

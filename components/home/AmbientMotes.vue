@@ -52,7 +52,8 @@ import { createDots, setDotScale, mulberry32, smoothstep, clamp01 } from "./setp
 const store = useSectionsStore();
 const { reducedMotion } = usePreferences();
 const { pointer, pointerActive } = usePointer();
-const { camera, scene } = useTresContext();
+const { scene } = useTresContext();
+const rawCamera = useRawCamera();
 
 // --- Tuning ------------------------------------------------------------------
 const tune = useTuning("ambientMotes", "Ambient motes");
@@ -340,7 +341,7 @@ onBeforeRender(({ delta, elapsed }) => {
   if (!visible) return;
 
   findScene();
-  const cam = camera.activeCamera.value as PerspectiveCamera | undefined;
+  const cam = rawCamera() as PerspectiveCamera | undefined;
   if (!cam) return;
   const dt = Math.min(delta, 0.1);
 

@@ -121,3 +121,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Low graphics tiers ─────────────────────────────────────────────────────────
+   `gfx-low` is on <html> while the scene runs in a reduced tier: a software
+   rasteriser (the browser's graphics acceleration is off) or "low" chosen on
+   /setup. See composables/useRenderQuality.ts.
+
+   With the GPU off, the PAGE is composited on the CPU as well, and there a
+   backdrop blur is a convolution of whatever is behind the element, redone
+   every time that changes. Behind every card on the home page is the canvas,
+   which changes every frame. So the blurs go, everywhere; the two cards that
+   leaned on theirs for legibility darken their own ground instead
+   (BiographyCard, ContactSection).
+
+   Unlayered and `!important` because the rules it overrides are scoped
+   component styles, which outrank a bare class. */
+.gfx-low *,
+.gfx-low *::before,
+.gfx-low *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

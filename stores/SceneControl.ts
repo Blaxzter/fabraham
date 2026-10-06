@@ -167,8 +167,14 @@ export const useSceneControlStore = defineStore("sceneControl", () => {
   );
   const font = ref("Arial");
   const fontSize = ref(10);
-  const textureSize = ref(1024);
-  const cellCount = ref(16);
+  // The character sheet: `cellCount`² cells of `textureSize / cellCount` px.
+  // 512 / 8 is the same 64 px cell the old 1024 / 16 sheet had, so a glyph is
+  // drawn at exactly the size it was, in a quarter of the texture: the 62
+  // characters fill 62 of 64 cells, where they used to sit in the top four
+  // rows of sixteen. It matters because the sheet is redrawn and re-uploaded
+  // for every step of the font-size ramp, about thirty times across the reveal.
+  const textureSize = ref(512);
+  const cellCount = ref(8);
   const opacity = ref(1);
   const blendFunction = ref(BlendFunction.NORMAL);
 

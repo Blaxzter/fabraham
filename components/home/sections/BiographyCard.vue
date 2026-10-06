@@ -373,4 +373,11 @@ const accentStyle = computed(() =>
     transform: none;
   }
 }
+
+/* Low graphics tiers drop every backdrop blur (see `.gfx-low` in tailwind.css).
+   The blur was half of what kept the text clear of the characters behind it, so
+   the card's own ground takes over the rest. */
+:global(.gfx-low) .bio-card {
+  background: rgba(0, 0, 0, 0.76);
+}
 </style>

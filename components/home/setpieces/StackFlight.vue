@@ -104,6 +104,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const store = useSectionsStore();
+const quality = useRenderQuality();
 
 /** What anything tints toward at full attention, whatever the chapter's hue. */
 const HOT = new Color("#fff3d6");
@@ -1227,7 +1228,10 @@ onBeforeRender(({ elapsed }) => {
   }
 
   const shardList = shards.value;
-  const flying = Math.min(Math.round(shardCount.value), shardList.length);
+  // Every shard is a draw call or two, and this chapter is the one place on the
+  // page where the frame is spent issuing them, so a low graphics tier flies
+  // fewer of them (the marks, which carry the content, are untouched).
+  const flying = Math.min(Math.round(shardCount.value * quality.density.value), shardList.length);
   for (let i = 0; i < shardList.length; i++) {
     const f = shardList[i]!;
     if (i >= flying) {

@@ -47,7 +47,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const store = useSectionsStore();
-const { scene, camera } = useTresContext();
+const { scene } = useTresContext();
+const rawCamera = useRawCamera();
 
 const COLOR = new Color("#00ff9c");
 const BURST_COLOR = new Color("#eafff6"); // brighter — a command's pulse
@@ -201,7 +202,7 @@ onBeforeRender(({ elapsed }) => {
 
   // Emitter: project the contact card's screen anchor onto the z=plane so it
   // tracks the card across viewport/scroll; fall back to a fixed point.
-  const cam = camera.activeCamera.value;
+  const cam = rawCamera();
   const anchor = store.contactAnchor;
   let placed = false;
   if (cam && anchor) {

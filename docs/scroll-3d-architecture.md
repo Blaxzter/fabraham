@@ -155,6 +155,9 @@ that belongs to the biography *section* in the registry.
 | `components/home/hero/DualGridAsciiEffect.ts` | The effect itself: pmndrs' `ASCIIEffect` maths run twice — once over the scene, once over the glyph buffer — composited in one pass. |
 | `components/home/hero/glyphGeometry.ts` | One EXTRUDED geometry per character, built once at mount; the scramble swaps geometry references. Font is `heroFont.json`, a subset cut by `scripts/make-hero-font.mjs`. |
 | `components/home/hero/glyphBuffer.ts` | The offscreen target `HeroGlyphs` writes and `HeroAscii` reads. |
+| `components/home/hero/sceneBuffer.ts` | How much smaller than the canvas the lit scene is rendered (written by `HeroAscii`), for the one thing in that pass sized in pixels: the orb's sparks. |
+| `components/home/SceneWarmup.vue` | Compiles every shader behind the boot screen, then sets `sceneReady`. |
+| `components/home/RenderGovernor.vue` | Watches the frame pacing and steps the quality down on a GPU that cannot keep up. |
 | `components/home/AsciiTextAnimation.vue` | **Unmounted.** The old screen-space hero (a fixed DOM overlay scrambling Courier glyphs). Superseded by `HeroGlyphs`; kept on disk until the 3D treatment is signed off. |
 
 ### Selective-render overlay (issue #17)
@@ -1353,8 +1356,10 @@ sits is the only thing keeping a whole country outline off the face.
 | `lib/glow.ts` | `createGlowTexture()` — the soft radial falloff every glowing thing in the scene is drawn with (the cursor orb, its sparks, the coda's planets). One gradient, shared, because its long shallow tail is what gives the ASCII ramp something to walk down; a factory rather than a singleton, so each consumer disposes what it made. |
 | `stores/SceneControl.ts` | Scene/ASCII config (cell size, font size, lights, control mode). Edited in dev via the **Dev Panel** (`components/home/DevPanel.vue`); see [Dev Panel and tuning](#dev-panel-and-tuning). |
 | `stores/spotlights.ts` | The live, editable spotlight rig: global knobs + the keyframe `tracks` (seeded from `SPOTLIGHT_TRACKS`). Read by `ScrollSpotlights` + Scene3D's base lights, edited by the dev panel's Spotlights section. `setSectionKeyframes` replaces just one section's keyframes in a track (for the runtime generators), keeping them as the reset baseline so *reset* doesn't drop them. See [Scroll-driven spotlights](#scroll-driven-spotlights). |
-| `stores/BootState.ts` | Boot sequence phases. |
-| `composables/usePreferences.ts` | Visitor preferences (reduced-motion, skip boot intro), set on `/setup`, persisted to `localStorage`. Theme is owned by `useColorMode`. |
+| `stores/BootState.ts` | Boot sequence phases, plus the two readiness flags the POST screen holds on: `modelReady` (the head is parsed) and `sceneReady` (the scene has drawn and its shaders are compiled, see [Performance and render quality](#performance-and-render-quality)). |
+| `composables/usePreferences.ts` | Visitor preferences (reduced-motion, skip boot intro, graphics quality), set on `/setup`, persisted to `localStorage`. Theme is owned by `useColorMode`. |
+| `composables/useRenderQuality.ts` | How hard the scene may work on this device: the GPU probe, the quality tier, and the pixel ratio / frame cap / detail knobs the canvas reads. See [Performance and render quality](#performance-and-render-quality). |
+| `composables/useRawCamera.ts` | The active camera unwrapped from TresJS's reactive proxy. Anything that reads the camera per frame, or hands it to three, takes it from here. See [the camera is a proxy](#the-camera-is-a-proxy). |
 
 ---
 
@@ -1561,6 +1566,198 @@ anchor discipline the spotlight rig and `SignalField` follow at runtime (see
 config-file value (or the inline default) and never imports the store, so
 `DevPanel`/`TuningGizmos` (mounted behind `v-if="isDev"`) never instantiate it.
 Nothing to strip manually.
+
+---
+
+## Performance and render quality
+
+Where a frame goes, and the rules that keep it cheap. Everything here was
+measured rather than assumed; the numbers are from a desktop (RTX 4070 Ti,
+1080p, dev build) unless they say otherwise, and what matters is their ratio.
+
+### A frame, pass by pass
+
+```
+onBeforeRender   every component writes its objects (imperative, issue #4)
+                 HeroGlyphs → the name's own buffer            (hero only)
+composer         RenderPass  → the LIT SCENE, into a small buffer
+                 EffectPass  → the ASCII pass, full size, to the canvas
+onRender         SceneSetPieces → the line overlay, straight to the canvas
+                   on-top pieces · head depth stamp · occluded pieces
+```
+
+The lit scene is the expensive material (a physically based head and backdrop
+under every light) and the ASCII pass is a cheap full-screen shader. So the rule
+is: **shade the lit scene as few times as possible, and never do anything per
+pixel that the grid then throws away.**
+
+### The scene buffer
+
+The ASCII pass reads the scene **once per cell**: one tap at the cell's centre
+decides the whole character. At the finest grid (9 px cells) that is one texel
+in 81. The composer's input buffer used to be the size of the screen, four
+samples each, because that is postprocessing's default.
+
+`HeroAscii` now keeps that buffer at `sceneTexels` texels per finest cell: 3 on
+the normal tier, so a ninth of the fragments, and each cell's tap still lands in
+the middle third of its cell. The picture is the same (compared at pinned scroll
+positions: mean brightness within 3%), and on a software rasteriser the lit pass
+is now under a millisecond of the frame.
+
+Things to know when working near it:
+
+- The EffectPass keeps its full size, and the cell maths with it. Only the
+  buffer it reads from is small.
+- `HeroAscii` re-asserts the size every frame, because TresJS resets it on every
+  resize and the composer is never told when the pixel ratio changes.
+- The plain scene gets a full-size buffer again whenever it is what is on
+  screen: the dev panel's "enable ASCII", a non-normal blend, an opacity under 1.
+- Anything drawn in the lit pass and sized in **pixels** must scale by
+  `sceneBuffer.scale`. three sizes a `PointsMaterial` against the canvas whatever
+  target it draws into. Today that is the orb's sparks and nothing else; sprites
+  and meshes are in world units and need nothing.
+- Once the name is gone (`NAME_GONE`), the pass skips the name's grid entirely:
+  five buffer reads and a character lookup per pixel, on every section after
+  the hero.
+
+### The camera is a proxy
+
+TresJS keeps its cameras in a deep `ref([])`, so `camera.activeCamera.value` is a
+Vue reactive Proxy of the `PerspectiveCamera`. Every read under it is a proxy
+trap: `cam.matrixWorldInverse.elements[i]` is three of them.
+
+Passed to `renderer.render()`, three reads it for every object it draws. Passed
+to `v.project(cam)`, it is read 32 times per call. This was the single largest
+CPU cost on the page: ~3 ms a frame in `AmbientMotes` on every section, and a
+third of the frame in the skills chapter's ~480 draw calls.
+
+**Use `useRawCamera()`** (call it in setup, call the getter in the loop). The
+composer's passes are built by TresJS around the proxy too; `HeroAscii` swaps
+the raw camera into them.
+
+The same trap applies to any three object: keep them in `shallowRef`, never
+`ref`, and never read one through a `reactive` store in a loop.
+
+### Lights are never hidden
+
+The number of lights a pass sees is part of **every** program's key, lit
+material or not. A light that becomes visible mid-scroll therefore recompiles
+the head, the backdrop and everything else in the lit pass, on that frame.
+
+So a light that is off has `intensity` 0 and stays in the scene: the planets'
+pool (`Planets.vue`) and the spotlight rig (`ScrollSpotlights.vue`) both work
+this way. The rig used to toggle `visible`, which put the recompile on the
+reveal's "tada".
+
+Related: there is no shadow pass. Nothing casts one, so `shadows` only ever
+rendered an empty map and made the backdrop sample it.
+
+### Shaders are compiled behind the boot screen
+
+three compiles a program the first time something that needs it is drawn, and
+most of this scene is hidden at the top of the page. Left alone, thirteen
+programs were compiled one at a time down the scroll, each on the frame its
+piece first appeared.
+
+`SceneWarmup` compiles them all once the scene has drawn its first frames, each
+pass the way it is drawn (the overlay to the canvas with no lights, the lit pass
+into the composer's buffer with them, the head once more as transparent for its
+fade), then sets `sceneReady`. The POST screen's "Compiling shaders..." line
+holds on that flag, so the handover never starts on a machine that is still
+building what it is about to show. A sweep of the whole scroll now links one
+program instead of thirteen.
+
+A new material **kind** in a set-piece is covered automatically, as long as the
+piece is mounted by the time the scene has drawn three frames.
+
+### Quality tiers
+
+`useRenderQuality` decides how hard the scene may work, in three steps:
+
+| | decided by | pixel ratio | fps | scene buffer | canvas MSAA |
+| --- | --- | --- | --- | --- | --- |
+| `high` | a real GPU (the default) | the display's own | 60 | 3 texels/cell, 4× MSAA | on |
+| `low` | "Low" on `/setup` | cut to fit ~1.6 MP | 60 | 2 texels/cell | off |
+| `minimal` | a **software rasteriser** | cut to fit ~0.42 MP | 30 | 2 texels/cell | off |
+
+**Software** means WebGL is being drawn on the CPU: the browser's "use graphics
+acceleration" switch is off, or the driver is blocklisted. It is detected once,
+with a throwaway context (`failIfMajorPerformanceCaveat`, plus the renderer
+string). Chrome on Windows still hands out a WebGL2 context there, backed by
+SwiftShader, and the untouched scene ran on it at 3 fps; in `minimal` it holds
+its 30 along the whole scroll.
+
+What a tier changes is resolution and optional detail, never the composition.
+Two things do look different:
+
+- **The ASCII grid gets coarser.** Its cells are a fixed number of device
+  pixels, so at half the pixel ratio there are half as many, twice as large.
+  Shrinking the cells instead would keep the density and turn every character
+  into a smudge.
+- **Fat lines become hairlines on a software rasteriser** (`createFatLines`, see
+  the note in `lineArt.ts`). The vine's ~18,000 fat segments were 75 ms a frame
+  there. At that tier's pixel ratio a one-pixel line is nearly two CSS pixels
+  wide, which is what most of them asked for.
+
+Dots keep their size on screen at any pixel ratio (`setDotScale` folds in
+`renderScale`).
+
+`gfx-low` is set on `<html>` for `low` and `minimal`, as a CSS hook for the DOM's
+share: with the GPU off the page is composited on the CPU as well. Every
+`backdrop-filter` is dropped there (`tailwind.css`), the two cards that leaned
+on theirs darken their ground instead, and the boot's CRT stops animating
+(`boot.css`).
+
+**No WebGL at all** (`quality.webgl` false): the canvas is not mounted, the boot
+is told the scene is ready, and `HeroSection` sets the name in type.
+
+### The governor
+
+A tier is a guess made before a frame is drawn. `RenderGovernor` checks it
+against what happens and, on "auto" only, steps down a ladder: ¾ of the pixel
+ratio, then ½, then half the frame rate. The rung is kept for the visit
+(`sessionStorage`).
+
+It steps only when fewer pixels would help. Slow frames with a **busy** main
+thread (a chapter full of draw calls, a long style recalc) are not the GPU's
+doing, so before a step it requires the main thread to have been idle for most
+of each slow frame, and after a step it checks that the frame time actually
+came down. If it did not (a 30 Hz display, a browser in energy-saver mode), the
+step is undone and the governor stops.
+
+### The boot's handover
+
+The zoom scales the whole monitor every frame. Unpromoted, the browser repaints
+all of it at each new scale (the room's 300vmax shadow, the masked case, eight
+CRT overlays with a blur and two blend modes): 19 to 33 fps on a GPU that holds
+120 either side of it, with the main thread idle. `.monitor.is-tuning` now
+carries `will-change: transform`, so the set is painted once and the zoom is a
+transform of that texture (118 fps). The case goes slightly soft as it passes
+the window's edges; the scene behind it is its own layer and stays sharp.
+
+If the monitor gains parts, keep them inside `.monitor` so they ride the same
+layer.
+
+On a software rasteriser there is no zoom. Rescaling the set on the CPU came out
+near 20 fps on a fast machine, so `BootScreen` takes the short fade it already
+had for reduced motion.
+
+### Measuring
+
+- **Frame cost:** wrap `requestAnimationFrame` before the app loads and sum the
+  time spent in callbacks per frame; count `drawArrays`/`drawElements` calls.
+  The skills chapter is the page's worst case (~480 draws).
+- **Who is calling what:** a CPU profile attributed to the nearest app frame.
+  A hot `get` in `reactivity.esm-bundler.js` under a three function means a
+  proxied three object.
+- **Software rendering:** launch Chrome with `--disable-gpu`. To see where a
+  frame goes there, follow each draw call with a 1×1 `readPixels` and time it,
+  keyed on `#define SHADER_TYPE` from the shader source.
+- **Hitches:** count `linkProgram` and large `texImage2D` calls by scroll
+  progress while sweeping the page slowly.
+- **Compositing** (the boot, the DOM cards): if frames are late and
+  `long-animation-frame` shows no script or render time, the wait is in raster
+  or on the GPU. Hide one layer at a time to find it.
 
 ---
 

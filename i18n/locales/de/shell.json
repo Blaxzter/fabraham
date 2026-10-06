@@ -9,7 +9,7 @@
       "memory": "Arbeitsspeicher: 32GB DDR5-6000 [OK]",
       "memTest": "Speichertest: {size}",
       "models": "GLTF-Modelle werden geladen...",
-      "shaders": "Shader werden kompiliert [OK]",
+      "shaders": "Shader werden kompiliert...",
       "operational": "Alle Systeme betriebsbereit.",
       "booting": "Starte Startbildschirm...",
       "loading": "Wird geladen"
@@ -60,17 +60,22 @@
     },
     "setup": {
       "metaTitle": "Einstellungen {'|'} Frederic Abraham",
-      "metaDescription": "Animationen und Starteinstellungen für die Seite.",
+      "metaDescription": "Animationen, Grafik und Starteinstellungen für die Seite.",
       "title": "SETUP · EINSTELLUNGEN",
       "motion": "Animation",
       "motionDesc": "Weniger Animation in der 3D-Ansicht. „System“ folgt der Einstellung für reduzierte Bewegung in deinem Betriebssystem.",
+      "graphics": "Grafik",
+      "graphicsDesc": "Wie viel die 3D-Szene deinem Rechner abverlangt. „Auto“ wählt passend zum Gerät und geht herunter, wenn es nicht mithält; „Niedrig“ rendert in geringerer Auflösung.",
       "startup": "Start",
       "skipBoot": "Boot-Intro beim Laden überspringen",
       "back": "← zurück zur Startseite",
       "opt": {
         "system": "System",
         "full": "Voll",
-        "reduced": "Reduziert"
+        "reduced": "Reduziert",
+        "auto": "Auto",
+        "high": "Hoch",
+        "low": "Niedrig"
       }
     }
   }

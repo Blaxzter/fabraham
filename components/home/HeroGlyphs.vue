@@ -15,7 +15,7 @@ import {
 import type { BufferGeometry, WebGLRenderer } from "three";
 import { clamp01, easeOutCubic, rand01 } from "./setpieces/lineArt";
 import { createGlyphGeometries } from "./hero/glyphGeometry";
-import { ensureGlyphTarget, disposeGlyphTarget, heroExit } from "./hero/glyphBuffer";
+import { ensureGlyphTarget, disposeGlyphTarget, heroExit, NAME_GONE } from "./hero/glyphBuffer";
 
 /**
  * The hero name, as geometry in the scene.
@@ -699,14 +699,15 @@ const VIEW_AXIS = new Vector3(0, 0, 1);
 const tmpSize = new Vector2();
 const tmpClear = new Color();
 
-const { scene, camera, renderer } = useTresContext();
+const { scene, renderer } = useTresContext();
+const rawCamera = useRawCamera();
 
 // Derived from the context so they are the SAME symbols TresJS hands back: the
 // project resolves two copies of @types/three, and a named `Object3D` import is
 // structurally incompatible with the one `scene.getObjectByName` returns.
 type TresGl = NonNullable<typeof renderer.instance>;
 type TresScene = NonNullable<typeof scene.value>;
-type TresCamera = NonNullable<typeof camera.activeCamera.value>;
+type TresCamera = NonNullable<ReturnType<typeof rawCamera>>;
 type SceneObject = NonNullable<ReturnType<TresScene["getObjectByName"]>>;
 
 const headGroup = shallowRef<SceneObject | null>(null);
@@ -794,14 +795,14 @@ const { onBeforeRender } = useLoop();
 
 onBeforeRender(({ delta, elapsed }) => {
   const gl = renderer.instance;
-  const cam = camera.activeCamera.value;
+  const cam = rawCamera();
   const scn = scene.value;
   if (!gl || !cam || !scn) return;
 
   const p = sections.heroProgress;
   const assemble = clamp01(p / (assembleAt.value || 1));
   const exit = clamp01((p - exitAt.value) / (1 - exitAt.value || 1));
-  const alive = exit < 0.999;
+  const alive = exit < NAME_GONE;
 
   // Published before the early-out below, so the pass still reads a finished
   // exit on the frames where there is nothing left to draw.

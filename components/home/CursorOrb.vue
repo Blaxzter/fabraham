@@ -14,6 +14,7 @@ import {
 } from "three";
 import type { Group, Object3D } from "three";
 import { createGlowTexture } from "~/lib/glow";
+import { sceneBuffer } from "./hero/sceneBuffer";
 
 /**
  * The fly: a small glowing orb that keeps the cursor company while the head is
@@ -100,7 +101,8 @@ import { createGlowTexture } from "~/lib/glow";
  * as grey mush beside the lit face. Nothing is allocated per frame (issue #4).
  */
 const store = useSectionsStore();
-const { scene, camera } = useTresContext();
+const { scene } = useTresContext();
+const rawCamera = useRawCamera();
 const { pointer, pointerActive } = usePointer();
 const { reducedMotion } = usePreferences();
 // Published every frame so the head can aim at the orb instead of at the cursor
@@ -538,7 +540,7 @@ const paintSparks = (fade: number, elapsed: number) => {
 const { onBeforeRender } = useLoop();
 onBeforeRender(({ delta, elapsed }) => {
   const group = groupRef.value;
-  const cam = camera.activeCamera.value;
+  const cam = rawCamera();
   if (!group || !cam) return;
 
   // Alive exactly while the head is tracking the cursor — and only if there IS a
@@ -620,7 +622,9 @@ onBeforeRender(({ delta, elapsed }) => {
 
   core.position.copy(pos);
   halo.position.copy(pos);
-  sparkMat.size = sparkSize.value;
+  // Scaled to the buffer this pass draws into: three sizes points against the
+  // canvas (see ./hero/sceneBuffer).
+  sparkMat.size = sparkSize.value * sceneBuffer.scale;
 
   // Publish where the orb ended up, on screen, for the head to aim at. Projected
   // here rather than in Scene3D because the camera's matrices were refreshed at

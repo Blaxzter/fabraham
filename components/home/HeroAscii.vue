@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, watch, watchEffect } from "vue";
-import { ASCIITexture } from "postprocessing";
+import { ASCIITexture, BlendFunction } from "postprocessing";
+import type { EffectComposer } from "postprocessing";
+import { Vector2 } from "three";
+import { useLoop, useTresContext } from "@tresjs/core";
 import { useEffectPmndrs } from "@tresjs/post-processing";
 import { DualGridAsciiEffect } from "./hero/DualGridAsciiEffect";
 import { glyphTarget } from "./hero/glyphBuffer";
+import { sceneBuffer } from "./hero/sceneBuffer";
 
 /**
  * The scene's ASCII pass — the same one `ASCIIPmndrs` gave us, plus a second
@@ -19,10 +23,17 @@ import { glyphTarget } from "./hero/glyphBuffer";
  *
  * Mount inside `<EffectComposerPmndrs>` — `useEffectPmndrs` injects the composer
  * from there and owns the pass' lifecycle (add on mount, dispose on unmount).
+ *
+ * It also keeps that composer's SCENE BUFFER small, which is most of what the
+ * scene costs to draw (see "The scene buffer" below). For that it needs the
+ * composer itself, which `useEffectPmndrs` does not hand out, so Scene3D passes
+ * the one `EffectComposerPmndrs` exposes.
  */
+const props = defineProps<{ composer: EffectComposer | null }>();
 
 const store = useSceneControlStore();
 const sections = useSectionsStore();
+const quality = useRenderQuality();
 
 // ---------------------------------------------------------------------------
 // Tunables. Two groups, because this pass draws two things on two beats and they
@@ -270,12 +281,135 @@ watchEffect(() => {
   fx.glyphBuffer = glyphTarget.value?.texture ?? null;
 });
 
+// A different character set or sheet layout is a different texture (and a
+// different shader: the effect bakes both into its defines).
 watch(
-  () => [store.characters, store.font, store.fontSize, store.textureSize, store.cellCount],
+  () => [store.characters, store.textureSize, store.cellCount],
   () => {
     if (effect.value) effect.value.asciiTexture = makeAsciiTexture();
   }
 );
+
+/**
+ * The same sheet in a different font or size: redrawn in place.
+ *
+ * The font size is on the reveal's ramp (15 → 44 px as the grid resolves), so
+ * this runs about thirty times across one section's scroll. Building a new
+ * `ASCIITexture` each time allocated a canvas, a texture and its mip chain per
+ * step and threw the last ones away; drawing into the canvas the texture
+ * already has leaves one upload. The drawing itself is `ASCIITexture`'s own
+ * constructor, restated, and has to stay that way: it is what the first sheet
+ * was drawn with.
+ */
+const redrawAsciiTexture = (texture: ASCIITexture) => {
+  const canvas = texture.image as HTMLCanvasElement;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const { characters } = store;
+  const cells = texture.cellCount;
+  const cell = canvas.width / cells;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.font = `${store.fontSize}px ${store.font}`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = "#ffffff";
+  for (let i = 0; i < characters.length; i++) {
+    context.fillText(characters[i]!, (i % cells) * cell + cell / 2, Math.floor(i / cells) * cell + cell / 2);
+  }
+  texture.needsUpdate = true;
+};
+watch(
+  () => [store.font, store.fontSize],
+  () => {
+    if (effect.value) redrawAsciiTexture(effect.value.asciiTexture);
+  }
+);
+
+// ---------------------------------------------------------------------------
+// The scene buffer
+// ---------------------------------------------------------------------------
+//
+// The composer renders the lit scene (the head, the backdrop, every light) into
+// its input buffer, and this pass reads that buffer ONCE PER CELL: a single tap
+// at the cell's centre decides the whole character. At the finest grid (9 px
+// cells) that is one texel used out of 81, and the other 80 were shaded with a
+// physically based material under every light in the scene, four samples each.
+// The buffer was the size of the screen because that is the composer's default,
+// not because anything read it at that size.
+//
+// So it is rendered small: `sceneTexels` texels across the FINEST cell the face
+// ever uses. At 3, each cell's tap lands on a texel in the middle third of its
+// cell, which is the sample a full-size render gave it, from a ninth of the
+// fragments. The pass keeps its own size, and with it the cell maths, which is
+// in output pixels; only the buffer it reads from shrinks.
+//
+// Sized off the finest cell rather than the live one, so the buffer is not
+// reallocated all the way down the reveal's sweep.
+//
+// The plain scene still gets every pixel whenever it is what ends up on screen:
+// the dev panel's "enable ASCII" switch, a blend mode that mixes the scene back
+// in, or an opacity under 1.
+const sceneScale = computed(() => {
+  const plain =
+    !store.enableASCII || store.blendFunction !== BlendFunction.NORMAL || store.opacity < 1;
+  if (plain) return 1;
+  const finest = Math.max(1, Math.min(faceCellCoarse.value, faceCellFine.value));
+  return Math.min(1, quality.sceneTexels.value / finest);
+});
+
+const { renderer } = useTresContext();
+const rawCamera = useRawCamera();
+const drawingBuffer = new Vector2();
+const cssSize = new Vector2();
+let fullWidth = 0;
+let fullHeight = 0;
+let tended: EffectComposer | null = null;
+let tendedCamera: unknown = null;
+let tendedPasses = 0;
+
+/**
+ * Keep the composer the way this pass needs it, checked every frame so it holds
+ * through everything that resets it: TresJS resizing the composer (which puts
+ * the input buffer back to full size), a quality tier or the governor changing
+ * the pixel ratio (which the composer is never told about), and the composer
+ * being rebuilt. Four comparisons on a frame where nothing changed.
+ */
+const { onBeforeRender } = useLoop();
+onBeforeRender(() => {
+  const composer = props.composer;
+  const gl = renderer.instance;
+  if (!composer || !gl) return;
+
+  // TresJS builds the passes around its reactive camera proxy (see
+  // `useRawCamera`); the render pass draws the whole lit scene through it.
+  const cam = rawCamera();
+  if (cam && (composer !== tended || cam !== tendedCamera || composer.passes.length !== tendedPasses)) {
+    composer.setMainCamera(cam);
+    tendedCamera = cam;
+    tendedPasses = composer.passes.length;
+  }
+
+  gl.getDrawingBufferSize(drawingBuffer);
+  if (composer !== tended || drawingBuffer.x !== fullWidth || drawingBuffer.y !== fullHeight) {
+    fullWidth = drawingBuffer.x;
+    fullHeight = drawingBuffer.y;
+    // The same CSS size back: the composer re-reads the drawing buffer from it.
+    gl.getSize(cssSize);
+    composer.setSize(cssSize.x, cssSize.y);
+  }
+  tended = composer;
+
+  // Before the size: changing the sample count can rebuild the buffer.
+  if (composer.multisampling !== quality.sceneSamples.value) {
+    composer.multisampling = quality.sceneSamples.value;
+  }
+  const input = composer.inputBuffer;
+  const scale = sceneScale.value;
+  const width = Math.max(1, Math.round(fullWidth * scale));
+  const height = Math.max(1, Math.round(fullHeight * scale));
+  if (input.width !== width || input.height !== height) input.setSize(width, height);
+  sceneBuffer.scale = scale;
+});
 </script>
 
 <template>

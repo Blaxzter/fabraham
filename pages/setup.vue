@@ -23,6 +23,23 @@
         </div>
       </section>
 
+      <!-- Graphics -->
+      <section class="setup-sec">
+        <h2 class="setup-h">{{ t("shell.setup.graphics") }}</h2>
+        <p class="setup-desc">{{ t("shell.setup.graphicsDesc") }}</p>
+        <div class="setup-seg">
+          <button
+            v-for="opt in graphicsOptions"
+            :key="opt.value"
+            class="setup-opt"
+            :class="{ active: graphics === opt.value }"
+            @click="graphics = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+      </section>
+
       <!-- Startup -->
       <section class="setup-sec">
         <h2 class="setup-h">{{ t("shell.setup.startup") }}</h2>
@@ -40,15 +57,24 @@
 </template>
 
 <script setup lang="ts">
-import type { MotionPref } from "~/composables/usePreferences";
+import type { GraphicsPref, MotionPref } from "~/composables/usePreferences";
 
-const { motion, skipBootIntro } = usePreferences();
+const { motion, skipBootIntro, graphics } = usePreferences();
 
 const { t } = useI18n();
 const localePath = useLocalePath();
 
 const motionOptions = computed<{ value: MotionPref; label: string }[]>(() =>
   (["system", "full", "reduced"] as const).map((value) => ({
+    value,
+    label: t(`shell.setup.opt.${value}`),
+  }))
+);
+
+// "auto" is the scene deciding for the device (useRenderQuality); the other two
+// pin it, for a machine it guessed wrong on.
+const graphicsOptions = computed<{ value: GraphicsPref; label: string }[]>(() =>
+  (["auto", "high", "low"] as const).map((value) => ({
     value,
     label: t(`shell.setup.opt.${value}`),
   }))

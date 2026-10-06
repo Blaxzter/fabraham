@@ -95,7 +95,11 @@ const pool: Unit[] = [];
 const createUnit = (): Unit => {
   const light = new SpotLight(0xffffff, 0, DEF_DISTANCE, DEF_ANGLE, DEF_PENUMBRA, DECAY);
   light.castShadow = false; // ASCII hides shadow detail; keep the rig cheap
-  light.visible = false;
+  // Never hidden, only dimmed to 0 (see the loop). The number of lights a pass
+  // sees is part of every program's key, so a light that switches on mid-scroll
+  // recompiles the head, the backdrop and everything else in the lit pass on
+  // that frame, which is the frame of the reveal. Planets.vue holds its lights
+  // the same way for the same reason.
   const target = new Object3D();
   light.target = target;
 
@@ -105,6 +109,11 @@ const createUnit = (): Unit => {
     blending: AdditiveBlending,
     depthWrite: false, // beams blend with each other; head still occludes them
     side: DoubleSide,
+    // Both faces in one draw. three otherwise draws a transparent double-sided
+    // mesh twice (back, then front) and flags the material dirty each time,
+    // which re-derives its program twice a frame. Additive and without depth
+    // writes, the two faces sum to the same pixels in either order.
+    forceSinglePass: true,
     opacity: 0,
   });
   const cone = new Mesh(beamGeom, coneMat);
@@ -286,7 +295,7 @@ onBeforeRender(({ elapsed }) => {
     const { light, target, cone, coneMat } = unit;
     const n = kfs.length;
     if (!n) {
-      light.visible = false;
+      light.intensity = 0;
       cone.visible = false;
       if (unit.marker) unit.marker.visible = false;
       continue;
@@ -331,7 +340,8 @@ onBeforeRender(({ elapsed }) => {
 
     light.intensity *= m;
     const lit = on && light.intensity > 0.001;
-    light.visible = lit;
+    // Off is intensity 0, not hidden: the light count must not change.
+    if (!lit) light.intensity = 0;
 
     // Volumetric beam: a cone from the source to the aim point, sized by the
     // real cone angle, fading along its length; brightness tracks the light.

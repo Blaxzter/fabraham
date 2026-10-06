@@ -894,4 +894,10 @@ button.token {
     opacity: 0.28;
   }
 }
+
+/* Low graphics tiers drop every backdrop blur (see `.gfx-low` in tailwind.css);
+   a denser ground keeps the terminal readable over the scene without it. */
+:global(.gfx-low) .terminal {
+  background: rgba(4, 10, 8, 0.86);
+}
 </style>

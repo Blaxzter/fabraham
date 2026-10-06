@@ -103,7 +103,8 @@ const props = withDefaults(defineProps<SetPieceProps>(), {
 
 const { reducedMotion } = usePreferences();
 const { pointer } = usePointer();
-const { camera, renderer } = useTresContext();
+const { renderer } = useTresContext();
+const rawCamera = useRawCamera();
 const group = shallowRef<Group | null>(null);
 
 const TAU = Math.PI * 2;
@@ -1511,7 +1512,7 @@ onBeforeRender(({ delta, elapsed }) => {
 
   // --- The DOM half ---------------------------------------------------------
   const gl = renderer.instance;
-  const cam = camera.activeCamera.value;
+  const cam = rawCamera();
   if (!gl || !cam) return;
 
   const canvas = gl.domElement;

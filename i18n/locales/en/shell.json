@@ -9,7 +9,7 @@
       "memory": "Memory: 32GB DDR5-6000 [OK]",
       "memTest": "Testing memory: {size}",
       "models": "Loading GLTF models...",
-      "shaders": "Compiling shaders [OK]",
+      "shaders": "Compiling shaders...",
       "operational": "All systems operational.",
       "booting": "Booting to home screen...",
       "loading": "Loading"
@@ -60,17 +60,22 @@
     },
     "setup": {
       "metaTitle": "Setup — Preferences {'|'} Frederic Abraham",
-      "metaDescription": "Motion and startup preferences for the site.",
+      "metaDescription": "Motion, graphics and startup preferences for the site.",
       "title": "SETUP · PREFERENCES",
       "motion": "Motion",
       "motionDesc": "Reduce animation in the 3D experience. “System” follows your OS reduced-motion setting.",
+      "graphics": "Graphics",
+      "graphicsDesc": "How much the 3D scene asks of your machine. “Auto” picks for your device and steps down if it cannot keep up; “Low” renders at a lower resolution.",
       "startup": "Startup",
       "skipBoot": "Skip the boot intro on load",
       "back": "← return to home",
       "opt": {
         "system": "System",
         "full": "Full",
-        "reduced": "Reduced"
+        "reduced": "Reduced",
+        "auto": "Auto",
+        "high": "High",
+        "low": "Low"
       }
     }
   }

@@ -144,6 +144,7 @@ const props = defineProps<{ stage?: HTMLElement | null }>();
 
 const bootState = useBootStateStore();
 const { reducedMotion } = usePreferences();
+const quality = useRenderQuality();
 const { gsap } = useGsap();
 
 const rootRef = ref<HTMLElement | null>(null);
@@ -239,7 +240,9 @@ onMounted(() => {
     });
     lensObserver.observe(lens);
   }
-  lensMap.value = buildLensMap();
+  // Not on a software rasteriser: the lens is three displacement passes over
+  // the whole picture, re-run on the CPU for every line POST prints.
+  if (!quality.software.value) lensMap.value = buildLensMap();
 
   // Power on first; POST starts once the picture has mostly opened.
   requestAnimationFrame(() => {
@@ -327,8 +330,13 @@ const handover = async () => {
   const screen = screenRef.value;
   const stage = props.stage ?? null;
 
-  if (reducedMotion.value || !root || !monitor || !screen) {
-    if (root) await gsap.to(root, { opacity: 0, duration: 0.15 });
+  // No zoom without motion, and none without a GPU. On a software rasteriser
+  // the push is the whole set rescaled and recomposited on the CPU every frame,
+  // which comes out near 20 fps on a fast machine; a fade is two layers
+  // blending, and it is smooth.
+  const software = quality.software.value;
+  if (reducedMotion.value || software || !root || !monitor || !screen) {
+    if (root) await gsap.to(root, { opacity: 0, duration: reducedMotion.value ? 0.15 : 0.5 });
     bootState.completeBootSequence();
     return;
   }

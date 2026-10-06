@@ -34,6 +34,10 @@ export const glyphTarget = shallowRef<WebGLRenderTarget | null>(null);
  */
 export const heroExit = { progress: 0 };
 
+/** The exit progress past which there is no name left: nothing is drawn into
+ *  the buffer, and the ASCII pass stops reading it. */
+export const NAME_GONE = 0.999;
+
 /**
  * Ensure the target exists at the renderer's current drawing-buffer size.
  *

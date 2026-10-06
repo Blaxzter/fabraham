@@ -9,6 +9,8 @@ import { ref, computed, watch } from "vue";
  *   head/cursor motion, and a `reduce-motion` class is mirrored onto <html> as a
  *   CSS hook).
  * - `skipBootIntro` — bypass the BIOS boot intro on load.
+ * - `graphics` — "auto" lets the scene pick its own render quality for the
+ *   device (see `useRenderQuality`); "high"/"low" pin it.
  *
  * There is no theme preference: the site is dark only (see nuxt.config.ts).
  *
@@ -17,11 +19,13 @@ import { ref, computed, watch } from "vue";
  * matches the server (preferences apply after hydration, like the boot reveal).
  */
 export type MotionPref = "system" | "reduced" | "full";
+export type GraphicsPref = "auto" | "high" | "low";
 
 const LS_KEY = "fab:prefs";
 
 const motion = ref<MotionPref>("system");
 const skipBootIntro = ref(false);
+const graphics = ref<GraphicsPref>("auto");
 const systemReduced = ref(false);
 
 let initialized = false;
@@ -33,6 +37,7 @@ function init() {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
     if (saved.motion === "reduced" || saved.motion === "full") motion.value = saved.motion;
     skipBootIntro.value = !!saved.skipBootIntro;
+    if (saved.graphics === "high" || saved.graphics === "low") graphics.value = saved.graphics;
   } catch {
     /* corrupt / blocked storage — keep defaults */
   }
@@ -43,12 +48,16 @@ function init() {
 
   // Persist on any change.
   watch(
-    [motion, skipBootIntro],
+    [motion, skipBootIntro, graphics],
     () => {
       try {
         localStorage.setItem(
           LS_KEY,
-          JSON.stringify({ motion: motion.value, skipBootIntro: skipBootIntro.value })
+          JSON.stringify({
+            motion: motion.value,
+            skipBootIntro: skipBootIntro.value,
+            graphics: graphics.value,
+          })
         );
       } catch {
         /* quota / privacy mode — ignore */
@@ -74,6 +83,7 @@ export function usePreferences() {
   return {
     motion,
     skipBootIntro,
+    graphics,
     reducedMotion: resolvedReducedMotion,
   };
 }

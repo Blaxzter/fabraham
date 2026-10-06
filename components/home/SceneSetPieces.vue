@@ -260,7 +260,8 @@ const OCCLUDED_TAG = "sp-occluded";
 // depth buffer so the occluded set-pieces test against it.
 const depthOnlyMat = new MeshBasicMaterial({ colorWrite: false });
 
-const { scene, camera, renderer } = useTresContext();
+const { scene, renderer } = useTresContext();
+const rawCamera = useRawCamera();
 const setPiecesRoot = shallowRef<Group | null>(null);
 
 // three.js recomputes the world matrix of EVERY object on every `render()`,
@@ -316,7 +317,7 @@ const { onRender } = useLoop();
 onRender(() => {
   const root = setPiecesRoot.value;
   const gl = renderer.instance;
-  const cam = camera.activeCamera.value;
+  const cam = rawCamera();
   const scn = scene.value;
   if (!root || !gl || !cam || !scn) return;
 
@@ -403,7 +404,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <TresGroup ref="setPiecesRoot">
+  <!-- Named so SceneWarmup can find the overlay's subtree and compile it the way
+       it is drawn here. -->
+  <TresGroup ref="setPiecesRoot" name="setPieces">
     <!-- One wrapper per piece, named with which layer its subtree belongs on.
          The wrapper is what makes the tagging in `onRender` robust: it is always
          exactly one child per piece, in any order, and it survives whatever

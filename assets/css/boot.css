@@ -315,6 +315,18 @@
 .boot-root .monitor.is-tuning .tube::after {
   animation: crt-flash-through 0.5s ease-out both;
 }
+/* From the handover on, the set is one compositor layer. BootScreen then scales
+   it every frame, and without this the browser repaints all of it at each new
+   scale: the room's shadow, the masked case, eight CRT overlays with a blur
+   and two blend modes. That was the stutter in the zoom, about 30 fps on a
+   desktop GPU that holds 120 on either side of it. Promoted, the picture is
+   painted once and the zoom is a transform of that texture, so the case goes
+   slightly soft as it passes the edges of the window; the scene behind it is
+   a layer of its own and stays sharp. Set here rather than on `.monitor`, so
+   the set is painted normally for as long as it is standing still. */
+.boot-root .monitor.is-tuning {
+  will-change: transform;
+}
 @keyframes crt-flash-through {
   0% {
     opacity: 0;
@@ -546,6 +558,18 @@
   transform: none;
   opacity: 1;
 }
+/* Low graphics tiers (`gfx-low` on <html>, see useRenderQuality): a still tube.
+   The flicker, the phosphor pulse and the scanline sweep each animate a layer
+   the size of the glass, so the set is recomposited sixty times a second for as
+   long as it is up. On a GPU that is nothing. Without one it is the CPU doing
+   it, in competition with the scene compiling and drawing behind the glass. */
+.gfx-low .boot-root .screen-flicker,
+.gfx-low .boot-root .crt-flicker,
+.gfx-low .boot-root .crt-phosphor-glow,
+.gfx-low .boot-root .crt-scanlines::after {
+  animation: none;
+}
+
 .boot-root.no-motion .screen-flicker,
 .boot-root.no-motion .block-cursor,
 .boot-root.no-motion .cursor-blink,

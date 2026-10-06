@@ -120,14 +120,26 @@ onMounted(() => {
 // visibility, so the value must match on server and client-first-paint.
 const contentRevealed = computed(() => !bootEnabled || bootState.bootCompleted);
 
+// What this device can draw, probed once on the client (see useRenderQuality).
+// Asked for here, before anything mounts, so the boot screen and the scene both
+// start out in the right tier.
+const quality = useRenderQuality();
+
 // Start loading the scene while the boot sequence runs (hides perceived latency).
+// Only where there is a WebGL context to draw it with: without one the canvas
+// throws on mount, and the page underneath is complete without it.
 const shouldLoadScene = computed(
   () =>
-    !bootEnabled ||
-    bootState.phase === "booting" ||
-    bootState.phase === "loading-scene" ||
-    bootState.bootCompleted
+    quality.webgl.value &&
+    (!bootEnabled ||
+      bootState.phase === "booting" ||
+      bootState.phase === "loading-scene" ||
+      bootState.bootCompleted)
 );
+// No scene will ever report ready, and the boot's handover waits for one.
+onMounted(() => {
+  if (!quality.webgl.value) bootState.markSceneReady();
+});
 
 // Meta data
 const { t } = useI18n();

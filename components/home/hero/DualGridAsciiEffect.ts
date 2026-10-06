@@ -1,7 +1,7 @@
 import { ASCIITexture, Effect } from "postprocessing";
 import { Color, DataTexture, Uniform, Vector2, Vector4 } from "three";
 import type { Texture } from "three";
-import { heroExit } from "./glyphBuffer";
+import { heroExit, NAME_GONE } from "./glyphBuffer";
 
 /**
  * The ASCII post-process, with a second grid for the hero name.
@@ -37,6 +37,7 @@ uniform float glyphGain;
 uniform float faceDuck;
 uniform float nameFeather;
 uniform float nameFeatherSpread;
+uniform float nameOn;
 uniform float nameDissolve;
 uniform float nameDissolveReach;
 uniform float nameDissolveSpread;
@@ -106,6 +107,20 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   float faceChar = asciiCharacter(uv, cellCount, faceLum);
 
+  #ifdef USE_COLOR
+  vec3 faceRgb = color * faceChar;
+  #else
+  vec3 faceRgb = faceTexel.rgb * faceChar;
+  #endif
+
+  // Past the hero there is no name, and that is nearly all of the page. Its
+  // grid is five buffer reads and a second character lookup per pixel, so it is
+  // skipped outright rather than run to composite black over the face.
+  if (nameOn < 0.5) {
+    outputColor = vec4(faceRgb, inputColor.a);
+    return;
+  }
+
   // --- the name, on its own grid -------------------------------------------
   // Every CELL of the name's grid is a fleck of it. While nameDissolve runs,
   // each one is somewhere along its own going: nameFrom is where it came from,
@@ -155,10 +170,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float nameMask = smoothstep(0.015, 0.14, nameLum);
 
   #ifdef USE_COLOR
-  vec3 faceRgb = color * faceChar;
   vec3 nameRgb = color * nameChar;
   #else
-  vec3 faceRgb = faceTexel.rgb * faceChar;
   vec3 nameRgb = nameTexel.rgb * nameChar;
   #endif
 
@@ -231,6 +244,7 @@ export class DualGridAsciiEffect extends Effect {
         ["faceDuck", new Uniform(faceDuck)],
         ["nameFeather", new Uniform(nameFeather)],
         ["nameFeatherSpread", new Uniform(nameFeatherSpread)],
+        ["nameOn", new Uniform(1)],
         ["nameDissolve", new Uniform(0)],
         ["nameDissolveReach", new Uniform(nameDissolveReach)],
         ["nameDissolveSpread", new Uniform(nameDissolveSpread)],
@@ -258,10 +272,18 @@ export class DualGridAsciiEffect extends Effect {
 
     if (value) {
       const cellCount = value.cellCount;
-      this.defines.set("CHAR_COUNT_MINUS_ONE", (value.characterCount - 1).toFixed(1));
-      this.defines.set("TEX_CELL_COUNT", cellCount.toFixed(1));
-      this.defines.set("INV_TEX_CELL_COUNT", (1 / cellCount).toFixed(9));
-      this.setChanged();
+      const next: [string, string][] = [
+        ["CHAR_COUNT_MINUS_ONE", (value.characterCount - 1).toFixed(1)],
+        ["TEX_CELL_COUNT", cellCount.toFixed(1)],
+        ["INV_TEX_CELL_COUNT", (1 / cellCount).toFixed(9)],
+      ];
+      // Only a different LAYOUT is a different shader. The sheet is redrawn for
+      // every step of the font-size ramp, with the same characters in the same
+      // grid, and `setChanged` makes the pass rebuild its program each time.
+      if (next.some(([name, v]) => this.defines.get(name) !== v)) {
+        for (const [name, v] of next) this.defines.set(name, v);
+        this.setChanged();
+      }
     }
   }
 
@@ -334,9 +356,13 @@ export class DualGridAsciiEffect extends Effect {
    * that, called by the EffectPass right before the fullscreen draw. Reading it
    * here rather than in a render-loop callback also means it is always THIS
    * frame's value, whatever order the components mounted in.
+   *
+   * `nameOn` is the same threshold `HeroGlyphs` stops drawing at, so the shader
+   * drops the name's grid on the frame the name stops existing.
    */
   override update() {
     this.uniforms.get("nameDissolve")!.value = heroExit.progress;
+    this.uniforms.get("nameOn")!.value = heroExit.progress < NAME_GONE ? 1 : 0;
   }
 
   get color(): Color | null {

@@ -36,6 +36,16 @@ const out = computed(() => clamp01((store.heroProgress - 0.86) / 0.14));
 
 const accent = computed(() => props.section?.accent ?? "#00ff9c");
 
+// Where there is no WebGL there is no scene, and the name is part of the scene.
+// Then it is set in the DOM, above the entry it belongs to. Decided after mount:
+// the probe is client-only, and the first client render has to match the
+// server's (see the note on `reducedMotion` in docs/scroll-3d-architecture.md).
+const quality = useRenderQuality();
+const plainName = ref(false);
+onMounted(() => {
+  plainName.value = !quality.webgl.value;
+});
+
 // ---------------------------------------------------------------------------
 // Tunables — dev panel → scenes tab → "identity" → "Hero entry", saved to
 // tuning.config.json by the panel's "save to config file".
@@ -110,6 +120,11 @@ const defStyle = computed(() => ({
 
   <!-- The entry, under the name the scene is assembling above it. -->
   <div class="hero-entry" :style="entryVars" aria-hidden="false">
+    <!-- The name, only where the scene cannot draw it. Hidden from assistive
+         tech: the heading above already says it. -->
+    <p v-if="plainName" class="he-name" :style="{ opacity: 1 - out }" aria-hidden="true">
+      Frederic Abraham
+    </p>
     <!-- One line, in the shape a dictionary gives a compound: the coinage, its
          transcription, then the noun it attaches to. The NOUN is the point —
          "fullest-stack" on its own is an adjective, and an adjective never says
@@ -169,6 +184,23 @@ const defStyle = computed(() => ({
   /* The reveal is driven per-element from heroProgress; the transition only
      smooths the gap between scroll ticks. */
   will-change: opacity, transform;
+}
+
+/* The scene's name, in type. Hung above the block rather than set in its flow,
+   so the entry stays where the composition put it. */
+.he-name {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin: 0 0 0.35em;
+  font-size: clamp(2.1rem, 7.2vw, 6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #eef3ea;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .he-headword {

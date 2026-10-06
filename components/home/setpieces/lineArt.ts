@@ -12,6 +12,7 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { ColorRepresentation } from "three";
+import { useRenderQuality } from "~/composables/useRenderQuality";
 
 /**
  * Shared vocabulary for the line-art set-pieces.
@@ -303,11 +304,26 @@ export const createLinkPool = (
  * Reach for this when a piece needs weight, and for `createLines` otherwise —
  * a hairline is one draw call and one vertex pair per segment, which is still
  * the right default for the dense fields most of these backdrops are made of.
+ *
+ * On a software rasteriser a fat line IS a hairline
+ * ------------------------------------------------
+ * The weight is paid for in the vertex shader: four runs of a long program per
+ * segment, where a hairline is two runs of a trivial one. A GPU does not notice.
+ * A CPU rasteriser does: the projects vine is ~18,000 segments, and drawing them
+ * fat took it 75 ms a frame, five times everything else on screen put together.
+ *
+ * So where WebGL is being drawn on the CPU (`useRenderQuality().software`),
+ * `createFatLines` hands back plain line segments behind the same interface.
+ * Less is lost than it sounds, because that tier also renders at roughly half
+ * the pixel ratio: one device pixel there is nearly two CSS pixels wide, which
+ * is the width most of these fields ask for anyway. The thick ones (the stem's
+ * core, the boughs) come out thinner, and that is the trade.
  */
 export interface FatLineField {
-  lines: LineSegments2;
-  geometry: LineSegmentsGeometry;
-  material: LineMaterial;
+  lines: LineSegments2 | LineSegments;
+  /** `instanceCount` is the number of segments drawn, on either kind. */
+  geometry: (LineSegmentsGeometry | BufferGeometry) & { instanceCount: number };
+  material: LineMaterial | LineBasicMaterial;
   /** `[ax,ay,az, bx,by,bz, …]` — the live buffer. Mutate, then `flush()`. */
   position: Float32Array;
   segmentCount: number;
@@ -325,6 +341,8 @@ export const createFatLines = (
     width?: number;
   }
 ): FatLineField => {
+  if (useRenderQuality().software.value) return createThinLines(positions, opts);
+
   const geometry = new LineSegmentsGeometry();
   // `setPositions` keeps a Float32Array BY REFERENCE (it only wraps it in an
   // InstancedInterleavedBuffer, and the interleaved layout is exactly the
@@ -361,6 +379,42 @@ export const createFatLines = (
       geometry.dispose();
       material.dispose();
     },
+  };
+};
+
+/**
+ * `createFatLines`' stand-in on a software rasteriser: the same buffer as
+ * one-pixel line segments.
+ *
+ * The fat geometry is instanced, and pieces reveal it by writing
+ * `geometry.instanceCount`. A plain geometry has a draw range instead, so it is
+ * given an `instanceCount` of its own that sets one: two vertices per segment.
+ */
+const createThinLines = (
+  positions: Float32Array,
+  opts: { color: ColorRepresentation; opacity?: number }
+): FatLineField => {
+  const field = createLines(positions, opts);
+  const segmentCount = positions.length / 6;
+  let shown = segmentCount;
+  const geometry = Object.defineProperty(field.geometry, "instanceCount", {
+    get: () => shown,
+    set: (count: number) => {
+      shown = Math.max(0, Math.min(segmentCount, Math.floor(count)));
+      field.geometry.setDrawRange(0, shown * 2);
+    },
+  }) as BufferGeometry & { instanceCount: number };
+
+  return {
+    lines: field.lines,
+    geometry,
+    material: field.material,
+    position: positions,
+    segmentCount,
+    flush() {
+      field.attr.needsUpdate = true;
+    },
+    dispose: field.dispose,
   };
 };
 
@@ -533,9 +587,19 @@ export const createDots = (
   };
 };
 
-/** Point size attenuates against the drawing buffer height (three's convention). */
+/**
+ * Point size attenuates against the canvas height (three's convention).
+ *
+ * `heightPx` is the height in CSS pixels, which is what every piece has to hand,
+ * and `gl_PointSize` is in DEVICE pixels. `renderScale` covers the case where
+ * those have been pulled apart on purpose: a quality tier or the governor has
+ * cut the canvas' pixel ratio below the display's (see `useRenderQuality`), and
+ * without it every dot on the page would grow by exactly that cut. Reactive, so
+ * a caller inside a `watchEffect` re-runs when the ratio changes.
+ */
 export const setDotScale = (field: DotField, heightPx: number) => {
-  field.material.uniforms.uScale!.value = Math.max(1, heightPx) * 0.5;
+  field.material.uniforms.uScale!.value =
+    Math.max(1, heightPx) * 0.5 * useRenderQuality().renderScale.value;
 };
 
 /** The props every milestone backdrop takes (see SceneSetPieces). */

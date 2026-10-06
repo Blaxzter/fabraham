@@ -13,8 +13,9 @@ import { h, resolveComponent, cloneVNode, type VNode } from "vue";
 
 /**
  * The POST screen. Eleven lines, and the length is set by the load, not a
- * script: the memory test counts the head model's bytes as they arrive and the
- * model line holds until the scene says it is ready. On a fast connection the
+ * script: the memory test counts the head model's bytes as they arrive, the
+ * model line holds until it is parsed and the shader line until the scene has
+ * compiled what it draws with. On a fast connection and a fast machine the
  * whole thing is about three seconds; on a slow one it stretches, and the
  * visitor can see why. A cached visit still gets `MIN_ON_SCREEN_MS` so it does
  * not flash. Any key, click, tap or scroll skips to the end. Every visit runs
@@ -78,7 +79,16 @@ const memLine: Line = () =>
 const modelLine: Line = () =>
   h(BootTextComponent, {
     animate: true,
-    text: `${t("shell.boot.models")}${bootState.sceneReady ? " [OK]" : ""}`,
+    text: `${t("shell.boot.models")}${bootState.modelReady ? " [OK]" : ""}`,
+    color: "green",
+  });
+// True as well: the scene compiles its shaders behind the monitor (SceneWarmup)
+// and this line holds until they are done, so the handover does not start on a
+// machine that is still busy building what it is about to show.
+const shaderLine: Line = () =>
+  h(BootTextComponent, {
+    animate: true,
+    text: `${t("shell.boot.shaders")}${bootState.sceneReady ? " [OK]" : ""}`,
     color: "green",
   });
 
@@ -104,8 +114,8 @@ const steps: Step[] = [
   { line: T("shell.boot.memory", "green"), wait: 0.15 },
   { line: BR },
   { line: memLine, enter: startMemTicker, wait: () => memDone.value },
-  { line: modelLine, wait: () => bootState.sceneReady },
-  { line: T("shell.boot.shaders", "green"), wait: 0.15 },
+  { line: modelLine, wait: () => bootState.modelReady },
+  { line: shaderLine, wait: () => bootState.sceneReady },
   { line: BR },
   { line: T("shell.boot.operational", "green", true), wait: 0.25 },
   { line: T("shell.boot.booting", "cyan"), wait: 0.35 },
