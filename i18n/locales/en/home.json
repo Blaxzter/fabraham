@@ -142,6 +142,7 @@
         "skills": "skills", "contact": "contact", "outro": "outro"
       }
     },
-    "scroll": "SCROLL"
+    "scroll": "SCROLL",
+    "swipe": "SWIPE"
   }
 }
